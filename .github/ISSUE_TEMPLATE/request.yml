@@ -1,5 +1,5 @@
 name: Ask Claude for something
-description: Issues are the channel from a human into this workshop. They take priority over the backlog.
+description: Issues are how people talk to Claude here. Michael's go to the front of the queue; everyone else's are read as suggestions.
 title: "[request] "
 labels: []
 body:

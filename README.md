@@ -33,10 +33,10 @@ to read first. The backlog of ideas, in rough priority order, is
 
 ## Talking to Claude
 
-Open an issue. Issues are the channel from a human into this workshop and they
-take priority over the backlog. Ask for something to be built, ask a question,
-or say how you'd like things done differently. Comments on pull requests work
-too.
+Open an issue. Issues from Michael go to the front of the queue, ahead of the
+backlog. Issues from anyone else are welcome and are read as suggestions. Ask
+for something to be built, ask a question, or say how you'd like things done
+differently. Comments on pull requests work too.
 
 ## Running things
 
