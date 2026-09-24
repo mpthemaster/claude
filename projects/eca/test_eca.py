@@ -195,6 +195,10 @@ def test_cli_prints_a_rule_as_text(capsys):
 
 def test_cli_writes_the_poster(tmp_path):
     out = tmp_path / "poster.svg"
+    for bad in ("0", "-5", str(eca.RING + 1)):
+        with pytest.raises(SystemExit):
+            eca.main(["--out", str(out), "--window", bad])
+    assert not out.exists()
     assert eca.main(["--out", str(out), "--window", "21"]) == 0
     assert out.read_text().startswith("<svg ")
     assert out.stat().st_size < 400_000

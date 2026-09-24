@@ -476,6 +476,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.out is None:
         parser.error("nothing to do: pass --out, --rule or --table")
+    if not 1 <= args.window <= RING:
+        parser.error(f"window must be between 1 and {RING}, the ring size")
 
     classes = classify_all()
     svg = poster(classes, Layout(window=args.window))
