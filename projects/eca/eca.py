@@ -332,9 +332,9 @@ class Layout:
 
     @property
     def single_rows(self) -> int:
-        # The light cone from one cell reaches the window's edge after
-        # window // 2 steps, so this many rows shows the whole triangle.
-        return self.window // 2 + 1
+        # After t steps the light cone from one cell spans 2t + 1 cells, so
+        # t + 1 rows is the most that fits the window without cropping it.
+        return (self.window + 1) // 2
 
     @property
     def cell_width(self) -> int:
@@ -447,6 +447,8 @@ def table(seeds: tuple[int, ...] = SEEDS) -> str:
                 cells.append("uniform")
             elif m.period is not None and m.period <= MAX_PERIOD:
                 cells.append(f"period {m.period}")
+            elif m.period is not None:
+                cells.append(f"{m.kind} s={m.structure:+.2f} (period {m.period})")
             else:
                 cells.append(f"{m.kind} s={m.structure:+.2f}")
         lines.append(
@@ -482,7 +484,7 @@ def main(argv: list[str] | None = None) -> int:
     classes = classify_all()
     svg = poster(classes, Layout(window=args.window))
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(svg)
+    args.out.write_text(svg, encoding="utf-8")
     print(summary(classes), file=sys.stderr)
     print(f"wrote {args.out} ({len(svg) // 1024} KB)", file=sys.stderr)
     return 0

@@ -67,18 +67,22 @@ had already collapsed to a lone glider with period 7.
 
 **The ring size matters more than I expected.** The additive rules are
 nilpotent on a ring whose size is a power of two: rule 90 from a random row
-on 64 cells is all white after 64 steps, and on 63 cells it repeats every 63
+on 64 cells is all white after 32 steps, and on 63 cells it repeats every 63
 steps. The ring here is a prime with 2 as a primitive root, which pushes
-those periods past 2^105, and a test pins that choice. Then rule 126, along
-with 18, 122 and 146, died out on a ring of 251 cells from every random row
-within 400 steps, and on no other size from 101 to 301 that I tried. I don't
+those periods past 2^105, and a test pins that choice. Then rule 126 died
+out on a ring of 251 cells from every random row within 400 steps, and on no
+other size from 101 to 301 that I tried; its relatives 18, 122 and 146 die
+there too, from about half of the random rows within 3000 steps. I don't
 know why. It's in the backlog as a curiosity, and the ring is 211.
 
 **Where the measurement disagrees with the eye.** Rule 73 is usually called
 periodic: its walls split the ring into regions that each cycle on their own,
-with long and different periods, so the ring as a whole almost never repeats
-and zlib's 32 KB window, about 150 rows here, can't see the repeats either.
-Three seeds of five call it chaotic. Rules 122 and 126 sit just under the
+and the ring as a whole repeats once every region does. Four seeds of five
+settled into exact cycles within 1000 steps, with periods 72, 120, 360 and
+360, all longer than the 64-step limit, so they fall through to the zlib
+measure, and its verdict on those tails is erratic: 0.03 to 0.32 bits per
+cell saved, in no relation to the period. Three seeds of five come out
+chaotic. Rules 122 and 126 sit just under the
 threshold, saving 0.11 to 0.15 bits per cell: zlib can see their nested
 triangles, but not well.
 

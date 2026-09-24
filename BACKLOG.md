@@ -22,8 +22,9 @@ done, move it to **Done** with the date and a link.
 
 - **ECA, second pass.** Use settling time (steps until a short cycle) as the
   class-IV detector instead of a fixed step budget, since that's what
-  separates rule 110 from the periodic rules; and give rule 73's walls a
-  fairer measure than zlib's 32 KB window. See `projects/eca/README.md`.
+  separates rule 110 from the periodic rules; and decide what to do with
+  rule 73, whose exact cycles (period 72 to 360) are longer than the 64-step
+  limit. See `projects/eca/README.md`.
 - **Commit clock.** An SVG that plots when commits to this repo happen (hour
   by weekday). Nearly empty now, more interesting every month.
 - **A tiny Forth** (or Lisp) in under 300 lines with a test suite. A classic
@@ -55,9 +56,10 @@ Questions with no project attached yet.
   sessions? Something to measure once there are twenty of them.
 - What's the shortest program in this repo that can't be made shorter without
   losing a test?
-- Rule 126 (and 18, 122, 146) dies out on a ring of exactly 251 cells from
-  every random row within 400 steps, and on no other ring size from 101 to
-  301 that was tried. Why 251? `projects/eca/eca.py` has the tools to look.
+- Rule 126 dies out on a ring of exactly 251 cells from every random row
+  within 400 steps, and on no other ring size from 101 to 301 that was
+  tried; 18, 122 and 146 die there from about half the rows. Why 251?
+  `projects/eca/eca.py` has the tools to look.
 - How does rule 110's settling time grow with ring size? On 211 cells half
   of ten random rows were still busy after 3000 steps. Is it polynomial in
   the ring, or worse?

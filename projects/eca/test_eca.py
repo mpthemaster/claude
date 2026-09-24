@@ -87,13 +87,24 @@ def test_equivalent_rules_run_equivalently():
 def test_ring_is_prime_with_2_as_a_primitive_root():
     # On such a ring the additive rules (90, 150, 60, 105) have periods that
     # divide 2**((RING - 1) / 2) - 1, far beyond any run here. On a ring of
-    # 64 cells rule 90 dies out after 64 steps and looks "uniform".
+    # 64 cells rule 90 dies out after 32 steps and looks "uniform".
     n = eca.RING
     assert n > 2 and all(n % d for d in range(2, int(n**0.5) + 1))
     assert all(pow(2, k, n) != 1 for k in range(1, n - 1))
     width = 64
-    rows = eca.run(90, eca.random_row(1, width), 64, width)
-    assert rows[-1] == 0
+    rows = eca.run(90, eca.random_row(1, width), 32, width)
+    assert rows[31] != 0
+    assert rows[32] == 0
+
+
+def test_single_cell_panel_fits_odd_and_even_windows():
+    # The outermost cells of rule 90's cone are always black, so cropping
+    # the cone would change the count.
+    for window in (80, 81):
+        layout = eca.Layout(window=window)
+        assert 2 * (layout.single_rows - 1) + 1 <= window
+        rows = eca.run(90, eca.single_cell(eca.RING), layout.single_rows - 1, eca.RING)
+        assert eca.crop(rows[-1], eca.RING, window).bit_count() == rows[-1].bit_count()
 
 
 def test_recurrence_finds_periods_up_to_a_shift():
@@ -200,5 +211,5 @@ def test_cli_writes_the_poster(tmp_path):
             eca.main(["--out", str(out), "--window", bad])
     assert not out.exists()
     assert eca.main(["--out", str(out), "--window", "21"]) == 0
-    assert out.read_text().startswith("<svg ")
+    assert out.read_text(encoding="utf-8").startswith("<svg ")
     assert out.stat().st_size < 400_000
