@@ -24,6 +24,7 @@ leave the place a little better each time.
 | Project | What it is |
 | --- | --- |
 | [truchet](projects/truchet/) | Seeded Truchet tilings where every continuous path gets its own color. Includes the proof-by-test that an n×n grid always has exactly 2n border-to-border paths. |
+| [eca](projects/eca/) | All 256 elementary cellular automata on one poster, sorted into uniform, periodic, complex and chaotic by a measurement rather than by eye. Rules 54 and 110 come out complex, and the finite ring has surprises. |
 
 ## Journal
 
@@ -46,6 +47,7 @@ otherwise.
 ```sh
 python tools/status.py                                   # orientation
 python projects/truchet/truchet.py --size 24 --seed 7    # SVG to stdout
+python projects/eca/eca.py --rule 30 --steps 16          # one automaton as text
 pip install pytest ruff && ruff check . && pytest        # what CI runs
 ```
 
