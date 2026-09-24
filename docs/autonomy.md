@@ -8,16 +8,16 @@ request, merge, stop.
 
 ## The Routine
 
-- **Status:** not yet created as of 2026-09-24. A session tried to create it
-  with the `create_trigger` tool and the harness's permission check declined,
-  so Michael creates it himself from the Routines list in the Claude app:
-  repository `mpthemaster/claude`, a fresh session each run, and the prompt
-  below. Update this line once it exists.
-- **Cadence:** proposed daily at 11:00 UTC (07:00 in Connecticut during
-  daylight time, 06:00 otherwise), so a pull request is usually waiting in
-  the morning.
+- **Status:** created by Michael from the Claude app on 2026-09-24, named
+  "Claude Autonomous Workshop". (A session had tried to create it with the
+  `create_trigger` tool and the harness's permission check declined, which
+  is why it was done by hand.)
+- **Cadence:** daily at 03:00 UTC. The schedule is stored in UTC, so that is
+  11 PM in Connecticut during daylight time and 10 PM otherwise. A pull
+  request is usually waiting in the morning.
 - **Mode:** fresh session per firing. Nothing carries between sessions except
-  this repository.
+  this repository. Michael gets a push notification when a run finishes with
+  something to report.
 - **Pause, change, or stop:** from the Routines list in the Claude app. It
   can also be changed by asking a session (an issue is enough), which uses the
   `update_trigger` tool. Every firing spends usage on Michael's plan, so the

@@ -27,9 +27,13 @@ Do these in order, every session.
    close it.
 3. **Check for unfinished business.** If an earlier session left a pull
    request open, deal with that first: merge it if CI is green, otherwise fix
-   what's blocking it. If CI is red on `main`, fixing that comes before any
-   backlog work. Don't start new work on top of unmerged work; it will
-   conflict.
+   what's blocking it. The same goes for a `claude/*` branch on the remote
+   that is ahead of `main` with no pull request (check with `git fetch --all`
+   and `git branch -r --no-merged main`): open its pull request and finish
+   it. Pull requests opened by GitHub's own bots (Dependabot, for example)
+   count as requests: review the change and merge it if CI is green. If CI
+   is red on `main`, fixing that comes before any backlog work. Don't start
+   new work on top of unmerged work; it will conflict.
 4. **Pick one thing.** From Michael's issues first, then the "Now" section of
    the backlog. One thing finished beats three things started. Prefer
    something you can complete with tests in one sitting. If an item is too
@@ -44,7 +48,10 @@ Do these in order, every session.
    journal entry in `journal/YYYY-MM-DD.md` (append if the file exists). Run
    `ruff check . && ruff format --check . && pytest`. Commit with a clear
    message, push your branch, open a pull request against `main`, wait for
-   CI to pass, and squash-merge it. Then stop.
+   CI to pass, and squash-merge it. If the merge is refused because the
+   branch is behind `main`, merge `main` into your branch, let CI run again,
+   and merge. If a review comment from Michael is waiting, address it and
+   resolve the thread first. Then stop.
 
 Budget: aim for one to two hours of focused work per session, and leave the
 tree green. If you run out of time mid-task, commit what you have, open the
@@ -105,5 +112,8 @@ Node 22, Go, and Rust available. If pytest or ruff are missing, run
 `/opt/pw-browsers/chromium-*/chrome-linux/chrome` for screenshotting an SVG or
 HTML file (`--headless=new --no-sandbox --screenshot=out.png file://...`),
 which is how you can look at what you made. GitHub is reached through the
-GitHub connector tools (create a pull request, read checks, merge), not the
-`gh` CLI.
+GitHub connector tools (create a pull request, read checks, merge) when the
+session has them, or the `gh` CLI when it has that instead. If neither can
+open or merge a pull request, push the branch, say so in the journal entry
+on that branch, and stop; the next session will find the branch and finish
+it.
