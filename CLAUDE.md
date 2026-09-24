@@ -30,8 +30,9 @@ step 6. This file stays the source of truth.
 3. **Check for unfinished business.** If an earlier session left a pull
    request open, deal with that first. If it's a draft, that session ran out
    of time: read its journal entry on that branch, finish what it says is
-   left, mark the pull request ready, and take it through the review and
-   merge steps below. If it's not a draft, merge it if CI is green and its
+   left, and take it through the whole of step 6, marking the existing pull
+   request ready instead of opening a new one. If it's not a draft, merge it
+   if CI is green and its
    review threads are handled, otherwise fix what's blocking it. The same
    goes for a `claude/*` branch on the remote that is ahead of `main` with
    no pull request (check with `git fetch origin` and
@@ -63,8 +64,8 @@ step 6. This file stays the source of truth.
    and push, and reply in one line to what isn't; a comment from Michael is
    addressed the same way, with a reply. Resolve the threads you handled,
    then squash-merge. If the merge is refused because the branch is behind
-   `main`, run `git fetch origin main && git merge origin/main`, let CI run
-   again, and merge. If the work came from an issue, comment there with what
+   `main`, run `git fetch origin main && git merge origin/main`, push with
+   `bash tools/push.sh`, let CI run again, and merge. If the work came from an issue, comment there with what
    was done and close it. Then stop; the merged branch is deleted
    automatically and needs no further push.
 

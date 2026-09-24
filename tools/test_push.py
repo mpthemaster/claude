@@ -52,3 +52,39 @@ def test_refuses_any_arguments(repo):
         result = run_push(repo, *args)
         assert result.returncode == 1, args
         assert "no arguments" in result.stderr
+
+
+def test_tag_with_the_branch_name_does_not_block_the_push(repo):
+    git("checkout", "-q", "-b", "claude/same", cwd=repo)
+    git("tag", "claude/same", cwd=repo)
+    (repo / "h").write_text("z\n")
+    git("add", "h", cwd=repo)
+    git("commit", "-q", "-m", "h", cwd=repo)
+    result = run_push(repo)
+    assert result.returncode == 0, result.stderr
+    heads = git("ls-remote", "--heads", "origin", cwd=repo).stdout
+    assert "refs/heads/claude/same" in heads
+
+
+def test_destination_is_always_a_branch(repo):
+    # An odd ref on the origin with the same short name must not become the
+    # destination; the push goes to refs/heads and leaves the odd ref alone.
+    origin = repo.parent / "origin.git"
+    main_sha = git("rev-parse", "HEAD", cwd=repo).stdout.strip()
+    git("update-ref", "refs/claude/odd", main_sha, cwd=origin)
+    git("checkout", "-q", "-b", "claude/odd", cwd=repo)
+    (repo / "i").write_text("w\n")
+    git("add", "i", cwd=repo)
+    git("commit", "-q", "-m", "i", cwd=repo)
+    result = run_push(repo)
+    assert result.returncode == 0, result.stderr
+    refs = git("ls-remote", "origin", cwd=repo).stdout
+    assert "refs/heads/claude/odd" in refs
+    assert f"{main_sha}\trefs/claude/odd" in refs
+
+
+def test_refuses_detached_head(repo):
+    git("checkout", "-q", "--detach", cwd=repo)
+    result = run_push(repo)
+    assert result.returncode == 1
+    assert "refusing" in result.stderr

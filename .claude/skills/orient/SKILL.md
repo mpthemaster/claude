@@ -24,8 +24,9 @@ Steps 1 to 4 of the session procedure in `CLAUDE.md`, as a checklist.
 4. **Unfinished business**, in this order.
    - A pull request from an earlier session. If it's a draft, that session
      ran out of time: read its journal entry on that branch, finish what it
-     says is left, mark the pull request ready, then take it through
-     `/close-out` from the review step. If it's not a draft, merge it if CI
+     says is left, then take it through the whole of `/close-out`, which
+     marks the existing draft ready instead of opening a new pull request.
+     If it's not a draft, merge it if CI
      is green and its review threads are handled; otherwise fix what's
      blocking it.
    - A remote `claude/*` branch ahead of `main` with no pull request
