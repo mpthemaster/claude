@@ -114,22 +114,26 @@ def fit(cells: dict[Cell, str], word: str, row: int, col: int, across: bool) -> 
     grid, when the cell before the first letter or after the last one is taken
     (the word would run into another), or when a newly written letter would
     touch a letter beside it (two words would read as one the solver never
-    asked for). A word lying entirely on existing letters is refused too.
+    asked for). Two consecutive cells that are both already filled belong to
+    one word running the same way, so a word lying along another (BOB inside
+    BOBBY) is refused as well, as is a word lying entirely on existing letters.
     """
     dr, dc = (0, 1) if across else (1, 0)
     n = len(word)
     if (row - dr, col - dc) in cells or (row + dr * n, col + dc * n) in cells:
         return None
     crossings = 0
+    previous_filled = False
     for i, letter in enumerate(word):
         r, c = row + dr * i, col + dc * i
         existing = cells.get((r, c))
         if existing is not None:
-            if existing != letter:
+            if existing != letter or previous_filled:
                 return None
             crossings += 1
         elif (r + dc, c + dr) in cells or (r - dc, c - dr) in cells:
             return None
+        previous_filled = existing is not None
     if crossings == n:
         return None
     return crossings

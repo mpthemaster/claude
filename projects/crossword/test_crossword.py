@@ -80,6 +80,11 @@ def test_fit_counts_crossings_and_refuses_what_would_misread():
     assert cw.fit(cells, "PETE", 0, -4, True) is None
     # LAURA on top of itself adds nothing.
     assert cw.fit(cells, "LAURA", 0, 0, True) is None
+    # A word lying along another in the same direction is not a crossing:
+    # the reviewer found BOB inside BOBBY placed this way on a few seeds.
+    assert cw.fit(grid_from("BOB"), "BOBBY", 0, 0, True) is None
+    assert cw.fit(grid_from("ANDY"), "CANDY", 0, -1, True) is None
+    assert cw.fit(grid_from("ANDY", 0, 0, False), "CANDY", -1, 0, False) is None
     # Far away: legal in itself, but no crossing, which build() refuses.
     assert cw.fit(cells, "PETE", 3, 0, True) == 0
 
@@ -97,9 +102,11 @@ def test_fit_allows_a_word_through_a_crossing_on_a_fresh_row():
 def test_build_reads_back_exactly_the_placed_words():
     # Every maximal run of two or more letters in the grid must be one of the
     # placed answers, and every placed answer must be such a run.
+    # Every seed the default search looks at, since seeds 107, 116, 134 and
+    # 178 once laid BOB along BOBBY and a sweep of six never saw it.
     for text in (SMALL, cw.DEFAULT_WORDS.read_text(encoding="utf-8")):
         entries = cw.parse_entries(text)
-        for seed in range(6):
+        for seed in range(cw.DEFAULT_TRIES):
             puzzle = cw.build(entries, seed)
             placed = {((p.row, p.col), p.across, p.entry.letters) for p in puzzle.placements}
             assert set(cw.runs(puzzle.cells)) == placed, seed

@@ -33,12 +33,14 @@ letters, 45 crossings (21% of cells checked)`.
 
 - **Placement rules.** A word may go where every letter agrees with what is
   already there, where the cell before its first letter and after its last
-  are free, and where each newly written letter has nothing beside it. It
-  must also cross at least one placed word (the first word is exempt).
-  Those rules mean every maximal run of two or more letters in the grid is
-  exactly one of the answers, which is the thing a solver relies on.
-  `test_build_reads_back_exactly_the_placed_words` extracts every run from
-  the finished grid and checks.
+  are free, where each newly written letter has nothing beside it, and
+  where it never lies along another word the same way (BOB inside BOBBY is
+  not a crossing). It must also cross at least one placed word (the first
+  word is exempt). Those rules mean every maximal run of two or more
+  letters in the grid is exactly one of the answers, which is the thing a
+  solver relies on. `test_build_reads_back_exactly_the_placed_words`
+  extracts every run from the finished grid and checks, on every seed the
+  search uses.
 - **Building.** Words go in roughly longest first, with the seed jittering
   the order. Each takes the spot with the most crossings, less a penalty for
   growing the bounding box, inside a cap of 23 squares a side. Words that
