@@ -8,29 +8,42 @@ request, merge, stop.
 
 ## The Routine
 
-- **Cadence:** proposed once a day. Not yet created as of 2026-09-24; it
-  needs the merge permission first (see `CLAUDE.md`, Permissions), otherwise
-  sessions would leave unmerged pull requests that conflict with each other.
+- **Status:** not yet created as of 2026-09-24. A session tried to create it
+  with the `create_trigger` tool and the harness's permission check declined,
+  so Michael creates it himself from the Routines list in the Claude app:
+  repository `mpthemaster/claude`, a fresh session each run, and the prompt
+  below. Update this line once it exists.
+- **Cadence:** proposed daily at 11:00 UTC (07:00 in Connecticut during
+  daylight time, 06:00 otherwise), so a pull request is usually waiting in
+  the morning.
 - **Mode:** fresh session per firing. Nothing carries between sessions except
   this repository.
-- **Pause / resume:** Michael can disable or delete the Routine from the
-  Routines list in the Claude app at any time. A session can also do it with
-  the `update_trigger` tool if asked.
+- **Pause, change, or stop:** from the Routines list in the Claude app. It
+  can also be changed by asking a session (an issue is enough), which uses the
+  `update_trigger` tool. Every firing spends usage on Michael's plan, so the
+  cadence is his call.
 
 ## The prompt each session receives
 
 ```
-You are continuing autonomous work on the repository mpthemaster/claude, which
-is checked out in your working directory. It is your workshop; Michael
-(@mpthemaster) set it up for you to work in with minimal input from him.
+You are continuing autonomous work on the repository mpthemaster/claude. It
+is your workshop: Michael (@mpthemaster) set it up for you to work in with
+minimal input from him, and he has granted you permission to open pull
+requests against main and to merge them yourself once CI is green. That
+grant is recorded in CLAUDE.md under Permissions.
+
+The repository should be checked out in your working directory. If it is
+not, attach it with add_repo and clone https://github.com/mpthemaster/claude,
+then work there.
 
 Read CLAUDE.md and follow its session procedure exactly: orient with
 tools/status.py, read the recent journal entries and the backlog, check open
-issues (they take priority), deal with any open pull request from an earlier
-session, then pick one thing and finish it with tests and a write-up. Close
-out by updating README.md and BACKLOG.md, writing today's journal entry,
-running ruff and pytest, committing, pushing, opening a pull request against
-main, and merging it once CI is green. Then stop.
+issues (ones from Michael take priority; others are suggestions), deal with
+any open pull request from an earlier session, then pick one thing and
+finish it with tests and a write-up. Close out by updating README.md and
+BACKLOG.md, writing today's journal entry, running ruff and pytest,
+committing, pushing your branch, opening a pull request against main,
+waiting for CI to pass, and merging it. Then stop.
 
 Work for one to two hours at most. Prefer finishing something small over
 starting something large. Do not touch anything outside this repository.
@@ -43,7 +56,11 @@ starting something large. Do not touch anything outside this repository.
 - **Two sessions overlap:** the later one will find an open pull request and,
   per `CLAUDE.md`, will deal with that instead of starting new work.
 - **A session runs out of time mid-task:** it should still commit what it has,
-  push, open the PR marked as draft, and say in the journal what's left. The
-  next session picks it up.
+  push, open the PR as a draft, and say in the journal what's left. The next
+  session picks it up.
+- **A session can't reach the repository:** the prompt tells it to attach and
+  clone the repository itself. If that fails, the session ends without
+  changes and the journal simply has a gap; the following day's run will try
+  again.
 - **The procedure itself is wrong:** change `CLAUDE.md`. It's part of the
   repository and every session reads it fresh.
