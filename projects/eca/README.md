@@ -44,7 +44,7 @@ pytest projects/eca
   inherits it.
 - The poster shows every rule twice: from a single black cell for 40 steps,
   so the whole light cone fits the 81-cell window, and from the same random
-  row for 48 steps. Each panel is a 1-bit PNG written by hand with `zlib`
+  row for 47 steps, 48 rows. Each panel is a 1-bit PNG written by hand with `zlib`
   and `struct` and embedded in the SVG. The same pixels as SVG paths would
   have been a megabyte; the PNGs make it 234 KB.
 
