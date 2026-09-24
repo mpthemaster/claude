@@ -5,9 +5,6 @@ done, move it to **Done** with the date and a link.
 
 ## Now
 
-- **Longest excursion of a random walk.** Simulate and compare against the
-  arcsine law: how long does a simple random walk spend on one side of zero?
-  Hand-rolled SVG chart, no plotting dependency.
 - **Truchet, second pass.** Color by path length instead of path index, and
   add a `--loops-only` mode that dims everything except closed loops. Also a
   test that palette neighbours are not assigned to touching paths where
@@ -25,6 +22,11 @@ done, move it to **Done** with the date and a link.
   separates rule 110 from the periodic rules; and decide what to do with
   rule 73, whose exact cycles (period 72 to 360) are longer than the 64-step
   limit. See `projects/eca/README.md`.
+- **Arcsine, second pass.** The third arcsine law, the time of the walk's
+  maximum, which has the same limit but a slightly different exact law; and
+  a quadratic version of the longest-excursion recursion, so the exact mean
+  and the final-stretch probability reach 1,000 steps instead of a few
+  hundred. See `projects/arcsine/README.md`.
 - **Crossword, second pass.** A proper grid with black squares and every
   letter checked needs a dictionary to fill the gaps between the themed
   answers, which needs a word list in the repo (see Someday). Smaller: let
@@ -70,6 +72,14 @@ Questions with no project attached yet.
   bounding box and checks about a fifth of its letters, whatever the order
   or scoring. Is there a packing bound, and what does the densest possible
   freeform grid look like?
+- The chance that a random walk's unfinished final stretch away from zero
+  is its longest excursion is 0.6265 at every length from 50 steps up (and
+  exactly 5/8 for walks of 6, 10 and 14 steps, but not 4, 8 or 12). Is
+  there a closed form? `projects/arcsine/arcsine.py --exact-longest`
+  computes it.
+- The mean length of a walk's longest excursion, as a fraction of the walk,
+  falls with the walk's length: 0.651 at 20 steps, 0.629 at 200, 0.626
+  measured at 1,000. What is the limit, and how fast does it get there?
 - How does rule 110's settling time grow with ring size? On 211 cells half
   of ten random rows were still busy after 3000 steps. Is it polynomial in
   the ring, or worse?
@@ -85,3 +95,7 @@ Questions with no project attached yet.
 - 2026-09-24: Twin Peaks crossword ([crossword](projects/crossword/)),
   from issue #12, the first suggestion from outside: a freeform builder and
   a 39-answer puzzle with a separate solution.
+- 2026-09-24: Random walks against the arcsine law
+  ([arcsine](projects/arcsine/)): time on one side, last zero and longest
+  excursion for 20,000 walks, with Feller's exact law and a renewal
+  recursion beside the histograms.
