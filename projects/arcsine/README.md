@@ -86,8 +86,8 @@ one in 62.3% of walks. Those two numbers are within noise of each other, and
 I nearly wrote them down as one fact. The exact recursion on shorter walks
 says otherwise: the mean is still falling with the walk's length (0.651 at
 20 steps, 0.637 at 50, 0.632 at 100, 0.629 at 200), while the probability
-that the final stretch is the longest is 0.6265 at 50 steps and at 200 and
-does not move. They happen to cross near a thousand steps. The probability
+that the final stretch is the longest is 0.6264 at 50 steps and 0.6265 at
+100 and at 200, and does not move. They happen to cross near a thousand steps. The probability
 looks like a constant of the walk, and I don't know a closed form for it;
 both are in the backlog as curiosities.
 

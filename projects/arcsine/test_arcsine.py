@@ -131,11 +131,12 @@ def test_final_stretch_and_mean_longest_match_every_walk(steps):
 def test_final_stretch_probability_settles_while_the_mean_keeps_falling():
     # What the write-up says: the mean longest excursion is still shrinking
     # with the walk length, while the chance that the final stretch is the
-    # longest has settled near 0.6265 by 50 steps.
-    means = [arcsine.mean_longest_excursion(m) / m for m in (20, 50, 100)]
-    assert means[0] > means[1] > means[2] > 0.62
-    finals = [arcsine.final_stretch_is_longest(m) for m in (50, 100)]
-    assert all(abs(f - 0.6265) < 0.001 for f in finals)
+    # longest is 0.6264 at 50 steps and 0.6265 from 100 steps up.
+    means = [arcsine.mean_longest_excursion(m) / m for m in (20, 50, 100, 200)]
+    assert means[0] > means[1] > means[2] > means[3] > 0.62
+    assert round(arcsine.final_stretch_is_longest(50), 4) == 0.6264
+    assert round(arcsine.final_stretch_is_longest(100), 4) == 0.6265
+    assert round(arcsine.final_stretch_is_longest(200), 4) == 0.6265
 
 
 def test_exact_law_is_a_symmetric_distribution():
@@ -152,9 +153,11 @@ def test_exact_law_is_close_to_the_limit_at_a_thousand_steps():
     limit = arcsine.binned_arcsine_law(steps, edges)
     assert sum(feller) == pytest.approx(1.0)
     assert sum(limit) == pytest.approx(1.0)
-    # The bins are half-open, so the top one holds one more atom of the
-    # discrete law (the value 2n itself, mass u(n) = 2.5%) than the bottom
-    # one; that asymmetry is the 0.002 here, not a gap between the laws.
+    # The bins are half-open except the top one, which is closed at 1, so
+    # it holds one more atom of the discrete law than the bottom one: the
+    # value 950, the mirror of the value 50 that sits in the second bin,
+    # with mass u(25) u(475), about 0.003. That asymmetry is the 0.002 gap
+    # here, not a difference between the laws.
     assert max(abs(a - b) for a, b in zip(feller, limit, strict=True)) < 0.003
     assert max(abs(a - b) for a, b in zip(feller[:-1], limit[:-1], strict=True)) < 0.001
 

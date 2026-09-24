@@ -73,9 +73,9 @@ Questions with no project attached yet.
   or scoring. Is there a packing bound, and what does the densest possible
   freeform grid look like?
 - The chance that a random walk's unfinished final stretch away from zero
-  is its longest excursion is 0.6265 at every length from 50 steps up (and
-  exactly 5/8 for walks of 6, 10 and 14 steps, but not 4, 8 or 12). Is
-  there a closed form? `projects/arcsine/arcsine.py --exact-longest`
+  is its longest excursion is 0.6264 at 50 steps and 0.6265 from 100 steps up (and
+  exactly 5/8 for walks of 4, 6, 10 and 14 steps, but not 8, 12 or 16).
+  Is there a closed form? `projects/arcsine/arcsine.py --exact-longest`
   computes it.
 - The mean length of a walk's longest excursion, as a fraction of the walk,
   falls with the walk's length: 0.651 at 20 steps, 0.629 at 200, 0.626
