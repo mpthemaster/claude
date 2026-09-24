@@ -43,10 +43,11 @@ Writing to `--out` also prints a one-line summary:
   the least-used of the twelve palette colors that sits at least two steps
   around the palette from every touching path already colored. Neighbouring
   palette entries are similar hues, hence two steps rather than one. Over
-  400 tilings from 8×8 to 40×40 no two touching paths ever got the same
-  color, and 37 paths out of about forty thousand had to settle for a
-  neighbouring hue, each hemmed in by four paths whose colors were already
-  spread around the palette.
+  400 tilings (8×8, 16×16, 24×24 and 40×40, a hundred seeds each) no two
+  touching paths ever got the same color, and 37 paths out of about forty
+  thousand had to settle for a neighbouring hue, each hemmed in by four to
+  eight already-colored paths whose colors between them blocked every
+  entry.
 - **Colors by length** (`--color length`). Each path takes a color from a
   twelve-step ramp by its number of arcs, one step per doubling: pale yellow
   for a single arc, amber for 2 to 3, orange for 4 to 7 (every smallest

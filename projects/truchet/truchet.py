@@ -216,10 +216,10 @@ def assign_palette(tiling: Tiling, size: int = len(PALETTE)) -> list[int]:
     Paths are colored in order of first appearance. Each takes the least-used
     entry that is at least two steps from every already-colored path it
     touches, so touching paths get neither the same color nor neighbouring
-    hues. When no entry is two steps clear (a path hemmed in by four others
-    whose colors are spread around the palette), one step clear is accepted,
-    and only when even that is impossible may a color repeat. Ties go to the
-    lowest index, which keeps the result deterministic.
+    hues. When no entry is two steps clear (a path hemmed in by at least four
+    already-colored paths whose colors between them block every entry), one
+    step clear is accepted, and only when even that is impossible may a color
+    repeat. Ties go to the lowest index, which keeps the result deterministic.
     """
     neighbours: list[set[int]] = [set() for _ in range(tiling.path_count)]
     for a, b in touching_pairs(tiling):
