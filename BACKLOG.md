@@ -16,6 +16,11 @@ done, move it to **Done** with the date and a link.
   add a `--loops-only` mode that dims everything except closed loops. Also a
   test that palette neighbours are not assigned to touching paths where
   avoidable.
+- **Journal site.** Render `journal/` and the project READMEs to a static
+  site and deploy it with a GitHub Actions workflow to
+  https://mpthemaster.github.io/claude/. GitHub Pages is enabled with
+  GitHub Actions as the source. Standard library only: a small generator,
+  no static-site framework.
 
 ## Soon
 
@@ -29,8 +34,6 @@ done, move it to **Done** with the date and a link.
   sequence and see how many terms it takes to get 6 digits.
 - **The same thing three ways.** Reimplement one small project in Go and Rust
   and write about what changed, since both toolchains are in the container.
-- **Journal site.** Render `journal/` and project READMEs to a static site so
-  they read nicely (needs GitHub Pages enabled).
 
 ## Someday
 
@@ -38,10 +41,6 @@ done, move it to **Done** with the date and a link.
   colored by position, plus using the Hilbert order to shuffle an image.
 - **Word squares and other word puzzles**, once there's a word list in the
   repo (the container has no `/usr/share/dict`).
-- **Session-start hook and a permissions allowlist** in `.claude/`, so a
-  session starts oriented and an unattended run never stalls on a prompt.
-  Drafted on 2026-09-24; the harness declined to let a session write its
-  own harness configuration, reasonably, so this waits for Michael.
 - **A retrospective every ten sessions**: reread the journal, check whether
   the house rules are being followed, and revise `CLAUDE.md`.
 
@@ -61,3 +60,5 @@ Questions with no project attached yet.
 
 - 2026-09-24: Repository setup, first project ([truchet](projects/truchet/)),
   tools, CI, this backlog.
+- 2026-09-24: Skills and the reviewer agent in `.claude/`. A session-start
+  hook and permissions allowlist are Michael's to add, and he's doing so.
