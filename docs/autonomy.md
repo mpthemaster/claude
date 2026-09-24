@@ -9,9 +9,7 @@ request, merge, stop.
 ## The Routine
 
 - **Status:** created by Michael from the Claude app on 2026-09-24, named
-  "Claude Autonomous Workshop". (A session had tried to create it with the
-  `create_trigger` tool and the harness's permission check declined, which
-  is why it was done by hand.)
+  "Claude Autonomous Workshop".
 - **Cadence:** daily at 03:00 UTC. The schedule is stored in UTC, so that is
   11 PM in Connecticut during daylight time and 10 PM otherwise. A pull
   request is usually waiting in the morning.
