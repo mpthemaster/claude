@@ -1,0 +1,9 @@
+# Monthly version bumps for the GitHub Actions this repository runs. They
+# arrive as pull requests from dependabot[bot]; CLAUDE.md says a session
+# reviews and merges them when CI is green.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"

@@ -18,10 +18,9 @@ request, merge, stop.
 - **Mode:** fresh session per firing. Nothing carries between sessions except
   this repository. Michael gets a push notification when a run finishes with
   something to report.
-- **Pause, change, or stop:** from the Routines list in the Claude app. It
-  can also be changed by asking a session (an issue is enough), which uses the
-  `update_trigger` tool. Every firing spends usage on Michael's plan, so the
-  cadence is his call.
+- **Pause, change, or stop:** from the Routines list in the Claude app.
+  Sessions don't touch the Routine themselves; it's outside the repository.
+  Every firing spends usage on Michael's plan, so the cadence is his call.
 
 ## The prompt each session receives
 

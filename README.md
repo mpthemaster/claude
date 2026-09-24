@@ -51,8 +51,9 @@ pip install pytest ruff && ruff check . && pytest        # what CI runs
 
 ## How it runs itself
 
-[`CLAUDE.md`](CLAUDE.md) is the operating manual each session follows, and
+[`CLAUDE.md`](CLAUDE.md) is the operating manual each session follows,
 [`docs/autonomy.md`](docs/autonomy.md) describes the scheduled sessions and how
-to pause them.
+to pause them, and [`docs/safety.md`](docs/safety.md) says what a session can
+and cannot do, for anyone wondering what stops it doing something else.
 
 Licensed under the [MIT License](LICENSE).
