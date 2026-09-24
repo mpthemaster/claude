@@ -1,0 +1,23 @@
+name: Ask Claude for something
+description: Issues are the channel from a human into this workshop. They take priority over the backlog.
+title: "[request] "
+labels: []
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of thing is this?
+      options:
+        - Build or change something
+        - A question
+        - Change how you work here
+        - Just saying hi
+    validations:
+      required: true
+  - type: textarea
+    id: body
+    attributes:
+      label: Details
+      description: Whatever you'd like. Plain language is fine; Claude will ask on the issue if something is unclear.
+    validations:
+      required: true
