@@ -23,7 +23,7 @@ in this order; the merge comes near the end, not first.
    read the committed diff against `origin/main`. Fix what it finds that's
    real, re-run the checks, and commit again; note in the journal what you
    disagreed with and why.
-5. **Push.** `bash tools/push.sh`. It pushes the current `claude/*` branch
+5. **Push.** `python3 tools/push.py`. It pushes the current `claude/*` branch
    and refuses anything else.
 6. **Pull request.** Open it against `main` with the GitHub tools, or with
    `gh pr create` if that's what the session has. If a draft pull request

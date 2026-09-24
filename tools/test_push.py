@@ -1,9 +1,10 @@
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 
-PUSH = Path(__file__).resolve().parent / "push.sh"
+PUSH = Path(__file__).resolve().parent / "push.py"
 
 
 def git(*args, cwd):
@@ -11,7 +12,15 @@ def git(*args, cwd):
 
 
 def run_push(cwd, *args):
-    return subprocess.run(["bash", str(PUSH), *args], cwd=cwd, capture_output=True, text=True)
+    return subprocess.run(
+        [sys.executable, str(PUSH), *args], cwd=cwd, capture_output=True, text=True
+    )
+
+
+def commit_file(repo, name):
+    (repo / name).write_text(name + "\n")
+    git("add", name, cwd=repo)
+    git("commit", "-q", "-m", name, cwd=repo)
 
 
 @pytest.fixture
@@ -22,18 +31,14 @@ def repo(tmp_path):
     git("clone", "-q", str(origin), str(work), cwd=tmp_path)
     git("config", "user.email", "t@example.com", cwd=work)
     git("config", "user.name", "t", cwd=work)
-    (work / "f").write_text("x\n")
-    git("add", "f", cwd=work)
-    git("commit", "-q", "-m", "init", cwd=work)
+    commit_file(work, "f")
     git("push", "-q", "-u", "origin", "HEAD:main", cwd=work)
     return work
 
 
 def test_pushes_a_claude_branch(repo):
     git("checkout", "-q", "-b", "claude/test-branch", cwd=repo)
-    (repo / "g").write_text("y\n")
-    git("add", "g", cwd=repo)
-    git("commit", "-q", "-m", "more", cwd=repo)
+    commit_file(repo, "g")
     result = run_push(repo)
     assert result.returncode == 0, result.stderr
     heads = git("ls-remote", "--heads", "origin", cwd=repo).stdout
@@ -57,9 +62,7 @@ def test_refuses_any_arguments(repo):
 def test_tag_with_the_branch_name_does_not_block_the_push(repo):
     git("checkout", "-q", "-b", "claude/same", cwd=repo)
     git("tag", "claude/same", cwd=repo)
-    (repo / "h").write_text("z\n")
-    git("add", "h", cwd=repo)
-    git("commit", "-q", "-m", "h", cwd=repo)
+    commit_file(repo, "h")
     result = run_push(repo)
     assert result.returncode == 0, result.stderr
     heads = git("ls-remote", "--heads", "origin", cwd=repo).stdout
@@ -73,9 +76,7 @@ def test_destination_is_always_a_branch(repo):
     main_sha = git("rev-parse", "HEAD", cwd=repo).stdout.strip()
     git("update-ref", "refs/claude/odd", main_sha, cwd=origin)
     git("checkout", "-q", "-b", "claude/odd", cwd=repo)
-    (repo / "i").write_text("w\n")
-    git("add", "i", cwd=repo)
-    git("commit", "-q", "-m", "i", cwd=repo)
+    commit_file(repo, "i")
     result = run_push(repo)
     assert result.returncode == 0, result.stderr
     refs = git("ls-remote", "origin", cwd=repo).stdout
@@ -88,3 +89,15 @@ def test_refuses_detached_head(repo):
     result = run_push(repo)
     assert result.returncode == 1
     assert "refusing" in result.stderr
+
+
+def test_ambient_follow_tags_config_does_not_push_tags(repo):
+    git("config", "push.followTags", "true", cwd=repo)
+    git("checkout", "-q", "-b", "claude/tagged", cwd=repo)
+    commit_file(repo, "j")
+    git("tag", "-a", "surprise", "-m", "surprise", cwd=repo)
+    result = run_push(repo)
+    assert result.returncode == 0, result.stderr
+    refs = git("ls-remote", "origin", cwd=repo).stdout
+    assert "refs/heads/claude/tagged" in refs
+    assert "refs/tags/surprise" not in refs

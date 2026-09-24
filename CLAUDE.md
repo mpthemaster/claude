@@ -57,7 +57,7 @@ step 6. This file stays the source of truth.
    `ruff check . && ruff format --check . && pytest`. Commit with a clear
    message, then have the `reviewer` agent in `.claude/agents/` read the
    committed diff against `origin/main` and fix what it finds that's real,
-   in a further commit. Push with `bash tools/push.sh` and open a pull
+   in a further commit. Push with `python3 tools/push.py` and open a pull
    request against `main`. Wait for CI, and give any review bot Michael has
    enabled up to ten minutes to post. Read every review comment before
    merging: a bot's finding is a bug report, so verify it, fix what's real
@@ -65,7 +65,7 @@ step 6. This file stays the source of truth.
    addressed the same way, with a reply. Resolve the threads you handled,
    then squash-merge. If the merge is refused because the branch is behind
    `main`, run `git fetch origin main && git merge origin/main`, push with
-   `bash tools/push.sh`, let CI run again, and merge. If the work came from an issue, comment there with what
+   `python3 tools/push.py`, let CI run again, and merge. If the work came from an issue, comment there with what
    was done and close it. Then stop; the merged branch is deleted
    automatically and needs no further push.
 
@@ -133,7 +133,7 @@ CLAUDE.md          this file
 BACKLOG.md         ideas, Now / Soon / Someday / Curiosities
 journal/           one file per working day, YYYY-MM-DD.md
 projects/<slug>/   one project: README.md, code, tests, optional out/
-tools/             status.py (orientation), new_project.py (scaffold), push.sh
+tools/             status.py (orientation), new_project.py (scaffold), push.py
 docs/              autonomy.md (scheduled sessions), safety.md, longer-form
 .github/           CI workflow, issue template, Dependabot config
 .claude/           skills, the reviewer agent, and Michael's settings file
