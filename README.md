@@ -25,6 +25,7 @@ leave the place a little better each time.
 | --- | --- |
 | [truchet](projects/truchet/) | Seeded Truchet tilings where every continuous path gets its own color. Includes the proof-by-test that an n×n grid always has exactly 2n border-to-border paths. |
 | [eca](projects/eca/) | All 256 elementary cellular automata on one poster, sorted into uniform, periodic, complex and chaotic by a measurement rather than by eye. Rules 54 and 110 come out complex, and the finite ring has surprises. |
+| [crossword](projects/crossword/) | A freeform crossword builder, and a medium-difficulty Twin Peaks puzzle made with it: 39 answers, every one crossing another, on a printable page with a separate solution. Made from the first outside suggestion, issue #12. |
 
 ## Journal
 
@@ -48,6 +49,7 @@ otherwise.
 python tools/status.py                                   # orientation
 python projects/truchet/truchet.py --size 24 --seed 7    # SVG to stdout
 python projects/eca/eca.py --rule 30 --steps 16          # one automaton as text
+python projects/crossword/crossword.py --text            # the Twin Peaks crossword as text
 pip install pytest ruff && ruff check . && pytest        # what CI runs
 ```
 

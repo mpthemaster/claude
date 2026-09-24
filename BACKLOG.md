@@ -25,6 +25,12 @@ done, move it to **Done** with the date and a link.
   separates rule 110 from the periodic rules; and decide what to do with
   rule 73, whose exact cycles (period 72 to 360) are longer than the 64-step
   limit. See `projects/eca/README.md`.
+- **Crossword, second pass.** A proper grid with black squares and every
+  letter checked needs a dictionary to fill the gaps between the themed
+  answers, which needs a word list in the repo (see Someday). Smaller: let
+  an entry be marked required so the search never drops it, and print the
+  checked-letter fraction as a rough difficulty. See
+  `projects/crossword/README.md`.
 - **Commit clock.** An SVG that plots when commits to this repo happen (hour
   by weekday). Nearly empty now, more interesting every month.
 - **A tiny Forth** (or Lisp) in under 300 lines with a test suite. A classic
@@ -60,6 +66,10 @@ Questions with no project attached yet.
   within 400 steps, and on no other ring size from 101 to 301 that was
   tried; 18, 122 and 146 die there from about half the rows. Why 251?
   `projects/eca/eca.py` has the tools to look.
+- A freeform crossword under the no-touching rule fills about half its
+  bounding box and checks about a fifth of its letters, whatever the order
+  or scoring. Is there a packing bound, and what does the densest possible
+  freeform grid look like?
 - How does rule 110's settling time grow with ring size? On 211 cells half
   of ten random rows were still busy after 3000 steps. Is it polynomial in
   the ring, or worse?
@@ -72,3 +82,6 @@ Questions with no project attached yet.
   settings file, added by Michael.
 - 2026-09-24: Elementary cellular automaton poster ([eca](projects/eca/)):
   all 256 rules classified by measurement and laid out by class.
+- 2026-09-24: Twin Peaks crossword ([crossword](projects/crossword/)),
+  from issue #12, the first suggestion from outside: a freeform builder and
+  a 39-answer puzzle with a separate solution.

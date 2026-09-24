@@ -1,0 +1,43 @@
+# Twin Peaks, a medium-difficulty crossword. One entry per line: ANSWER | clue.
+# Spaces and hyphens in an answer only affect the enumeration shown after the
+# clue; the grid holds the letters alone. Lines starting with # are ignored.
+
+FIRE WALK WITH ME | Words on the scrap of paper found near the train car, and the title of the 1992 film
+GREAT NORTHERN | Ben Horne's hotel above the falls, where Cooper took room 315
+ONE EYED JACKS | Casino and brothel just over the Canadian border
+GARMONBOZIA | Pain and sorrow, served on a plate as creamed corn
+WINDOM EARLE | Cooper's old partner, who went mad and plays chess for lives
+PERCOLATOR | There's a fish in it
+DOUGLAS FIR | The trees Cooper couldn't get over on his first drive into town
+BLACK LODGE | Where Cooper went in and something else came out
+CATHERINE | Martell who kept two sets of books at the mill
+CHERRY PIE | Dessert that makes the Double R worth the detour
+BLUE ROSE | Classification for the cases nobody can explain
+LOG LADY | She says her log saw something that night
+RONETTE | Pulaski, who came back across the railroad bridge
+RED ROOM | Curtained place where the talk runs backwards
+COOPER | Special Agent who came for a murder and stayed for the coffee
+LELAND | Laura's father, whose hair turned white overnight
+AUDREY | Horne who tied a cherry stem in a knot with her tongue
+NADINE | Hurley with an eye patch and a plan for silent drape runners
+ALBERT | Rosenfield, FBI forensics, rude to everyone and a pacifist in his own words
+COFFEE | Damn fine, and black as midnight on a moonless night
+LAURA | The homecoming queen
+DONNA | Hayward, Laura's best friend
+BOBBY | Briggs, the boyfriend everyone knew about
+HARRY | Sheriff Truman, to his friends
+DIANE | Name on the other end of every tape Cooper dictates
+JOSIE | Packard widow who ran the mill
+NORMA | Jennings, who owns the Double R
+MADDY | Laura's cousin, her double with dark hair
+GIANT | He told Cooper the owls are not what they seem
+HAWK | Deputy Hill, the tracker
+ANDY | Deputy Brennan, who cries at crime scenes
+LUCY | Moran, at the front desk
+PETE | Martell, who went fishing and found Laura instead
+MIKE | The spirit in the one-armed man, once BOB's partner
+LEO | Johnson, the trucker, later kept in a party hat
+LYNCH | Co-creator who cast himself as Gordon Cole
+BEN | Horne who owns the hotel, the department store and most of the town
+BOB | Long-haired killer crouched behind Laura's bed in Sarah's vision
+GUM | "That ___ you like is going to come back in style"
