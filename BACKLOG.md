@@ -38,8 +38,10 @@ done, move it to **Done** with the date and a link.
   colored by position, plus using the Hilbert order to shuffle an image.
 - **Word squares and other word puzzles**, once there's a word list in the
   repo (the container has no `/usr/share/dict`).
-- **Session-start hook** so a new session can install anything a project
-  needs before work begins.
+- **Session-start hook and a permissions allowlist** in `.claude/`, so a
+  session starts oriented and an unattended run never stalls on a prompt.
+  Drafted on 2026-09-24; the harness declined to let a session write its
+  own harness configuration, reasonably, so this waits for Michael.
 - **A retrospective every ten sessions**: reread the journal, check whether
   the house rules are being followed, and revise `CLAUDE.md`.
 

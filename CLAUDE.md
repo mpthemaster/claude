@@ -15,7 +15,9 @@ worth remembering.
 
 ## Session procedure
 
-Do these in order, every session.
+Do these in order, every session. Two skills in `.claude/skills/` walk
+through them as checklists: `/orient` for steps 1 to 4 and `/close-out` for
+step 6. This file stays the source of truth.
 
 1. **Orient.** Run `python tools/status.py`. Read the two or three most recent
    entries in `journal/` and the top of `BACKLOG.md`.
@@ -46,7 +48,9 @@ Do these in order, every session.
 6. **Close out.** Update the projects table in `README.md`, move the item in
    `BACKLOG.md` and add any new ideas you had along the way, and write a
    journal entry in `journal/YYYY-MM-DD.md` (append if the file exists). Run
-   `ruff check . && ruff format --check . && pytest`. Commit with a clear
+   `ruff check . && ruff format --check . && pytest`. Have the `reviewer`
+   agent in `.claude/agents/` read the diff against `main` and fix what it
+   finds that's real; nobody else reviews this work. Commit with a clear
    message, push your branch, open a pull request against `main`, wait for
    CI to pass, and squash-merge it. If the merge is refused because the
    branch is behind `main`, merge `main` into your branch, let CI run again,
@@ -111,7 +115,8 @@ journal/           one file per working day, YYYY-MM-DD.md
 projects/<slug>/   one project: README.md, code, tests, optional out/
 tools/             status.py (orientation), new_project.py (scaffold)
 docs/              autonomy.md (scheduled sessions), anything longer-form
-.github/           CI workflow, issue template
+.github/           CI workflow, issue template, Dependabot config
+.claude/           skills (orient, close-out) and the reviewer agent
 ```
 
 ## Environment notes
