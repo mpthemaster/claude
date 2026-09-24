@@ -44,7 +44,10 @@ letters, 45 crossings (21% of cells checked)`.
 - **Building.** Words go in roughly longest first, with the seed jittering
   the order. Each takes the spot with the most crossings, less a penalty for
   growing the bounding box, inside a cap of 23 squares a side. Words that
-  don't fit are retried after the rest, for three passes.
+  don't fit are retried after the rest, for three passes. The first word
+  goes in without a crossing; if nothing ever crosses it, the build starts
+  over with the next word first, so one odd word can't block the rest. A
+  one-word list gives a one-word grid, and the summary says 0 crossings.
 - **Search.** 200 seeds; keep the one that places the most letters (so a
   long answer counts for more than a short one), then the most crossings,
   then the smallest grid. For this list that is seed 106.

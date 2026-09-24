@@ -193,10 +193,28 @@ def build(entries: list[Entry], seed: int = 0, max_size: int = DEFAULT_MAX_SIZE)
     """Place entries greedily, roughly longest first (the seed jitters the
     order, since a long answer placed late rarely fits), each at the
     crossing-richest spot that keeps the grid compact. Entries that don't
-    fit are retried after the others, then given up."""
-    rng = random.Random(seed)
-    queue = sorted(entries, key=lambda e: -(len(e.letters) + rng.uniform(-2, 2)))
+    fit are retried after the others, then given up.
 
+    The first word goes in without a crossing. If nothing ever crosses it,
+    the build starts over with the next word first, so one odd word can't
+    block the rest. A one-word list still gives a one-word grid."""
+    rng = random.Random(seed)
+    order = sorted(entries, key=lambda e: -(len(e.letters) + rng.uniform(-2, 2)))
+    best: tuple[list[Placement], list[Entry]] = ([], [])
+    for start in range(len(order)):
+        placed, unplaced = place_all(order[start:] + order[:start], rng, max_size)
+        if len(placed) > len(best[0]):
+            best = (placed, unplaced)
+        if len(placed) != 1 or not unplaced:
+            break
+    return finish(*best)
+
+
+def place_all(
+    queue: list[Entry], rng: random.Random, max_size: int
+) -> tuple[list[Placement], list[Entry]]:
+    """One greedy pass over ``queue`` in order, with two retry passes for
+    what didn't fit. Returns the placements and the entries left over."""
     cells: dict[Cell, str] = {}
     index: dict[str, list[Cell]] = {}
     placed: list[Placement] = []
@@ -252,8 +270,7 @@ def build(entries: list[Entry], seed: int = 0, max_size: int = DEFAULT_MAX_SIZE)
         queue = leftover
         if not queue:
             break
-
-    return finish(placed, queue)
+    return placed, queue
 
 
 def finish(placed: list[Placement], unplaced: list[Entry]) -> Puzzle:

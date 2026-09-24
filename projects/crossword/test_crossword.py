@@ -157,6 +157,31 @@ def test_a_tiny_grid_leaves_long_answers_out():
     assert len(puzzle.placements) >= 2
 
 
+def test_a_first_word_nothing_can_cross_is_swapped_out():
+    # The review bot pointed out that the first word goes in without a
+    # crossing, so a word that shares no letter with the rest used to sit
+    # alone in the grid and block every other answer.
+    entries = [
+        cw.Entry("ZZZZZZZZZZ", "z"),
+        cw.Entry("LAURA", "a"),
+        cw.Entry("ANDY", "b"),
+        cw.Entry("DONNA", "c"),
+    ]
+    for seed in range(5):
+        puzzle = cw.build(entries, seed)
+        placed = {p.entry.letters for p in puzzle.placements}
+        assert "ZZZZZZZZZZ" not in placed and len(placed) >= 2, seed
+        assert cw.Entry("ZZZZZZZZZZ", "z") in puzzle.unplaced
+        assert puzzle.crossings >= 1
+
+
+def test_one_entry_gives_a_one_word_grid():
+    puzzle = cw.build([cw.Entry("COOPER", "x")], 0)
+    assert [p.entry.letters for p in puzzle.placements] == ["COOPER"]
+    assert puzzle.unplaced == []
+    assert puzzle.crossings == 0 and "0 crossings" in puzzle.summary()
+
+
 def test_first_answer_is_the_longest_and_lands_across():
     entries = cw.parse_entries(SMALL)
     puzzle = cw.build(entries, 3)
