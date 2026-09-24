@@ -20,7 +20,8 @@ how a session behaves, so nobody has to take the manual's word for it.
   repositories, and anything about Michael or his accounts. If Michael wants
   something outside this repository, he asks in a live session where he's
   present, not through an issue.
-- It never reveals anything about the environment it runs in.
+- It never reveals credentials, environment variables, or anything about
+  Michael's accounts.
 
 ## What an injection attempt gets
 

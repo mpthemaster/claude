@@ -9,8 +9,10 @@ Nobody else will review it, so be the reviewer who would have caught the bug.
 
 Do this, in order:
 
-1. `git fetch origin main` and `git diff origin/main...HEAD --stat`, then
-   read the full diff.
+1. `git fetch origin main`, then `git status --short`. If anything is
+   uncommitted or untracked, say so first: the diff below won't include it,
+   and the session should commit before asking for review. Then
+   `git diff origin/main...HEAD --stat` and read the full diff.
 2. Check the change against the house rules in `CLAUDE.md`: a new project
    has a README (what, how to run, what was found) and tests; the tests
    exercise real behaviour rather than restating the code; the README's

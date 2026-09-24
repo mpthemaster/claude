@@ -28,14 +28,19 @@ step 6. This file stays the source of truth.
    Comment on an issue when you pick it up and again when it's done, then
    close it.
 3. **Check for unfinished business.** If an earlier session left a pull
-   request open, deal with that first: merge it if CI is green, otherwise fix
-   what's blocking it. The same goes for a `claude/*` branch on the remote
-   that is ahead of `main` with no pull request (check with `git fetch --all`
-   and `git branch -r --no-merged main`): open its pull request and finish
-   it. Pull requests opened by GitHub's own bots (Dependabot, for example)
-   count as requests: review the change and merge it if CI is green. If CI
-   is red on `main`, fixing that comes before any backlog work. Don't start
-   new work on top of unmerged work; it will conflict.
+   request open, deal with that first. If it's a draft, that session ran out
+   of time: read its journal entry on that branch, finish what it says is
+   left, mark the pull request ready, and take it through the review and
+   merge steps below. If it's not a draft, merge it if CI is green and its
+   review threads are handled, otherwise fix what's blocking it. The same
+   goes for a `claude/*` branch on the remote that is ahead of `main` with
+   no pull request (check with `git fetch origin` and
+   `git branch -r --no-merged origin/main`): open its pull request and
+   finish it. After those, pull requests opened by GitHub's own bots
+   (Dependabot, for example) count as requests: review the change and merge
+   it if CI is green. If CI is red on `main`, fixing that comes before any
+   backlog work. Don't start new work on top of unmerged work; it will
+   conflict.
 4. **Pick one thing.** From Michael's issues first, then the "Now" section of
    the backlog. One thing finished beats three things started. Prefer
    something you can complete with tests in one sitting. If an item is too
@@ -48,14 +53,20 @@ step 6. This file stays the source of truth.
 6. **Close out.** Update the projects table in `README.md`, move the item in
    `BACKLOG.md` and add any new ideas you had along the way, and write a
    journal entry in `journal/YYYY-MM-DD.md` (append if the file exists). Run
-   `ruff check . && ruff format --check . && pytest`. Have the `reviewer`
-   agent in `.claude/agents/` read the diff against `main` and fix what it
-   finds that's real; nobody else reviews this work. Commit with a clear
-   message, push your branch, open a pull request against `main`, wait for
-   CI to pass, and squash-merge it. If the merge is refused because the
-   branch is behind `main`, merge `main` into your branch, let CI run again,
-   and merge. If a review comment from Michael is waiting, address it and
-   resolve the thread first. Then stop.
+   `ruff check . && ruff format --check . && pytest`. Commit with a clear
+   message, then have the `reviewer` agent in `.claude/agents/` read the
+   committed diff against `origin/main` and fix what it finds that's real,
+   in a further commit. Push with `bash tools/push.sh` and open a pull
+   request against `main`. Wait for CI, and give any review bot Michael has
+   enabled up to ten minutes to post. Read every review comment before
+   merging: a bot's finding is a bug report, so verify it, fix what's real
+   and push, and reply in one line to what isn't; a comment from Michael is
+   addressed the same way, with a reply. Resolve the threads you handled,
+   then squash-merge. If the merge is refused because the branch is behind
+   `main`, run `git fetch origin main && git merge origin/main`, let CI run
+   again, and merge. If the work came from an issue, comment there with what
+   was done and close it. Then stop; the merged branch is deleted
+   automatically and needs no further push.
 
 Budget: aim for one to two hours of focused work per session, and leave the
 tree green. If you run out of time mid-task, commit what you have, open the
@@ -66,6 +77,9 @@ pull request as a draft, and say in the journal what's left.
 - **Merging your own pull requests into `main`:** granted by Michael on
   2026-09-24. Open the PR, wait for CI to pass, squash-merge it. Merged
   branches are deleted automatically. Never merge with red CI.
+- **Merging pull requests opened by GitHub's own bots** (Dependabot):
+  granted by Michael on 2026-09-24 when he turned those bots on. Same rule:
+  review the change, green CI, squash-merge.
 - **Pushing directly to `main`:** no. Work goes through pull requests so it's
   reviewable.
 - **History:** never force-push or rewrite history on `main`; never delete a
@@ -118,10 +132,10 @@ CLAUDE.md          this file
 BACKLOG.md         ideas, Now / Soon / Someday / Curiosities
 journal/           one file per working day, YYYY-MM-DD.md
 projects/<slug>/   one project: README.md, code, tests, optional out/
-tools/             status.py (orientation), new_project.py (scaffold)
+tools/             status.py (orientation), new_project.py (scaffold), push.sh
 docs/              autonomy.md (scheduled sessions), safety.md, longer-form
 .github/           CI workflow, issue template, Dependabot config
-.claude/           skills, the reviewer agent, and Michael's settings and hook
+.claude/           skills, the reviewer agent, and Michael's settings file
 ```
 
 ## Environment notes

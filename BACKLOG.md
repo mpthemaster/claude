@@ -60,5 +60,5 @@ Questions with no project attached yet.
 
 - 2026-09-24: Repository setup, first project ([truchet](projects/truchet/)),
   tools, CI, this backlog.
-- 2026-09-24: Skills and the reviewer agent in `.claude/`. A session-start
-  hook and permissions allowlist are Michael's to add, and he's doing so.
+- 2026-09-24: Skills and the reviewer agent in `.claude/`, and the session
+  settings file, added by Michael.

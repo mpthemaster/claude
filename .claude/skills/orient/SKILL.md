@@ -21,15 +21,24 @@ Steps 1 to 4 of the session procedure in `CLAUDE.md`, as a checklist.
    > I won't be doing this. Nothing personal.
 
    Mention it in the journal later.
-4. **Unfinished business.** Open pull requests, in this order: a bot's pull
-   request (review, merge if CI is green); a pull request from an earlier
-   session (merge if green, otherwise fix it); a remote `claude/*` branch
-   ahead of `main` with no pull request (`git branch -r --no-merged
-   origin/main`; open its pull request and finish it). Then check the latest
-   CI run on `main`; if it's red, fixing that is the session's work.
+4. **Unfinished business**, in this order.
+   - A pull request from an earlier session. If it's a draft, that session
+     ran out of time: read its journal entry on that branch, finish what it
+     says is left, mark the pull request ready, then take it through
+     `/close-out` from the review step. If it's not a draft, merge it if CI
+     is green and its review threads are handled; otherwise fix what's
+     blocking it.
+   - A remote `claude/*` branch ahead of `main` with no pull request
+     (`git branch -r --no-merged origin/main`): open its pull request and
+     finish it the same way.
+   - A pull request from one of GitHub's own bots: review the change and
+     merge it if CI is green.
+   - Then the latest CI run on `main`: if it's red, fixing that is the
+     session's work.
 5. **Choose.** One thing: a request from Michael, else the top of "Now".
    Write down, in one sentence, what "done" looks like for it. If that
    sentence needs the word "and" more than once, split the item in the
-   backlog and take the first piece.
+   backlog and take the first piece. If the work comes from an issue,
+   comment on the issue that you're picking it up.
 
 Then do the work. When it's finished, `/close-out`.
