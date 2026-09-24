@@ -196,10 +196,16 @@ def mean_longest_excursion(steps: int, exact: bool = False):
 
 
 def bin_edges(steps: int, bins: int) -> list[int]:
-    """Lower edges, in time units, of `bins` equal bins over 0..steps."""
+    """Lower edges, in time units, of `bins` equal bins over 0..steps.
+
+    The bins are drawn and described as equal, so they have to be: the
+    number of bins must divide the number of steps.
+    """
     if bins <= 0:
         raise ValueError("bins must be positive")
-    return [b * steps // bins for b in range(bins)]
+    if steps % bins:
+        raise ValueError("bins must divide the number of steps")
+    return [b * (steps // bins) for b in range(bins)]
 
 
 def bin_of(value: int, edges: Sequence[int]) -> int:
@@ -545,7 +551,11 @@ def render_svg(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Random walks against the arcsine law.")
-    parser.add_argument("--steps", type=int, default=1000, help="steps per walk (even)")
+    parser.add_argument(
+        "--steps",
+        type=int,
+        help="steps per walk, an even number (default 1000, or 200 with --exact-longest)",
+    )
     parser.add_argument("--walks", type=int, default=20000, help="number of walks")
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--bins", type=int, default=20)
@@ -554,32 +564,38 @@ def main(argv: list[str] | None = None) -> int:
         "--exact-longest",
         action="store_true",
         help="print the exact mean longest excursion and the chance the final stretch is the "
-        "longest, for --steps steps, instead of simulating (cubic time, fine up to a few hundred)",
+        "longest, for --steps steps, instead of simulating; cubic time, so 200 steps take a "
+        "fraction of a second and 1,000 take several",
     )
     args = parser.parse_args(argv)
     if args.exact_longest:
+        if args.out:
+            print("error: --out has no meaning with --exact-longest", file=sys.stderr)
+            return 2
+        steps = 200 if args.steps is None else args.steps
         try:
-            mean = mean_longest_excursion(args.steps)
-            final = final_stretch_is_longest(args.steps)
+            mean = mean_longest_excursion(steps)
+            final = final_stretch_is_longest(steps)
         except ValueError as err:
             print(f"error: {err}", file=sys.stderr)
             return 2
-        print(f"walks of {args.steps} steps, exactly:")
-        print(f"longest excursion, mean fraction: {mean / args.steps:.6f}")
+        print(f"walks of {steps} steps, exactly:")
+        print(f"longest excursion, mean fraction: {mean / steps:.6f}")
         print(f"walks whose final stretch is the longest: {final:.6f}")
         return 0
+    steps = 1000 if args.steps is None else args.steps
     try:
-        results = simulate(args.steps, args.walks, args.seed)
-        lines = report(args.steps, results, args.bins)
+        results = simulate(steps, args.walks, args.seed)
+        lines = report(steps, results, args.bins)
     except ValueError as err:
         print(f"error: {err}", file=sys.stderr)
         return 2
     print("\n".join(lines))
     if args.out:
         # The sample walk is the first one the seed produces.
-        walk = random_walk(random.Random(args.seed), args.steps)
+        walk = random_walk(random.Random(args.seed), steps)
         args.out.parent.mkdir(parents=True, exist_ok=True)
-        args.out.write_text(render_svg(args.steps, results, args.bins, walk), encoding="utf-8")
+        args.out.write_text(render_svg(steps, results, args.bins, walk), encoding="utf-8")
         print(f"wrote {args.out}")
     return 0
 

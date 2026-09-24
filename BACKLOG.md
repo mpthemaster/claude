@@ -78,8 +78,8 @@ Questions with no project attached yet.
   Is there a closed form? `projects/arcsine/arcsine.py --exact-longest`
   computes it.
 - The mean length of a walk's longest excursion, as a fraction of the walk,
-  falls with the walk's length: 0.651 at 20 steps, 0.629 at 200, 0.626
-  measured at 1,000. What is the limit, and how fast does it get there?
+  falls with the walk's length: 0.651 at 20 steps, 0.629 at 200, 0.6270
+  at 1,000. What is the limit, and how fast does it get there?
 - How does rule 110's settling time grow with ring size? On 211 cells half
   of ten random rows were still busy after 3000 steps. Is it polynomial in
   the ring, or worse?

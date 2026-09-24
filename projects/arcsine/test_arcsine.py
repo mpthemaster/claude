@@ -203,6 +203,15 @@ def test_binning():
         arcsine.bin_edges(1000, 0)
 
 
+def test_bins_must_divide_the_steps():
+    # The chart draws every bin the same width and says so, so unequal bins
+    # are refused rather than drawn wrong.
+    assert arcsine.bin_edges(30, 5) == [0, 6, 12, 18, 24]
+    for steps, bins in ((100, 30), (2, 5), (10, 3)):
+        with pytest.raises(ValueError, match="divide"):
+            arcsine.bin_edges(steps, bins)
+
+
 def test_report_has_headline_and_bins(sample):
     steps, results = sample
     lines = arcsine.report(steps, results, bins=10)
@@ -261,6 +270,22 @@ def test_cli_rejects_odd_steps(capsys):
     assert "even" in capsys.readouterr().err
     assert arcsine.main(["--steps", "99", "--exact-longest"]) == 2
     assert "even" in capsys.readouterr().err
+
+
+def test_cli_rejects_bins_that_do_not_divide_the_steps(capsys):
+    assert arcsine.main(["--steps", "100", "--bins", "30", "--walks", "10"]) == 2
+    assert "divide" in capsys.readouterr().err
+
+
+def test_cli_exact_longest_has_its_own_default_and_refuses_out(tmp_path, capsys):
+    # The cubic computations get a 200-step default rather than the
+    # simulation's 1,000, and --out, which they can't honour, is an error.
+    assert arcsine.main(["--exact-longest"]) == 0
+    assert capsys.readouterr().out.startswith("walks of 200 steps")
+    out = tmp_path / "chart.svg"
+    assert arcsine.main(["--steps", "8", "--exact-longest", "--out", str(out)]) == 2
+    assert "--out" in capsys.readouterr().err
+    assert not out.exists()
 
 
 def test_cli_exact_longest(capsys):

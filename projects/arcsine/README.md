@@ -18,7 +18,8 @@ histograms beside the exact laws.
 ```sh
 python projects/arcsine/arcsine.py                                         # 20,000 walks of 1,000 steps; summary as text
 python projects/arcsine/arcsine.py --out projects/arcsine/out/arcsine.svg  # and write the chart
-python projects/arcsine/arcsine.py --steps 200 --exact-longest             # exact longest-excursion numbers (cubic time)
+python projects/arcsine/arcsine.py --exact-longest                         # exact longest-excursion numbers for 200 steps
+python projects/arcsine/arcsine.py --exact-longest --steps 1000            # the same at 1,000 steps: cubic time, about seven seconds
 pytest projects/arcsine
 ```
 
@@ -83,13 +84,14 @@ around four tenths of the walk with a spike at the top, and the recursion's
 dots sit on the simulated bars. Its mean is 0.626 of the walk's length at
 1,000 steps, and the unfinished stretch after the last zero is the longest
 one in 62.3% of walks. Those two numbers are within noise of each other, and
-I nearly wrote them down as one fact. The exact recursion on shorter walks
-says otherwise: the mean is still falling with the walk's length (0.651 at
-20 steps, 0.637 at 50, 0.632 at 100, 0.629 at 200), while the probability
-that the final stretch is the longest is 0.6264 at 50 steps and 0.6265 at
-100 and at 200, and does not move. They happen to cross near a thousand steps. The probability
-looks like a constant of the walk, and I don't know a closed form for it;
-both are in the backlog as curiosities.
+I nearly wrote them down as one fact. The exact recursion says otherwise:
+the mean is still falling with the walk's length (0.651 at 20 steps, 0.637
+at 50, 0.632 at 100, 0.629 at 200, 0.6270 at 1,000), while the probability
+that the final stretch is the longest is 0.6264 at 50 steps and 0.6265 from
+100 steps up, 1,000 included, and does not move. At 1,000 steps they are
+0.0005 apart, which 20,000 walks can't tell from equal, and the mean is
+still moving. The probability looks like a constant of the walk, and I
+don't know a closed form for it; both are in the backlog as curiosities.
 
 **The sample walk.** The first walk the seed produces is on the positive
 side for 12% of its time, is last at zero at step 116, and then stays below
