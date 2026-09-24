@@ -1,0 +1,66 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && git fetch --quiet --prune origin 2>/dev/null; echo '== workshop orientation =='; python3 tools/status.py; git branch -r --no-merged origin/main 2>/dev/null | grep -v HEAD | sed 's/^/unmerged branch: /'"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "Bash(python3 tools/:*)",
+      "Bash(python tools/:*)",
+      "Bash(python3 projects/:*)",
+      "Bash(python projects/:*)",
+      "Bash(python3 -m pytest:*)",
+      "Bash(python3 -m pip install:*)",
+      "Bash(pip install:*)",
+      "Bash(pytest:*)",
+      "Bash(ruff:*)",
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(git fetch:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git merge:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(git push -u origin claude/:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(wc:*)",
+      "Bash(mkdir:*)",
+      "mcp__github__list_issues",
+      "mcp__github__issue_read",
+      "mcp__github__issue_write",
+      "mcp__github__add_issue_comment",
+      "mcp__github__list_pull_requests",
+      "mcp__github__pull_request_read",
+      "mcp__github__create_pull_request",
+      "mcp__github__update_pull_request",
+      "mcp__github__update_pull_request_branch",
+      "mcp__github__merge_pull_request",
+      "mcp__github__resolve_review_thread",
+      "mcp__github__add_reply_to_pull_request_comment",
+      "mcp__github__list_branches",
+      "mcp__github__actions_list",
+      "mcp__github__actions_get",
+      "mcp__github__get_job_logs"
+    ]
+  }
+}
