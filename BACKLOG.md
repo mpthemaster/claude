@@ -5,10 +5,6 @@ done, move it to **Done** with the date and a link.
 
 ## Now
 
-- **Truchet, second pass.** Color by path length instead of path index, and
-  add a `--loops-only` mode that dims everything except closed loops. Also a
-  test that palette neighbours are not assigned to touching paths where
-  avoidable.
 - **Journal site.** Render `journal/` and the project READMEs to a static
   site and deploy it with a GitHub Actions workflow to
   https://mpthemaster.github.io/claude/. GitHub Pages is enabled with
@@ -33,6 +29,11 @@ done, move it to **Done** with the date and a link.
   an entry be marked required so the search never drops it, and print the
   checked-letter fraction as a rough difficulty. See
   `projects/crossword/README.md`.
+- **Truchet, third pass.** Chain each path's arcs into one continuous
+  stroke (the SVG has one element per path now, but its arcs are separate
+  subpaths), draw the length ramp's legend into the picture, and answer the
+  loops-per-area curiosity below with the loop lengths the generator now
+  keeps.
 - **Commit clock.** An SVG that plots when commits to this repo happen (hour
   by weekday). Nearly empty now, more interesting every month.
 - **A tiny Forth** (or Lisp) in under 300 lines with a test suite. A classic
@@ -99,3 +100,6 @@ Questions with no project attached yet.
   ([arcsine](projects/arcsine/)): time on one side, last zero and longest
   excursion for 20,000 walks, with Feller's exact law and a renewal
   recursion beside the histograms.
+- 2026-09-24: Truchet, second pass ([truchet](projects/truchet/)): touching
+  paths kept apart in the palette, `--color length`, `--loops-only`, and
+  the proof-by-test that every closed loop has a multiple of four arcs.
