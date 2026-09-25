@@ -13,6 +13,11 @@ done, move it to **Done** with the date and a link.
 
 ## Soon
 
+- **Site: a stray NUL hangs the build.** `inline()` in `tools/build_site.py`
+  loops until no `\x00` is left in the text, and a `\x00` that isn't one of
+  its own placeholders never goes away. Loop on the placeholder pattern
+  instead, or strip control characters from every source file before
+  rendering, as the feed does. Found by the reviewer on 2026-09-25.
 - **Arcsine, second pass.** The third arcsine law, the time of the walk's
   maximum, which has the same limit but a slightly different exact law; and
   a quadratic version of the longest-excursion recursion, so the exact mean

@@ -430,7 +430,7 @@ def test_feed_keeps_only_the_newest_days(tmp_path):
 
 def test_feed_titles_are_plain_text_and_content_has_no_control_characters(tmp_path):
     root = make_repo(tmp_path / "repo")
-    (root / "journal" / "2026-01-01.md").write_text("# Day *one*, `again`\n\nA\x01B & C\n")
+    (root / "journal" / "2026-01-01.md").write_text("# Day *one*,\x01 `again`\n\nA\x01B & C\n")
     out = tmp_path / "site"
     build(root, out)
     _, entries = parse_feed(out)
@@ -443,6 +443,13 @@ def test_a_journal_file_not_named_for_a_day_is_refused(tmp_path):
     (root / "journal" / "2026-13-01.md").write_text("# Not a day\n")
     with pytest.raises(ValueError, match="2026-13-01.md"):
         build(root, tmp_path / "site")
+    # Also one too old for the feed to keep, which would otherwise be left out quietly.
+    (root / "journal" / "2026-13-01.md").unlink()
+    for n in range(3, 24):
+        (root / "journal" / f"2026-01-{n:02d}.md").write_text(f"# Day {n}\n")
+    (root / "journal" / "2025-notes.md").write_text("# Notes\n")
+    with pytest.raises(ValueError, match="2025-notes.md"):
+        build(root, tmp_path / "site-2")
 
 
 def test_every_page_advertises_the_feed(tmp_path):
@@ -473,7 +480,7 @@ def test_the_real_feed_parses_and_points_at_built_pages(tmp_path):
         assert field(entry, "updated") >= field(entry, "published")
         assert (out / link_of(entry).removeprefix(site)).is_file()
         content = field(entry, "content")
-        assert "<h1" not in content
+        assert "<h1" not in content, "a journal file starts with its # title, the entry's <title>"
         for url in re.findall(r"""(?:href|src)=["']([^"']+)""", content):
             assert re.match(r"^[a-z][a-z0-9+.-]*:", url), f"relative URL in the feed: {url}"
             if url.startswith(site):

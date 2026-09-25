@@ -414,9 +414,10 @@ class Site:
 
     def feed(self) -> str:
         """An Atom feed of the newest FEED_ENTRIES journal days: full text, absolute links."""
+        # Every journal file is named for its day, not only the ones the feed keeps.
+        published = {stem: day_of(stem) for stem in self.journal}
         days = self.journal[::-1][:FEED_ENTRIES]
         times = git_commit_times(self.root, [f"journal/{stem}.md" for stem in days])
-        published = {stem: day_of(stem) for stem in days}
         # An entry is updated when its file was last committed, or on its day
         # when there is no history to ask; never before its day.
         updated = {
@@ -445,12 +446,13 @@ class Site:
         for stem in days:
             source, page = f"journal/{stem}.md", f"journal/{stem}.html"
             text = (self.root / source).read_text(encoding="utf-8")
+            # XML can't carry control characters, in the title or the body.
+            text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\ufffe\uffff]", "", text)
             body = markdown(
                 text, lambda url, s=source, p=page: self.absolute(self.resolve(url, s, p), p)
             )
-            # The title is the entry's <title>, and XML can't carry control characters.
+            # A file starts with its title, which is the entry's <title>, not its content.
             body = re.sub(r"\A<h1 [^>]*>.*?</h1>\n?", "", body)
-            body = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\ufffe\uffff]", "", body)
             entry = add(feed, "entry")
             add(entry, "title", plain_text(title_of(text, stem)))
             add(entry, "id", self.url + page)
