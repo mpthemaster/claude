@@ -49,6 +49,33 @@ def test_underscores_and_stars_inside_words_are_left_alone():
     assert inline("twin_peaks_txt and 2*n*3") == "twin_peaks_txt and 2*n*3"
 
 
+def test_one_letter_spans_close_at_their_own_mark():
+    assert inline("after *n* steps it is at *k*") == "after <em>n</em> steps it is at <em>k</em>"
+    assert inline("if **x** is big, **y** is small") == (
+        "if <strong>x</strong> is big, <strong>y</strong> is small"
+    )
+    assert inline("_a_ and _b c_") == "<em>a</em> and <em>b c</em>"
+
+
+def test_a_run_of_underscores_is_a_blank_not_emphasis():
+    # Clue 39 of the crossword.
+    assert inline('"That ___ you like" (3)') == "&quot;That ___ you like&quot; (3)"
+
+
+def test_emphasis_never_reaches_inside_a_url():
+    assert markdown("[init](pkg/__init__.py)") == '<p><a href="pkg/__init__.py">init</a></p>'
+    assert inline("[**b** `x_y_`](a/_b_/c)") == (
+        '<a href="a/_b_/c"><strong>b</strong> <code>x_y_</code></a>'
+    )
+
+
+def test_autolinks_at_the_start_and_in_the_middle_of_a_paragraph():
+    assert markdown("<https://x.y/a_b_> is it, see <https://q.r/>.") == (
+        '<p><a href="https://x.y/a_b_">https://x.y/a_b_</a> is it, '
+        'see <a href="https://q.r/">https://q.r/</a>.</p>'
+    )
+
+
 def test_links_and_images_go_through_the_link_function():
     html = inline("[`x.txt`](x.txt) ![a picture](out/p.svg)", link=lambda url: "/" + url)
     assert html == '<a href="/x.txt"><code>x.txt</code></a> <img src="/out/p.svg" alt="a picture">'
@@ -217,6 +244,8 @@ def test_the_real_repository_builds_with_no_broken_links(tmp_path):
         # Nothing markdown-shaped should survive outside code.
         prose = re.sub(r"<(code|pre)[^>]*>.*?</\1>", "", text, flags=re.S)
         assert not re.search(r"\]\(|^#+ |\*\*", prose, re.M), page
+        # No tag ever lands inside an attribute value.
+        assert not re.search(r'="[^"]*<', text), page
 
 
 def test_relative_urls_never_leave_the_site(tmp_path):

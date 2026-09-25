@@ -35,7 +35,7 @@ MARKER = ".site-build"
 FENCE = re.compile(r"^```\s*([\w+-]*)\s*$")
 HEADING = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
 LIST_ITEM = re.compile(r"^(\s*)([-*+]|\d+[.)])\s+(.*)$")
-HTML_BLOCK = re.compile(r"^<(/?[A-Za-z][\w-]*|!--)")
+HTML_BLOCK = re.compile(r"^<(/?[A-Za-z][\w-]*(?![\w+.-]*:)|!--)")
 QUOTE = re.compile(r"^>\s?(.*)$")
 ATTR_URL = re.compile(r'\b(src|href)="([^"]*)"')
 
@@ -43,34 +43,52 @@ ATTR_URL = re.compile(r'\b(src|href)="([^"]*)"')
 # --- inline -------------------------------------------------------------
 
 
+def emphasis(text: str) -> str:
+    """Bold and italics. A delimiter never begins or ends its own span, so `___`
+    stays a blank and a single-letter span stops at its own closing mark."""
+    text = re.sub(r"\*\*([^\s*](?:.*?[^\s*])??)\*\*", r"<strong>\1</strong>", text)
+    text = re.sub(r"(?<![\w*])\*([^\s*](?:.*?[^\s*])??)\*(?![\w*])", r"<em>\1</em>", text)
+    return re.sub(r"(?<![\w_])_([^\s_](?:.*?[^\s_])??)_(?![\w_])", r"<em>\1</em>", text)
+
+
 def inline(text: str, link=lambda url: url) -> str:
-    """Markdown inline syntax to HTML. `link` maps each URL as it's written."""
-    codes: list[str] = []
+    """Markdown inline syntax to HTML. `link` maps each URL as it's written.
 
-    def stash(match: re.Match) -> str:
-        codes.append(f"<code>{html.escape(match.group(2).strip())}</code>")
-        return f"\x00{len(codes) - 1}\x00"
+    Code spans, links and images are set aside as placeholders as soon as
+    they're made, so emphasis never reaches inside a URL or a code span.
+    """
+    held: list[str] = []
 
-    text = re.sub(r"(`+)(.+?)\1", stash, text)
-    text = html.escape(text, quote=True)
+    def hold(fragment: str) -> str:
+        held.append(fragment)
+        return f"\x00{len(held) - 1}\x00"
 
     def url(raw: str) -> str:
         return html.escape(link(html.unescape(raw)), quote=True)
 
     text = re.sub(
+        r"(`+)(.+?)\1", lambda m: hold(f"<code>{html.escape(m.group(2).strip())}</code>"), text
+    )
+    text = html.escape(text, quote=True)
+    text = re.sub(
+        r"&lt;(https?://[^\s&]+)&gt;",
+        lambda m: hold(f'<a href="{url(m.group(1))}">{m.group(1)}</a>'),
+        text,
+    )
+    text = re.sub(
         r"!\[([^\]]*)\]\(([^)\s]+)\)",
-        lambda m: f'<img src="{url(m.group(2))}" alt="{m.group(1)}">',
+        lambda m: hold(f'<img src="{url(m.group(2))}" alt="{m.group(1)}">'),
         text,
     )
     text = re.sub(
         r"\[([^\]]+)\]\(([^)\s]+)\)",
-        lambda m: f'<a href="{url(m.group(2))}">{m.group(1)}</a>',
+        lambda m: hold(f'<a href="{url(m.group(2))}">{emphasis(m.group(1))}</a>'),
         text,
     )
-    text = re.sub(r"\*\*(\S(?:.*?\S)?)\*\*", r"<strong>\1</strong>", text)
-    text = re.sub(r"(?<![\w*])\*(\S(?:.*?\S)?)\*(?![\w*])", r"<em>\1</em>", text)
-    text = re.sub(r"(?<!\w)_(\S(?:.*?\S)?)_(?!\w)", r"<em>\1</em>", text)
-    return re.sub(r"\x00(\d+)\x00", lambda m: codes[int(m.group(1))], text)
+    text = emphasis(text)
+    while "\x00" in text:
+        text = re.sub(r"\x00(\d+)\x00", lambda m: held[int(m.group(1))], text)
+    return text
 
 
 def slugify(text: str) -> str:
