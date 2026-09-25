@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 import build_site
+import pytest
 from build_site import Site, build, inline, markdown
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -76,6 +77,18 @@ def test_autolinks_at_the_start_and_in_the_middle_of_a_paragraph():
     )
 
 
+def test_nested_emphasis_always_closes_in_order():
+    assert inline("**a *b* c**") == "<strong>a <em>b</em> c</strong>"
+    html = inline("**bold *italic***")
+    assert html == "<strong>bold *italic</strong>*"
+
+
+def test_autolink_with_a_query_string():
+    assert inline("<https://e.test/?a=1&b=2>") == (
+        '<a href="https://e.test/?a=1&amp;b=2">https://e.test/?a=1&amp;b=2</a>'
+    )
+
+
 def test_links_and_images_go_through_the_link_function():
     html = inline("[`x.txt`](x.txt) ![a picture](out/p.svg)", link=lambda url: "/" + url)
     assert html == '<a href="/x.txt"><code>x.txt</code></a> <img src="/out/p.svg" alt="a picture">'
@@ -99,6 +112,10 @@ def test_list_right_after_a_paragraph_line_starts_a_list():
     )
 
 
+def test_numbered_list_keeps_its_starting_number():
+    assert markdown("3. third\n4. fourth\n") == '<ol start="3"><li>third</li><li>fourth</li></ol>'
+
+
 def test_block_quote():
     assert (
         markdown("> Thanks for\n> writing.\n")
@@ -114,6 +131,11 @@ def test_raw_html_block_passes_through_with_urls_mapped():
         '  <a href="../out/a.svg"><img src="../out/a.svg" alt="x & y"></a>\n'
         "</p>"
     )
+
+
+def test_raw_html_urls_in_single_quotes_are_mapped_too():
+    html = markdown("<p><a href='x.md'>x</a> <img src=\"a&amp;b.svg\"></p>", link=lambda u: "/" + u)
+    assert html == '<p><a href="/x.md">x</a> <img src="/a&amp;b.svg"></p>'
 
 
 def test_summary_skips_title_and_pictures():
@@ -136,10 +158,13 @@ def make_repo(root: Path) -> Path:
     demo = root / "projects" / "demo"
     (demo / "out").mkdir(parents=True)
     (demo / "out" / "pic.svg").write_text("<svg/>")
+    (demo / "out" / "charts").mkdir()
+    (demo / "out" / "charts" / "c.svg").write_text("<svg/>")
     (demo / "demo.py").write_text("")
     (demo / "README.md").write_text(
         "# The demo\n\nIt draws a picture.\n\n![pic](out/pic.svg) [code](demo.py) "
         "[journal](../../journal/2026-01-02.md) [home](../../README.md) [gone](out/gone.svg)\n"
+        "\n<p><img src='out/charts/c.svg'></p>\n"
     )
     (root / "tools").mkdir()
     return root
@@ -173,7 +198,7 @@ def test_resolve_maps_links_to_pages_assets_and_github(tmp_path):
 def local_targets(out: Path):
     """Every (page, local URL) pair in the built site."""
     for page in out.rglob("*.html"):
-        for url in re.findall(r'(?:href|src)="([^"]+)"', page.read_text()):
+        for url in re.findall(r"""(?:href|src)=["']([^"']+)""", page.read_text()):
             if not re.match(r"^[a-z]+:", url):
                 yield page, url
 
@@ -199,6 +224,7 @@ def test_build_writes_pages_assets_and_working_links(tmp_path):
         "journal/2026-01-01.html",
         "journal/2026-01-02.html",
         "projects/demo/index.html",
+        "projects/demo/out/charts/c.svg",
         "projects/demo/out/pic.svg",
     ]
     assert check_links(out) >= 10
@@ -226,6 +252,20 @@ def test_build_replaces_a_previous_build_but_not_other_directories(tmp_path):
         assert (precious / "keep.txt").read_text() == "keep"
         return
     raise AssertionError("expected FileExistsError")
+
+
+def test_a_build_that_fails_halfway_can_be_retried(tmp_path, monkeypatch):
+    root = make_repo(tmp_path / "repo")
+    out = tmp_path / "site"
+
+    def broken(self):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(Site, "assets", broken)
+    with pytest.raises(OSError):
+        build(root, out)
+    monkeypatch.undo()
+    assert "index.html" in build(root, out)
 
 
 def test_the_real_repository_builds_with_no_broken_links(tmp_path):

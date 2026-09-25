@@ -37,7 +37,7 @@ HEADING = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
 LIST_ITEM = re.compile(r"^(\s*)([-*+]|\d+[.)])\s+(.*)$")
 HTML_BLOCK = re.compile(r"^<(/?[A-Za-z][\w-]*(?![\w+.-]*:)|!--)")
 QUOTE = re.compile(r"^>\s?(.*)$")
-ATTR_URL = re.compile(r'\b(src|href)="([^"]*)"')
+ATTR_URL = re.compile(r"""\b(src|href)=(["'])(.*?)\2""")
 
 
 # --- inline -------------------------------------------------------------
@@ -46,9 +46,21 @@ ATTR_URL = re.compile(r'\b(src|href)="([^"]*)"')
 def emphasis(text: str) -> str:
     """Bold and italics. A delimiter never begins or ends its own span, so `___`
     stays a blank and a single-letter span stops at its own closing mark."""
-    text = re.sub(r"\*\*([^\s*](?:.*?[^\s*])??)\*\*", r"<strong>\1</strong>", text)
-    text = re.sub(r"(?<![\w*])\*([^\s*](?:.*?[^\s*])??)\*(?![\w*])", r"<em>\1</em>", text)
-    return re.sub(r"(?<![\w_])_([^\s_](?:.*?[^\s_])??)_(?![\w_])", r"<em>\1</em>", text)
+
+    def wrap(tag: str):
+        def replace(match: re.Match) -> str:
+            inner = match.group(1)
+            # A span that would close across another tag is left as written,
+            # so the tags always nest (`**a *b***` keeps its last star).
+            if any(inner.count(f"<{t}>") != inner.count(f"</{t}>") for t in ("strong", "em")):
+                return match.group(0)
+            return f"<{tag}>{inner}</{tag}>"
+
+        return replace
+
+    text = re.sub(r"\*\*([^\s*](?:.*?[^\s*])??)\*\*", wrap("strong"), text)
+    text = re.sub(r"(?<![\w*])\*([^\s*](?:.*?[^\s*])??)\*(?![\w*])", wrap("em"), text)
+    return re.sub(r"(?<![\w_])_([^\s_](?:.*?[^\s_])??)_(?![\w_])", wrap("em"), text)
 
 
 def inline(text: str, link=lambda url: url) -> str:
@@ -71,7 +83,7 @@ def inline(text: str, link=lambda url: url) -> str:
     )
     text = html.escape(text, quote=True)
     text = re.sub(
-        r"&lt;(https?://[^\s&]+)&gt;",
+        r"&lt;(https?://(?:(?!&gt;)\S)+)&gt;",
         lambda m: hold(f'<a href="{url(m.group(1))}">{m.group(1)}</a>'),
         text,
     )
@@ -100,13 +112,15 @@ def slugify(text: str) -> str:
 # --- blocks -------------------------------------------------------------
 
 
-def render_list(items: list[tuple[int, bool, str]], link) -> str:
-    """Nested <ul>/<ol> from (indent, ordered, text) items, nesting by indent."""
+def render_list(items: list[tuple[int, int | None, str]], link) -> str:
+    """Nested <ul>/<ol> from (indent, number or None, text) items, nesting by indent."""
     out: list[str] = []
     i = 0
     base = items[0][0]
-    tag = "ol" if items[0][1] else "ul"
-    out.append(f"<{tag}>")
+    number = items[0][1]
+    tag = "ul" if number is None else "ol"
+    start = f' start="{number}"' if number not in (None, 1) else ""
+    out.append(f"<{tag}{start}>")
     while i < len(items):
         _, _, text = items[i]
         j = i + 1
@@ -125,6 +139,9 @@ def markdown(text: str, link=lambda url: url) -> str:
     out: list[str] = []
     used_ids: set[str] = set()
     i = 0
+
+    def url(raw: str) -> str:
+        return html.escape(link(html.unescape(raw)), quote=True)
 
     def starts_block(line: str) -> bool:
         item = LIST_ITEM.match(line)
@@ -166,7 +183,7 @@ def markdown(text: str, link=lambda url: url) -> str:
                 body.append(lines[i])
                 i += 1
             raw = "\n".join(body)
-            out.append(ATTR_URL.sub(lambda m: f'{m.group(1)}="{link(m.group(2))}"', raw))
+            out.append(ATTR_URL.sub(lambda m: f'{m.group(1)}="{url(m.group(3))}"', raw))
         elif QUOTE.match(line):
             body = []
             while i < len(lines) and (quote := QUOTE.match(lines[i])):
@@ -174,15 +191,16 @@ def markdown(text: str, link=lambda url: url) -> str:
                 i += 1
             out.append(f"<blockquote>{markdown(chr(10).join(body), link)}</blockquote>")
         elif LIST_ITEM.match(line):
-            items: list[tuple[int, bool, str]] = []
+            items: list[tuple[int, int | None, str]] = []
             while i < len(lines) and lines[i].strip():
                 item = LIST_ITEM.match(lines[i])
                 if item:
-                    ordered = item.group(2)[0].isdigit()
-                    items.append((len(item.group(1)), ordered, item.group(3)))
+                    marker = item.group(2)
+                    number = int(marker[:-1]) if marker[0].isdigit() else None
+                    items.append((len(item.group(1)), number, item.group(3)))
                 else:
-                    indent, ordered, text_so_far = items[-1]
-                    items[-1] = (indent, ordered, f"{text_so_far} {lines[i].strip()}")
+                    indent, number, text_so_far = items[-1]
+                    items[-1] = (indent, number, f"{text_so_far} {lines[i].strip()}")
                 i += 1
             out.append(render_list(items, link))
         else:
@@ -322,7 +340,7 @@ class Site:
         return sorted(
             p.relative_to(self.root).as_posix()
             for slug in self.projects
-            for p in (self.root / "projects" / slug / "out").glob("*")
+            for p in (self.root / "projects" / slug / "out").rglob("*")
             if p.is_file()
         )
 
@@ -397,6 +415,9 @@ def build(root: Path, out: Path) -> list[str]:
         if not (out / MARKER).exists() and any(out.iterdir()):
             raise FileExistsError(f"{out} is not empty and is not a previous site build")
         shutil.rmtree(out)
+    # The marker goes first, so a build that fails halfway can be retried.
+    out.mkdir(parents=True)
+    (out / MARKER).write_text("written by tools/build_site.py\n", encoding="utf-8")
     site = Site(root)
     written = []
     for path, content in site.pages().items():
@@ -407,7 +428,6 @@ def build(root: Path, out: Path) -> list[str]:
         (out / path).parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(root / path, out / path)
         written.append(path)
-    (out / MARKER).write_text("written by tools/build_site.py\n", encoding="utf-8")
     return sorted(written)
 
 
