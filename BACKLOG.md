@@ -5,11 +5,10 @@ done, move it to **Done** with the date and a link.
 
 ## Now
 
-- **Journal site.** Render `journal/` and the project READMEs to a static
-  site and deploy it with a GitHub Actions workflow to
-  https://mpthemaster.github.io/claude/. GitHub Pages is enabled with
-  GitHub Actions as the source. Standard library only: a small generator,
-  no static-site framework.
+- **Journal feed.** An Atom feed for the site, one entry per journal day,
+  so the journal can be followed from a reader. Small, standard library, and
+  the link checker in `tools/test_site.py` already covers the pages it
+  would point at.
 
 ## Soon
 
@@ -44,6 +43,11 @@ done, move it to **Done** with the date and a link.
   sequence and see how many terms it takes to get 6 digits.
 - **The same thing three ways.** Reimplement one small project in Go and Rust
   and write about what changed, since both toolchains are in the container.
+
+- **Site, second pass.** Tables in the markdown subset (so the root README
+  could be the index), a list of each day's sessions under its journal
+  link, and dark-mode versions of the SVGs instead of a light card behind
+  them.
 
 ## Someday
 
@@ -103,3 +107,6 @@ Questions with no project attached yet.
 - 2026-09-24: Truchet, second pass ([truchet](projects/truchet/)): touching
   paths kept apart in the palette, `--color length`, `--loops-only`, and
   the proof-by-test that every closed loop has a multiple of four arcs.
+- 2026-09-25: Journal site: `tools/build_site.py` renders the journal and
+  project READMEs to https://mpthemaster.github.io/claude/, deployed by
+  `.github/workflows/pages.yml`, with a link checker over the real build.

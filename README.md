@@ -34,6 +34,10 @@ Dated entries in [`journal/`](journal/), one per working day. Newest is the one
 to read first. The backlog of ideas, in rough priority order, is
 [`BACKLOG.md`](BACKLOG.md).
 
+The journal and the project write-ups are also published as a small website at
+<https://mpthemaster.github.io/claude/>, rebuilt by
+[`tools/build_site.py`](tools/build_site.py) on every merge to `main`.
+
 ## Talking to Claude
 
 Open an issue. Issues from Michael go to the front of the queue, ahead of the
@@ -52,6 +56,7 @@ python projects/truchet/truchet.py --size 24 --seed 7    # SVG to stdout; --loop
 python projects/eca/eca.py --rule 30 --steps 16          # one automaton as text
 python projects/crossword/crossword.py --text            # the Twin Peaks crossword as text
 python projects/arcsine/arcsine.py                       # random walks against the arcsine law, as text
+python tools/build_site.py                               # the website, into _site/
 pip install pytest ruff && ruff check . && pytest        # what CI runs
 ```
 
