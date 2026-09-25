@@ -14,6 +14,11 @@ project, its README, or a journal file goes to that page on the site; a link
 into a project's out/ directory goes to the copy the build makes; any other
 file in the repository goes to it on GitHub.
 
+feed.xml is an Atom feed of the newest journal days, full text with absolute
+links, so the journal can be followed from a reader. An entry is dated by the
+day in its file name and, when the build runs in a full git checkout, marked
+updated when the file was last committed.
+
 Usage:
     python tools/build_site.py [--root PATH] [--out DIR]
 """
@@ -25,12 +30,20 @@ import html
 import posixpath
 import re
 import shutil
+import subprocess
 import sys
+import xml.etree.ElementTree as ET
+from datetime import UTC, date, datetime
 from pathlib import Path
+from urllib.parse import urljoin
 
 ROOT = Path(__file__).resolve().parent.parent
 REPO_URL = "https://github.com/mpthemaster/claude"
+SITE_URL = "https://mpthemaster.github.io/claude/"
 MARKER = ".site-build"
+ATOM = "http://www.w3.org/2005/Atom"
+FEED_ENTRIES = 20
+EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
 
 FENCE = re.compile(r"^```\s*([\w+-]*)\s*$")
 HEADING = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
@@ -38,6 +51,7 @@ LIST_ITEM = re.compile(r"^(\s*)([-*+]|\d+[.)])\s+(.*)$")
 HTML_BLOCK = re.compile(r"^<(/?[A-Za-z][\w-]*(?![\w+.-]*:)|!--)")
 QUOTE = re.compile(r"^>\s?(.*)$")
 ATTR_URL = re.compile(r"""\b(src|href)=(["'])(.*?)\2""")
+JOURNAL_DAY = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 # --- inline -------------------------------------------------------------
@@ -212,7 +226,7 @@ def markdown(text: str, link=lambda url: url) -> str:
     return "\n".join(out)
 
 
-# --- the site -----------------------------------------------------------
+# --- titles and summaries -----------------------------------------------
 
 
 def title_of(text: str, fallback: str) -> str:
@@ -237,9 +251,62 @@ def summary_of(text: str) -> str:
     return " ".join(body)
 
 
+# --- the feed -----------------------------------------------------------
+
+
+def rfc3339(moment: datetime) -> str:
+    return moment.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def day_of(stem: str) -> datetime:
+    """Midnight UTC of the day a journal file is named for."""
+    try:
+        if not JOURNAL_DAY.match(stem):
+            raise ValueError(stem)
+        day = date.fromisoformat(stem)
+    except ValueError:
+        raise ValueError(f"journal/{stem}.md is not named for a day (YYYY-MM-DD.md)") from None
+    return datetime(day.year, day.month, day.day, tzinfo=UTC)
+
+
+def plain_text(markdown_line: str) -> str:
+    """A title without its inline markup, for a feed reader's list."""
+    return html.unescape(re.sub(r"<[^>]+>", "", inline(markdown_line)))
+
+
+def git_commit_times(root: Path, paths: list[str]) -> dict[str, datetime]:
+    """When git last committed each path, if `root` is a full checkout; else empty.
+
+    A shallow clone, which is what actions/checkout makes unless asked
+    otherwise, would date every older file at its cut-off commit, so it
+    counts as no history at all and the feed falls back to the file names.
+    """
+
+    def git(*args: str) -> str | None:
+        try:
+            result = subprocess.run(
+                ["git", *args], cwd=root, capture_output=True, text=True, check=False
+            )
+        except OSError:
+            return None
+        return result.stdout.strip() if result.returncode == 0 else None
+
+    if git("rev-parse", "--is-shallow-repository") != "false":
+        return {}
+    times = {}
+    for path in paths:
+        if stamp := git("log", "-1", "--format=%cI", "--", path):
+            times[path] = datetime.fromisoformat(stamp)
+    return times
+
+
+# --- the site -----------------------------------------------------------
+
+
 class Site:
-    def __init__(self, root: Path):
+    def __init__(self, root: Path, url: str = SITE_URL):
         self.root = root
+        self.url = url if url.endswith("/") else url + "/"
         self.projects = sorted(p.parent.name for p in (root / "projects").glob("*/README.md"))
         self.journal = sorted(p.stem for p in (root / "journal").glob("*.md"))
 
@@ -278,6 +345,10 @@ class Site:
             fragment = fragment or own_fragment
             url = posixpath.relpath(found, posixpath.dirname(page) or ".")
         return url + (f"#{fragment}" if fragment else "")
+
+    def absolute(self, url: str, page: str) -> str:
+        """`url` as written on `page`, made absolute for a reader that isn't on the site."""
+        return urljoin(self.url + page, url)
 
     def render(self, source: str, page: str) -> tuple[str, str]:
         """(title, body HTML) for the repository file `source`, placed at `page`."""
@@ -327,13 +398,69 @@ class Site:
                 f'<li><a href="projects/{slug}/index.html">{inline(title_of(text, slug))}</a>'
                 f"<p>{summary}</p></li>"
             )
-        parts += ["</ul>", '<h2 id="journal">Journal</h2>', '<ul class="entries">']
+        parts += [
+            "</ul>",
+            '<h2 id="journal">Journal</h2>',
+            "<p>One entry per working day, newest first. There is an "
+            '<a href="feed.xml">Atom feed</a>.</p>',
+            '<ul class="entries">',
+        ]
         for stem in reversed(self.journal):
             text = (self.root / "journal" / f"{stem}.md").read_text(encoding="utf-8")
             title = inline(title_of(text, stem))
             parts.append(f'<li><a href="journal/{stem}.html">{title}</a></li>')
         parts.append("</ul>")
         return "\n".join(parts)
+
+    def feed(self) -> str:
+        """An Atom feed of the newest FEED_ENTRIES journal days: full text, absolute links."""
+        days = self.journal[::-1][:FEED_ENTRIES]
+        times = git_commit_times(self.root, [f"journal/{stem}.md" for stem in days])
+        published = {stem: day_of(stem) for stem in days}
+        # An entry is updated when its file was last committed, or on its day
+        # when there is no history to ask; never before its day.
+        updated = {
+            stem: max(times.get(f"journal/{stem}.md", published[stem]), published[stem])
+            for stem in days
+        }
+
+        def add(parent: ET.Element, tag: str, text: str | None = None, **attrs: str) -> ET.Element:
+            element = ET.SubElement(parent, f"{{{ATOM}}}{tag}", attrs)
+            element.text = text
+            return element
+
+        ET.register_namespace("", ATOM)
+        feed = ET.Element(f"{{{ATOM}}}feed")
+        add(feed, "title", "claude")
+        add(feed, "subtitle", "The journal of Claude's workshop, one entry per working day.")
+        add(feed, "id", self.url)
+        add(feed, "updated", rfc3339(max(updated.values(), default=EPOCH)))
+        add(feed, "link", rel="alternate", type="text/html", href=self.url)
+        add(feed, "link", rel="self", type="application/atom+xml", href=self.url + "feed.xml")
+        author = add(feed, "author")
+        add(author, "name", "Claude")
+        add(author, "uri", REPO_URL)
+        generator = f"{REPO_URL}/blob/main/tools/build_site.py"
+        add(feed, "generator", "tools/build_site.py", uri=generator)
+        for stem in days:
+            source, page = f"journal/{stem}.md", f"journal/{stem}.html"
+            text = (self.root / source).read_text(encoding="utf-8")
+            body = markdown(
+                text, lambda url, s=source, p=page: self.absolute(self.resolve(url, s, p), p)
+            )
+            # The title is the entry's <title>, and XML can't carry control characters.
+            body = re.sub(r"\A<h1 [^>]*>.*?</h1>\n?", "", body)
+            body = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\ufffe\uffff]", "", body)
+            entry = add(feed, "entry")
+            add(entry, "title", plain_text(title_of(text, stem)))
+            add(entry, "id", self.url + page)
+            add(entry, "link", rel="alternate", type="text/html", href=self.url + page)
+            add(entry, "published", rfc3339(published[stem]))
+            add(entry, "updated", rfc3339(updated[stem]))
+            add(entry, "content", body, type="html")
+        ET.indent(feed)
+        declaration = '<?xml version="1.0" encoding="utf-8"?>\n'
+        return declaration + ET.tostring(feed, encoding="unicode") + "\n"
 
     def assets(self) -> list[str]:
         """Repository paths copied to the site as they are: each project's out/ files."""
@@ -384,6 +511,7 @@ footer { color: var(--muted); font: 14px system-ui, sans-serif; padding: 2.5rem 
 
 def layout(title: str, body: str, page: str) -> str:
     home = posixpath.relpath("index.html", posixpath.dirname(page) or ".")
+    feed = posixpath.relpath("feed.xml", posixpath.dirname(page) or ".")
     plain = html.escape(title)
     heading = "" if page == "index.html" else f'<a href="{home}">claude</a>'
     return f"""<!doctype html>
@@ -392,6 +520,7 @@ def layout(title: str, body: str, page: str) -> str:
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{plain}</title>
+<link rel="alternate" type="application/atom+xml" title="claude" href="{feed}">
 <style>{STYLE}</style>
 </head>
 <body>
@@ -428,6 +557,8 @@ def build(root: Path, out: Path) -> list[str]:
         (out / path).parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(root / path, out / path)
         written.append(path)
+    (out / "feed.xml").write_text(site.feed(), encoding="utf-8")
+    written.append("feed.xml")
     return sorted(written)
 
 

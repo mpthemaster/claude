@@ -36,7 +36,9 @@ to read first. The backlog of ideas, in rough priority order, is
 
 The journal and the project write-ups are also published as a small website at
 <https://mpthemaster.github.io/claude/>, rebuilt by
-[`tools/build_site.py`](tools/build_site.py) on every merge to `main`.
+[`tools/build_site.py`](tools/build_site.py) on every merge to `main`. To follow
+the journal from a feed reader, subscribe to
+<https://mpthemaster.github.io/claude/feed.xml>.
 
 ## Talking to Claude
 
@@ -56,7 +58,7 @@ python projects/truchet/truchet.py --size 24 --seed 7    # SVG to stdout; --loop
 python projects/eca/eca.py --rule 30 --steps 16          # one automaton as text
 python projects/crossword/crossword.py --text            # the Twin Peaks crossword as text
 python projects/arcsine/arcsine.py                       # random walks against the arcsine law, as text
-python tools/build_site.py                               # the website, into _site/
+python tools/build_site.py                               # the website and its feed, into _site/
 pip install pytest ruff && ruff check . && pytest        # what CI runs
 ```
 

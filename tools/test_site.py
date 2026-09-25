@@ -1,7 +1,9 @@
+import os
 import posixpath
 import re
 import subprocess
 import sys
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import build_site
@@ -220,6 +222,7 @@ def test_build_writes_pages_assets_and_working_links(tmp_path):
     out = tmp_path / "site"
     written = build(root, out)
     assert written == [
+        "feed.xml",
         "index.html",
         "journal/2026-01-01.html",
         "journal/2026-01-02.html",
@@ -312,3 +315,170 @@ def test_cli(tmp_path):
         text=True,
     )
     assert result.returncode == 1 and "not empty" in result.stderr
+
+
+# --- the feed -----------------------------------------------------------
+
+NS = {"a": build_site.ATOM}
+
+
+def parse_feed(out: Path):
+    """(feed element, its entries) from a built site's feed.xml."""
+    feed = ET.parse(out / "feed.xml").getroot()
+    assert feed.tag == f"{{{build_site.ATOM}}}feed"
+    return feed, feed.findall("a:entry", NS)
+
+
+def field(element, tag: str) -> str:
+    return element.findtext(f"a:{tag}", namespaces=NS)
+
+
+def link_of(entry) -> str:
+    return entry.find("a:link", NS).get("href")
+
+
+def git(*args: str, cwd: Path, date: str | None = None):
+    env = {**os.environ, "GIT_AUTHOR_DATE": date, "GIT_COMMITTER_DATE": date} if date else None
+    return subprocess.run(
+        ["git", *args], cwd=cwd, env=env, capture_output=True, text=True, check=True
+    )
+
+
+def test_feed_lists_the_days_newest_first_with_absolute_links(tmp_path):
+    root = make_repo(tmp_path / "repo")
+    out = tmp_path / "site"
+    build(root, out)
+    feed, entries = parse_feed(out)
+    site = build_site.SITE_URL
+    assert field(feed, "id") == site
+    assert feed.find("a:link[@rel='self']", NS).get("href") == f"{site}feed.xml"
+    assert field(feed, "title") == "claude"
+    assert field(feed.find("a:author", NS), "name") == "Claude"
+    assert [field(e, "title") for e in entries] == ["Day two", "Day one"]
+    pages = [f"{site}journal/2026-01-02.html", f"{site}journal/2026-01-01.html"]
+    assert [field(e, "id") for e in entries] == pages
+    assert [link_of(e) for e in entries] == pages
+    days = ["2026-01-02T00:00:00Z", "2026-01-01T00:00:00Z"]
+    assert [field(e, "published") for e in entries] == days
+    # Outside git, an entry is updated on its day and the feed on its newest day.
+    assert [field(e, "updated") for e in entries] == days
+    assert field(feed, "updated") == days[0]
+    day_two = field(entries[0], "content")
+    assert "<h1" not in day_two, "the title is the entry's <title>"
+    assert f'<a href="{site}journal/2026-01-01.html#day-one">yesterday</a>' in day_two
+    assert f'<a href="{build_site.REPO_URL}/blob/main/CLAUDE.md">manual</a>' in day_two
+    assert '<a href="https://example.com/a_b">web</a>' in day_two
+    assert f'<a href="{site}journal/2026-01-02.html#day-two">here</a>' in day_two
+    day_one = field(entries[1], "content")
+    assert f'<a href="{site}projects/demo/index.html">the demo</a>' in day_one
+
+
+def test_feed_dates_an_entry_by_its_last_commit_only_in_a_full_checkout(tmp_path):
+    root = make_repo(tmp_path / "repo")
+    git("init", "-q", cwd=root)
+    git("config", "user.email", "t@example.com", cwd=root)
+    git("config", "user.name", "t", cwd=root)
+    git("add", ".", cwd=root)
+    git("commit", "-q", "-m", "both days", cwd=root, date="2026-01-01T23:59:00+00:00")
+    build(root, tmp_path / "first")
+    feed, entries = parse_feed(tmp_path / "first")
+    # Day two was committed before its day began; an entry is never updated before it.
+    assert [field(e, "updated") for e in entries] == [
+        "2026-01-02T00:00:00Z",
+        "2026-01-01T23:59:00Z",
+    ]
+    assert field(feed, "updated") == "2026-01-02T00:00:00Z"
+
+    with (root / "journal" / "2026-01-02.md").open("a") as day_two:
+        day_two.write("\nMore, later.\n")
+    git("commit", "-q", "-a", "-m", "day two again", cwd=root, date="2026-01-05T06:07:08-04:00")
+    build(root, tmp_path / "second")
+    feed, entries = parse_feed(tmp_path / "second")
+    assert [field(e, "updated") for e in entries] == [
+        "2026-01-05T10:07:08Z",
+        "2026-01-01T23:59:00Z",
+    ]
+    assert [field(e, "published") for e in entries] == [
+        "2026-01-02T00:00:00Z",
+        "2026-01-01T00:00:00Z",
+    ]
+    assert field(feed, "updated") == "2026-01-05T10:07:08Z"
+
+    # A shallow clone knows only its last commit, which would date every older
+    # entry wrongly, so there the entries are dated by their file names.
+    shallow = tmp_path / "shallow"
+    git("clone", "-q", "--depth", "1", root.as_uri(), str(shallow), cwd=tmp_path)
+    build(shallow, tmp_path / "shallow-site")
+    _, entries = parse_feed(tmp_path / "shallow-site")
+    assert [field(e, "updated") for e in entries] == [
+        "2026-01-02T00:00:00Z",
+        "2026-01-01T00:00:00Z",
+    ]
+
+
+def test_feed_keeps_only_the_newest_days(tmp_path):
+    root = make_repo(tmp_path / "repo")
+    for n in range(3, 26):
+        (root / "journal" / f"2026-01-{n:02d}.md").write_text(f"# Day {n}\n\nText.\n")
+    out = tmp_path / "site"
+    build(root, out)
+    _, entries = parse_feed(out)
+    assert len(entries) == build_site.FEED_ENTRIES == 20
+    assert field(entries[0], "title") == "Day 25"
+    assert field(entries[-1], "title") == "Day 6"
+
+
+def test_feed_titles_are_plain_text_and_content_has_no_control_characters(tmp_path):
+    root = make_repo(tmp_path / "repo")
+    (root / "journal" / "2026-01-01.md").write_text("# Day *one*, `again`\n\nA\x01B & C\n")
+    out = tmp_path / "site"
+    build(root, out)
+    _, entries = parse_feed(out)
+    assert field(entries[-1], "title") == "Day one, again"
+    assert field(entries[-1], "content") == "<p>AB &amp; C</p>"
+
+
+def test_a_journal_file_not_named_for_a_day_is_refused(tmp_path):
+    root = make_repo(tmp_path / "repo")
+    (root / "journal" / "2026-13-01.md").write_text("# Not a day\n")
+    with pytest.raises(ValueError, match="2026-13-01.md"):
+        build(root, tmp_path / "site")
+
+
+def test_every_page_advertises_the_feed(tmp_path):
+    root = make_repo(tmp_path / "repo")
+    out = tmp_path / "site"
+    build(root, out)
+    pages = list(out.rglob("*.html"))
+    assert len(pages) == 4
+    for page in pages:
+        href = posixpath.relpath("feed.xml", page.parent.relative_to(out).as_posix())
+        tag = f'<link rel="alternate" type="application/atom+xml" title="claude" href="{href}">'
+        assert tag in page.read_text(), page
+
+
+def test_the_real_feed_parses_and_points_at_built_pages(tmp_path):
+    out = tmp_path / "site"
+    build(ROOT, out)
+    feed, entries = parse_feed(out)
+    site = build_site.SITE_URL
+    days = sorted(p.stem for p in (ROOT / "journal").glob("*.md"))
+    expected = [f"{site}journal/{day}.html" for day in reversed(days)]
+    assert [field(e, "id") for e in entries] == expected[: build_site.FEED_ENTRIES]
+    stamp = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
+    for entry in entries:
+        assert stamp.fullmatch(field(entry, "published")) and stamp.fullmatch(
+            field(entry, "updated")
+        )
+        assert field(entry, "updated") >= field(entry, "published")
+        assert (out / link_of(entry).removeprefix(site)).is_file()
+        content = field(entry, "content")
+        assert "<h1" not in content
+        for url in re.findall(r"""(?:href|src)=["']([^"']+)""", content):
+            assert re.match(r"^[a-z][a-z0-9+.-]*:", url), f"relative URL in the feed: {url}"
+            if url.startswith(site):
+                path, _, fragment = url.removeprefix(site).partition("#")
+                assert (out / path).is_file(), url
+                if fragment:
+                    assert f'id="{fragment}"' in (out / path).read_text(), url
+    assert field(feed, "updated") == max(field(e, "updated") for e in entries)

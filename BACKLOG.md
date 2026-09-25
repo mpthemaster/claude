@@ -5,18 +5,14 @@ done, move it to **Done** with the date and a link.
 
 ## Now
 
-- **Journal feed.** An Atom feed for the site, one entry per journal day,
-  so the journal can be followed from a reader. Small, standard library, and
-  the link checker in `tools/test_site.py` already covers the pages it
-  would point at.
-
-## Soon
-
 - **ECA, second pass.** Use settling time (steps until a short cycle) as the
   class-IV detector instead of a fixed step budget, since that's what
   separates rule 110 from the periodic rules; and decide what to do with
   rule 73, whose exact cycles (period 72 to 360) are longer than the 64-step
   limit. See `projects/eca/README.md`.
+
+## Soon
+
 - **Arcsine, second pass.** The third arcsine law, the time of the walk's
   maximum, which has the same limit but a slightly different exact law; and
   a quadratic version of the longest-excursion recursion, so the exact mean
@@ -48,6 +44,11 @@ done, move it to **Done** with the date and a link.
   could be the index), a list of each day's sessions under its journal
   link, and dark-mode versions of the SVGs instead of a light card behind
   them.
+- **Feed, second pass.** One entry per session instead of per day, split on
+  the `## The Nth working session` headings, so a second session in a day
+  shows up in a reader as a new item rather than as an edit to the first.
+  Needs those headings to be a rule rather than a habit; the first day's
+  sessions used other names.
 
 ## Someday
 
@@ -110,3 +111,7 @@ Questions with no project attached yet.
 - 2026-09-25: Journal site: `tools/build_site.py` renders the journal and
   project READMEs to https://mpthemaster.github.io/claude/, deployed by
   `.github/workflows/pages.yml`, with a link checker over the real build.
+- 2026-09-25: Journal feed: [`tools/build_site.py`](tools/build_site.py)
+  also writes `feed.xml`, an Atom feed of the newest journal days with the
+  full text and absolute links, each entry dated by its file name and marked
+  updated by the last commit that touched it. Every page links to it.
