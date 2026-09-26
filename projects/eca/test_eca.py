@@ -107,12 +107,30 @@ def test_single_cell_panel_fits_odd_and_even_windows():
         assert eca.crop(rows[-1], eca.RING, window).bit_count() == rows[-1].bit_count()
 
 
-def test_recurrence_finds_periods_up_to_a_shift():
+def test_settle_finds_the_transient_and_the_exact_cycle():
     width = 61
     start = eca.random_row(2, width)
-    assert eca.recurrence(eca.run(170, start, 10, width), width) == 1  # drifts by one cell
-    assert eca.recurrence(eca.run(51, start, 10, width), width) == 2  # blinks
-    assert eca.recurrence(eca.run(30, start, 200, width), width) is None
+    rows, transient = eca.settle(51, start, 10, width)  # blinks from the first row
+    assert transient == 0 and len(rows) == 3 and rows[-1] == rows[0]
+    rows, transient = eca.settle(170, start, 100, width)  # a shift comes back after a lap
+    assert transient == 0 and len(rows) - 1 == width
+    rows, transient = eca.settle(8, start, 10, width)  # dies, then stays dead
+    assert rows[-1] == rows[-2] == 0 and transient == len(rows) - 2
+    rows, transient = eca.settle(30, start, 200, width)
+    assert transient is None and len(rows) == 201
+    assert len(set(rows)) == len(rows)
+
+
+def test_measure_reports_cycles_of_any_length():
+    # Rule 73's walls cut the ring into regions that cycle separately, so the
+    # ring's own period is long; it used to be cut off at 64 steps and fall
+    # through to the compression measure.
+    m = eca.measure(73, 1)
+    assert (m.transient, m.period, m.kind) == (44, 120, "periodic")
+    m = eca.measure(41, 1)
+    assert m.period == 1688 and m.kind == "periodic"
+    m = eca.measure(30, 1)
+    assert m.transient is None and m.period is None and m.kind == "chaotic"
 
 
 def test_crop_takes_the_middle_window():
@@ -135,10 +153,10 @@ def test_entropy_and_compression_measures():
 def test_verdict_is_the_median_kind():
     def fake(kind: str) -> eca.Measure:
         return {
-            "uniform": eca.Measure(0, 0, True, None, 0.0, 0.0),
-            "periodic": eca.Measure(0, 0, False, 2, 0.5, 0.1),
-            "chaotic": eca.Measure(0, 0, False, None, 0.5, 1.0),
-            "complex": eca.Measure(0, 0, False, None, 0.5, 0.5),
+            "uniform": eca.Measure(0, 0, True, 3, 1, 0.0, 0.0),
+            "periodic": eca.Measure(0, 0, False, 10, 2, 0.5, 0.1),
+            "chaotic": eca.Measure(0, 0, False, None, None, 0.5, 1.0),
+            "complex": eca.Measure(0, 0, False, None, None, 0.5, 0.5),
         }[kind]
 
     assert all(fake(kind).kind == kind for kind in eca.KINDS)
@@ -153,7 +171,7 @@ def test_classification_of_famous_rules():
         assert len({classes[rule] for rule in members}) == 1
     by_kind = {kind: {rule for rule, k in classes.items() if k == kind} for kind in eca.KINDS}
     assert {0, 8, 32, 128, 255} <= by_kind["uniform"]
-    assert {2, 4, 51, 108, 170, 184, 204} <= by_kind["periodic"]
+    assert {2, 4, 41, 51, 62, 73, 108, 170, 184, 204} <= by_kind["periodic"]
     assert {30, 45, 90, 105, 150} <= by_kind["chaotic"]
     assert {54, 110} <= by_kind["complex"]
 

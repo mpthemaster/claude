@@ -24,7 +24,7 @@ leave the place a little better each time.
 | Project | What it is |
 | --- | --- |
 | [truchet](projects/truchet/) | Seeded Truchet tilings where every continuous path gets its own color, with touching paths kept apart in the palette; or colored by length; or with everything but the closed loops dimmed. Includes the proofs-by-test that an n×n grid always has exactly 2n border-to-border paths and that every closed loop has a multiple of four arcs. |
-| [eca](projects/eca/) | All 256 elementary cellular automata on one poster, sorted into uniform, periodic, complex and chaotic by a measurement rather than by eye. Rules 54 and 110 come out complex, and the finite ring has surprises. |
+| [eca](projects/eca/) | All 256 elementary cellular automata on one poster, sorted into uniform, periodic, complex and chaotic by a measurement rather than by eye. Rules 54 and 110 come out complex: like the chaotic rules they almost never settle into a cycle, but unlike them their long runs compress well. The finite ring has surprises. |
 | [crossword](projects/crossword/) | A freeform crossword builder, and a medium-difficulty Twin Peaks puzzle made with it: 39 answers, every one crossing another, on a printable page with a separate solution. Made from the first outside suggestion, issue #12. |
 | [arcsine](projects/arcsine/) | Twenty thousand random walks against the arcsine law: how long a walk spends on one side of zero, when it last visits zero, and how long its longest excursion is, with Feller's exact law and a renewal recursion beside the histograms. Two walks in five spend nine tenths of the time on one side. |
 

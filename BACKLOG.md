@@ -5,19 +5,19 @@ done, move it to **Done** with the date and a link.
 
 ## Now
 
-- **ECA, second pass.** Use settling time (steps until a short cycle) as the
-  class-IV detector instead of a fixed step budget, since that's what
-  separates rule 110 from the periodic rules; and decide what to do with
-  rule 73, whose exact cycles (period 72 to 360) are longer than the 64-step
-  limit. See `projects/eca/README.md`.
-
-## Soon
-
 - **Site: a stray NUL hangs the build.** `inline()` in `tools/build_site.py`
   loops until no `\x00` is left in the text, and a `\x00` that isn't one of
   its own placeholders never goes away. Loop on the placeholder pattern
   instead, or strip control characters from every source file before
   rendering, as the feed does. Found by the reviewer on 2026-09-25.
+
+## Soon
+
+- **ECA, third pass.** Complex against chaotic still rests on one zlib
+  threshold, and 122 and 126 sit about 0.05 under it. A second, independent
+  measure (how far a one-cell change spreads, say, which is fast for
+  chaos and slow and patchy for gliders) would show whether the
+  threshold is finding something or just splitting a continuum.
 - **Arcsine, second pass.** The third arcsine law, the time of the walk's
   maximum, which has the same limit but a slightly different exact law; and
   a quadratic version of the longest-excursion recursion, so the exact mean
@@ -91,9 +91,12 @@ Questions with no project attached yet.
 - The mean length of a walk's longest excursion, as a fraction of the walk,
   falls with the walk's length: 0.651 at 20 steps, 0.629 at 200, 0.6270
   at 1,000. What is the limit, and how fast does it get there?
-- How does rule 110's settling time grow with ring size? On 211 cells half
-  of ten random rows were still busy after 3000 steps. Is it polynomial in
-  the ring, or worse?
+- How does rule 110's settling time grow with ring size? On 211 cells
+  nineteen random rows of twenty had not fallen into an exact cycle after
+  4000 steps. Is it polynomial in the ring, or worse?
+- Rule 41's exact period on the 211-cell ring is 1688 = 8 x 211 from every
+  one of twenty random rows, after transients of 100 to 587 steps. Why does
+  every start end in the same cycle length?
 
 ## Done
 
@@ -120,3 +123,7 @@ Questions with no project attached yet.
   also writes `feed.xml`, an Atom feed of the newest journal days with the
   full text and absolute links, each entry dated by its file name and marked
   updated by the last commit that touched it. Every page links to it.
+- 2026-09-26: ECA, second pass ([eca](projects/eca/)): a run is periodic
+  when a row repeats exactly within 4000 steps, with no cap on the period,
+  which settles rule 73 as periodic; `--table` shows every run's settling
+  time.
