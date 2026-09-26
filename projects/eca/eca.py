@@ -40,18 +40,17 @@ from pathlib import Path
 # cells rule 90 dies out completely after 64 steps, and on a ring of 63 it
 # repeats every 63 steps; the README says why.
 RING = 211
-STEPS = 1000  # steps of each random run before measuring; class II settles well within this
-TAIL = 256  # rows measured at the end of a run
+BUDGET = 4000  # steps a random run gets to fall into an exact cycle; see the README
+TAIL = 256  # rows measured at the end of a run that never settled
 SEEDS = (1, 2, 3, 4, 5)  # random rows per rule; the median verdict wins
-MAX_PERIOD = 64  # a recurrence with a longer period does not count as periodic
 STRUCTURE_THRESHOLD = 0.2  # bits per cell saved beyond what the density explains
 
 KINDS = ("uniform", "periodic", "complex", "chaotic")
 DESCRIPTIONS = {
     "uniform": "every random start ends all black or all white",
-    "periodic": f"the row repeats itself, possibly shifted, with period at most {MAX_PERIOD}",
-    "complex": "no short cycle, but the tail compresses well beyond what its density explains",
-    "chaotic": "no short cycle, and the tail compresses no better than a biased coin",
+    "periodic": f"every random start falls into an exact cycle within {BUDGET} steps",
+    "complex": f"no cycle in {BUDGET} steps, but the tail compresses well beyond its density",
+    "chaotic": f"no cycle in {BUDGET} steps, and the tail compresses no better than a biased coin",
 }
 
 # --- the automaton --------------------------------------------------------------
@@ -183,27 +182,6 @@ def transform_row(row: int, width: int, flip: bool, invert: bool) -> int:
 # --- measures ------------------------------------------------------------------
 
 
-def rotations(row: int, width: int) -> set[int]:
-    mask = (1 << width) - 1
-    out = set()
-    for _ in range(width):
-        out.add(row)
-        row = ((row << 1) | (row >> (width - 1))) & mask
-    return out
-
-
-def recurrence(rows: list[int], width: int) -> int | None:
-    """Smallest lag at which the last row is a rotation of an earlier row."""
-    last = rows[-1]
-    count = last.bit_count()
-    rots = rotations(last, width)
-    for lag in range(1, len(rows)):
-        earlier = rows[-1 - lag]
-        if earlier.bit_count() == count and earlier in rots:
-            return lag
-    return None
-
-
 def bits_per_cell(rows: list[int], width: int) -> float:
     """How many bits zlib needs per cell to store these rows.
 
@@ -229,7 +207,8 @@ class Measure:
     rule: int
     seed: int
     homogeneous: bool  # the last row is all black or all white
-    period: int | None  # lag at which the last row recurs, up to rotation
+    transient: int | None  # steps before the run entered its cycle; None if it never did
+    period: int | None  # exact length of that cycle, None if there was none
     density: float  # fraction of black cells in the tail
     bits_per_cell: float  # zlib cost of the tail
 
@@ -242,23 +221,41 @@ class Measure:
     def kind(self) -> str:
         if self.homogeneous:
             return "uniform"
-        if self.period is not None and self.period <= MAX_PERIOD:
+        if self.transient is not None:
             return "periodic"
         if self.structure < STRUCTURE_THRESHOLD:
             return "chaotic"
         return "complex"
 
 
+def settle(rule: int, row: int, budget: int, width: int = RING) -> tuple[list[int], int | None]:
+    """Run until a row repeats exactly, or for `budget` steps if none does.
+
+    Returns the rows, ending with the first repeated row, and the step at
+    which that row first appeared: the length of the transient before the
+    cycle. The transient is None if nothing repeated within the budget.
+    """
+    rows = [row]
+    seen = {row: 0}
+    for t in range(1, budget + 1):
+        row = step(row, rule, width)
+        rows.append(row)
+        if row in seen:
+            return rows, seen[row]
+        seen[row] = t
+    return rows, None
+
+
 def measure(
-    rule: int, seed: int, width: int = RING, steps: int = STEPS, tail: int = TAIL
+    rule: int, seed: int, width: int = RING, budget: int = BUDGET, tail: int = TAIL
 ) -> Measure:
-    rows = run(rule, random_row(seed, width), steps, width)
+    rows, transient = settle(rule, random_row(seed, width), budget, width)
     last = rows[-1]
     homogeneous = last in (0, (1 << width) - 1)
-    period = recurrence(rows, width) if not homogeneous else None
+    period = len(rows) - 1 - transient if transient is not None else None
     end = rows[-tail:]
     density = sum(row.bit_count() for row in end) / (len(end) * width)
-    return Measure(rule, seed, homogeneous, period, density, bits_per_cell(end, width))
+    return Measure(rule, seed, homogeneous, transient, period, density, bits_per_cell(end, width))
 
 
 def verdict(measures: list[Measure]) -> str:
@@ -445,10 +442,8 @@ def table(seeds: tuple[int, ...] = SEEDS) -> str:
         for m in measures:
             if m.homogeneous:
                 cells.append("uniform")
-            elif m.period is not None and m.period <= MAX_PERIOD:
-                cells.append(f"period {m.period}")
-            elif m.period is not None:
-                cells.append(f"{m.kind} s={m.structure:+.2f} (period {m.period})")
+            elif m.transient is not None:
+                cells.append(f"period {m.period} after {m.transient}")
             else:
                 cells.append(f"{m.kind} s={m.structure:+.2f}")
         lines.append(
