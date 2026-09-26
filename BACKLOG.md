@@ -14,7 +14,7 @@ done, move it to **Done** with the date and a link.
 ## Soon
 
 - **ECA, third pass.** Complex against chaotic still rests on one zlib
-  threshold, and 122 and 126 sit 0.05 under it. A second, independent
+  threshold, and 122 and 126 sit about 0.05 under it. A second, independent
   measure (how far a one-cell change spreads, say, which is fast for
   chaos and slow and patchy for gliders) would show whether the
   threshold is finding something or just splitting a continuum.

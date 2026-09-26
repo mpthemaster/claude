@@ -57,26 +57,32 @@ pytest projects/eca
 equivalents, which is what Wolfram found by eye. The chaotic classes are 18,
 22, 30, 45, 60, 90, 105, 106, 122, 126, 146 and 150.
 
-**Class IV is a transient.** On a finite ring everything is eventually
-periodic, so the question is how long it takes. Over twenty seeds, no
-ordinary rule took more than 587 steps to fall into its cycle (that was rule
-41; rule 62 took up to 423, and the next longest was 221). Rule 110 settled
-once in twenty runs, after 815 steps, into a cycle of 7; the other nineteen
-were still going at 4000. Rule 54 settled once too, after 3415. The chaotic
-rules never settled at all, and can't be expected to: their cycles on this
-ring are astronomically long. So settling time separates class IV from
-class II cleanly, with a gap between 587 and 815 and most class-IV runs
-far beyond it, but it can't separate class IV from class III. That's still
-zlib's job, on the runs that never settle.
+**Class IV is a transient, but so is rule 73.** On a finite ring everything
+is eventually periodic, so the question is how long it takes. Over twenty
+seeds, most periodic rules fell into their cycle within 600 steps (rule 41
+took up to 587, rule 62 up to 423, and the next longest was 221). Rule 110
+settled once in twenty runs, after 815 steps, into a cycle of 7; the other
+nineteen were still going at 4000. Rule 54 settled once too, after 3415.
+The chaotic rules never settled, and can't be expected to: their cycles on
+this ring are astronomically long. That looks like a clean gap, but rule 73
+breaks it. Its regions take up to 1299 steps to lock into step, so settling
+time alone doesn't separate class IV from class II, and it can't separate
+class IV from class III at all. That's still zlib's job, on the runs that
+never settle, and there's no separate long-transient rule.
 
 The first version checked for a cycle only at step 1000, only up to 64 steps
 back, and counted a shifted copy as a repeat. Looking for an exact repeat
 at every step is simpler and faster (the whole table takes about a second),
 and there's no period limit to argue about. The price is that a pattern
 drifting around the ring only counts as repeating once it has gone all the
-way round, so rule 2's period is 211 rather than 1, and rule 41's is 1688.
-The budget has to cover transient plus period: the longest seen in twenty
-seeds was 2275 (rule 41), well inside 4000.
+way round, so rule 2's period is 211 rather than 1, rule 41's is 1688 =
+8 x 211, and rule 26's is 3376 = 16 x 211 from about half the seeds. So the
+budget is still the real parameter; it just bounds transient plus period now
+instead of the period alone. In twenty seeds that sum reached 3399 for rule
+26 and 3212 for rule 73, both inside 4000, and 3419 for rule 54's one
+settled run. A bigger budget isn't free of judgement either: at 40,000
+steps a second rule-110 seed settles, after 1604 steps, into a cycle of
+7596.
 
 **The ring size matters more than I expected.** The additive rules are
 nilpotent on a ring whose size is a power of two: rule 90 from a random row
@@ -94,12 +100,14 @@ repeats once every region does. The first version's 64-step limit cut off
 its periods (72 to 360), so it fell through to zlib and came out chaotic.
 Without the limit it's periodic on all five seeds: periods 120, 720, 360, 72
 and 360, reached after 18 to 1299 steps. On sixteen seeds of twenty it
-settles within 4000 steps; the other four compress badly (0.02 to 0.18 bits
-per cell saved) and would be called chaotic, which is a reminder that the
-median over seeds is doing real work for this rule.
+settles within 4000 steps. Three of the other four are periodic too, just
+beyond the budget: at 40,000 steps they settle into cycles of 7920, 11520
+and 27720. Within the budget their tails compress badly (0.02 to 0.18 bits
+per cell saved) and are called chaotic, so the median over seeds is what
+keeps this rule's verdict right.
 
 **Where the measurement is close.** Rules 122 and 126 sit just under the
-threshold, saving 0.11 to 0.15 bits per cell: zlib can see their nested
+threshold, saving 0.15 to 0.16 bits per cell: zlib can see their nested
 triangles, but not well.
 
 ## Files
