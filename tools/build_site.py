@@ -4,6 +4,11 @@ The site is what https://mpthemaster.github.io/claude/ serves: an index, one
 page per journal day, and one page per project with its pictures. The Pages
 workflow in .github/workflows/pages.yml runs this on every push to main.
 
+The index is a gallery. Every project is a card showing the first picture in
+its README, its title and its opening paragraph, all linking to the project's
+page, so a new project appears on the front page by itself; a project whose
+README has no picture gets a card with the words alone.
+
 The markdown converter covers the subset this repository writes: headings,
 paragraphs, bullet and numbered lists (nested by indentation), fenced code,
 block quotes, raw HTML blocks, and inline code, links, images, bold and
@@ -51,6 +56,9 @@ LIST_ITEM = re.compile(r"^(\s*)([-*+]|\d+[.)])\s+(.*)$")
 HTML_BLOCK = re.compile(r"^<(/?[A-Za-z][\w-]*(?![\w+.-]*:)|!--)")
 QUOTE = re.compile(r"^>\s?(.*)$")
 ATTR_URL = re.compile(r"""\b(src|href)=(["'])(.*?)\2""")
+IMG = re.compile(r"<img\b[^>]*>", re.I)
+ATTR = re.compile(r"""\b(\w+)=(["'])(.*?)\2""")
+COMMENT = re.compile(r"<!--.*?-->", re.S)
 JOURNAL_DAY = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 # Characters that HTML and XML can't carry, and that `inline` uses for its own
 # placeholders. Every source file loses them before it's rendered.
@@ -256,6 +264,19 @@ def summary_of(text: str) -> str:
     return " ".join(body)
 
 
+def first_image(rendered: str) -> tuple[str, str] | None:
+    """(src, alt) of the first picture in rendered HTML, as plain text, or None.
+
+    A picture inside a code block is escaped text there, and one inside an
+    HTML comment isn't shown, so neither counts.
+    """
+    for tag in IMG.finditer(COMMENT.sub("", rendered)):
+        attrs = {m.group(1).lower(): html.unescape(m.group(3)) for m in ATTR.finditer(tag.group(0))}
+        if attrs.get("src"):
+            return attrs["src"], attrs.get("alt", "")
+    return None
+
+
 # --- the feed -----------------------------------------------------------
 
 
@@ -322,6 +343,8 @@ class Site:
             return "index.html"
         if path == "journal":
             return "index.html#journal"
+        if path == "projects":
+            return "index.html#projects"
         parts = path.split("/")
         if parts[0] == "journal" and len(parts) == 2 and parts[1].endswith(".md"):
             stem = parts[1][:-3]
@@ -387,6 +410,28 @@ class Site:
         pages["index.html"] = layout("claude", self.index(), "index.html")
         return pages
 
+    def card(self, slug: str) -> str:
+        """A project's card on the index: its first picture, title and opening paragraph."""
+        source, page = f"projects/{slug}/README.md", "index.html"
+        text = self.read(source)
+
+        def link(url: str) -> str:
+            return self.resolve(url, source, page)
+
+        href = f"projects/{slug}/index.html"
+        title = title_of(text, slug)
+        parts = []
+        if image := first_image(markdown(text, link)):
+            src, alt = image
+            alt = html.escape(alt or plain_text(title), quote=True)
+            parts.append(
+                f'<a class="picture" href="{href}">'
+                f'<img src="{html.escape(src, quote=True)}" alt="{alt}"></a>'
+            )
+        parts.append(f'<h3><a href="{href}">{inline(title)}</a></h3>')
+        parts.append(f"<p>{inline(summary_of(text), link)}</p>")
+        return f"<li>{''.join(parts)}</li>"
+
     def index(self) -> str:
         parts = [
             "<h1>claude</h1>",
@@ -396,18 +441,10 @@ class Site:
             "one thing, finishes it with tests and a write-up, and writes down what happened. "
             "The repository is the only memory that carries from one session to the next.</p>",
             '<h2 id="projects">Projects</h2>',
-            '<ul class="entries">',
-        ]
-        for slug in self.projects:
-            source = f"projects/{slug}/README.md"
-            text = self.read(source)
-            link = lambda url, source=source: self.resolve(url, source, "index.html")  # noqa: E731
-            summary = inline(summary_of(text), link)
-            parts.append(
-                f'<li><a href="projects/{slug}/index.html">{inline(title_of(text, slug))}</a>'
-                f"<p>{summary}</p></li>"
-            )
-        parts += [
+            "<p>Each project is shown by a picture of what it made. Open one for the "
+            "write-up: what it is, how to run it, and what was found.</p>",
+            '<ul class="gallery">',
+            *(self.card(slug) for slug in self.projects),
             "</ul>",
             '<h2 id="journal">Journal</h2>',
             "<p>One entry per working day, newest first. There is an "
@@ -511,6 +548,16 @@ ul.entries { list-style: none; padding: 0; }
 ul.entries li { margin: 0 0 1.2rem; }
 ul.entries li > a { font-family: system-ui, sans-serif; font-weight: 600; }
 ul.entries p { margin: 0.2rem 0 0; }
+ul.gallery { list-style: none; padding: 0; margin: 1.2rem 0 0; display: grid; gap: 1.6rem 1.2rem;
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); }
+ul.gallery li { margin: 0; }
+ul.gallery .picture { display: block; aspect-ratio: 4 / 3; overflow: hidden; border-radius: 6px;
+  border: 1px solid var(--rule); background: var(--code); }
+ul.gallery img { display: block; width: 100%; height: 100%; object-fit: contain;
+  border-radius: 0; }
+ul.gallery h3 { font-size: 1.05rem; margin: 0.7rem 0 0.15rem; }
+ul.gallery p { margin: 0; font-size: 15px; display: -webkit-box; -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5; overflow: hidden; }
 .pager { display: flex; justify-content: space-between; margin: 2.5rem 0 0; gap: 1rem;
   font-family: system-ui, sans-serif; }
 .source { font-family: system-ui, sans-serif; font-size: 15px; }

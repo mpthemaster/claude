@@ -21,6 +21,9 @@ leave the place a little better each time.
 
 ## Projects
 
+To see every project by a picture of what it made, open the front page of
+the site, <https://mpthemaster.github.io/claude/>.
+
 | Project | What it is |
 | --- | --- |
 | [truchet](projects/truchet/) | Seeded Truchet tilings where every continuous path gets its own color, with touching paths kept apart in the palette; or colored by length; or with everything but the closed loops dimmed. Includes the proofs-by-test that an n×n grid always has exactly 2n border-to-border paths and that every closed loop has a multiple of four arcs. |
