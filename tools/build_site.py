@@ -56,11 +56,13 @@ HEADING = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
 LIST_ITEM = re.compile(r"^(\s*)([-*+]|\d+[.)])\s+(.*)$")
 HTML_BLOCK = re.compile(r"^<(/?[A-Za-z][\w-]*(?![\w+.-]*:)|!--)")
 QUOTE = re.compile(r"^>\s?(.*)$")
-# An HTML attribute, quoted or not; `data-src` is not `src`.
-ATTR = re.compile(r"""(?<![\w-])(\w+)=(?:(["'])(.*?)\2|([^\s"'>]+))""")
-# A whole <img> tag, however many `>` its quoted values hold.
+# An HTML attribute, quoted or not, with any space around its `=`; an unquoted
+# value ends where HTML says it does, and `data-src` is not `src`.
+ATTR = re.compile(r"""(?<![\w-])(\w+)\s*=\s*(?:(["'])(.*?)\2|([^\s"'=<>`]+))""")
+# A whole tag, however many `>` its quoted values hold; and an <img> in particular.
+TAG = re.compile(r"""<[A-Za-z][\w-]*(?:[^>"']|"[^"]*"|'[^']*')*>""")
 IMG = re.compile(r"""<img\b(?:[^>"']|"[^"]*"|'[^']*')*>""", re.I)
-IMAGE_LINE = re.compile(r"!\[[^\]]*\]\([^)\s]+\)")
+IMAGE = re.compile(r"!\[[^\]]*\]\([^)\s]+\)")
 COMMENT = re.compile(r"<!--.*?-->", re.S)
 JOURNAL_DAY = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 # Characters that HTML and XML can't carry, and that `inline` uses for its own
@@ -219,7 +221,7 @@ def markdown(text: str, link=lambda url: url) -> str:
             while i < len(lines) and lines[i].strip():
                 body.append(lines[i])
                 i += 1
-            out.append(ATTR.sub(mapped, "\n".join(body)))
+            out.append(TAG.sub(lambda t: ATTR.sub(mapped, t.group(0)), "\n".join(body)))
         elif QUOTE.match(line):
             body = []
             while i < len(lines) and (quote := QUOTE.match(lines[i])):
@@ -259,26 +261,30 @@ def title_of(text: str, fallback: str) -> str:
 
 
 def summary_of(text: str) -> str:
-    """The first ordinary paragraph after the title, as markdown.
+    """The first ordinary paragraph after the title, as markdown, less its pictures.
 
-    Headings, pictures, raw HTML, fenced code, lists and quotes before it are
-    passed over; the paragraph runs to the next blank line.
+    Headings, raw HTML, fenced code, lists and quotes before it are passed
+    over; the paragraph runs to the next blank line or fence.
     """
     body: list[str] = []
     in_code = False
     for line in text.splitlines():
-        stripped = line.strip()
-        if body:
-            if not stripped:
+        if FENCE.match(line):
+            if body:
                 break
-            body.append(stripped)
-        elif FENCE.match(line):
             in_code = not in_code
+            continue
+        # A picture is the card's own business, wherever the paragraph puts it.
+        stripped = " ".join(IMAGE.sub("", line).split())
+        if body:
+            if not line.strip():
+                break
+            if stripped:
+                body.append(stripped)
         elif stripped and not (
             in_code
             or HEADING.match(line)
             or HTML_BLOCK.match(stripped)
-            or IMAGE_LINE.fullmatch(stripped)
             or LIST_ITEM.match(line)
             or QUOTE.match(line)
         ):
@@ -588,7 +594,7 @@ ul.gallery { list-style: none; padding: 0; margin: 1.2rem 0 0; display: grid; ga
 ul.gallery li { margin: 0; }
 ul.gallery .picture { display: block; aspect-ratio: 4 / 3; overflow: hidden; border-radius: 6px;
   border: 1px solid var(--rule); background: var(--code); }
-ul.gallery img { display: block; width: 100%; height: 100%; object-fit: contain;
+ul.gallery .picture img { display: block; width: 100%; height: 100%; object-fit: contain;
   border-radius: 0; }
 ul.gallery h3 { font-size: 1.05rem; margin: 0.7rem 0 0.15rem; }
 ul.gallery p { margin: 0; font-size: 15px; display: -webkit-box; -webkit-box-orient: vertical;

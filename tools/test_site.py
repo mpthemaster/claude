@@ -155,6 +155,13 @@ def test_raw_html_unquoted_urls_are_mapped_and_empty_or_look_alike_ones_left_alo
     )
 
 
+def test_raw_html_urls_are_mapped_inside_tags_only_with_any_space_around_the_equals():
+    text = '<div>Example: src=out/a.svg or href="x.md"</div>\n<p><img src = "out/p.svg"></p>\n'
+    assert markdown(text, link=lambda u: "/" + u) == (
+        '<div>Example: src=out/a.svg or href="x.md"</div>\n<p><img src="/out/p.svg"></p>'
+    )
+
+
 def test_summary_skips_title_and_pictures():
     text = "# T\n\n<p>\n<img src='x'>\n</p>\n\nFirst para\ncontinues.\n\nSecond.\n"
     assert build_site.summary_of(text) == "First para continues."
@@ -164,6 +171,9 @@ def test_summary_skips_title_and_pictures():
         "```sh\nrun it\n```\n\nThe para.\n"
     )
     assert build_site.summary_of(text) == "The para."
+    # A picture inside the paragraph is left out, and the words around it kept.
+    text = "# T\n\nSee ![the chart](out/pic.svg) for\n![more](out/m.svg)\nthe result.\n"
+    assert build_site.summary_of(text) == "See for the result."
 
 
 def test_first_image_is_the_first_picture_shown_not_one_in_code_or_a_comment():
@@ -183,6 +193,7 @@ def test_first_image_is_the_first_picture_shown_not_one_in_code_or_a_comment():
         "x",
     )
     assert build_site.first_image('<img src="" alt="soon"> <img src="b.svg">') == ("b.svg", "")
+    assert build_site.first_image('<img src = "out/p.svg" alt = x>') == ("out/p.svg", "x")
 
 
 # --- links and the site -------------------------------------------------
@@ -287,6 +298,12 @@ def test_index_is_a_gallery_with_a_card_per_project(tmp_path):
     (chart.parent / "README.md").write_text(
         '# A *chart*\n\nLines.\n\n<p align="center"><img src="out/c & d.svg"></p>\n'
     )
+    inline_ = root / "projects" / "inline" / "out"
+    inline_.mkdir(parents=True)
+    (inline_ / "i.svg").write_text("<svg/>")
+    (inline_.parent / "README.md").write_text(
+        "# Inline\n\nSee ![the chart](out/i.svg) for the result.\n"
+    )
     soon = root / "projects" / "soon"
     soon.mkdir()
     (soon / "README.md").write_text('# Soon\n\nComing.\n\n<p><img src="" alt="placeholder"></p>\n')
@@ -304,6 +321,10 @@ def test_index_is_a_gallery_with_a_card_per_project(tmp_path):
         '<li><a class="picture" href="projects/demo/index.html">'
         '<img src="projects/demo/out/pic.svg" alt="pic"></a>'
         '<h3><a href="projects/demo/index.html">The demo</a></h3><p>It draws a picture.</p></li>',
+        # A picture inside the opening paragraph is the card's picture, not part of its words.
+        '<li><a class="picture" href="projects/inline/index.html">'
+        '<img src="projects/inline/out/i.svg" alt="the chart"></a>'
+        '<h3><a href="projects/inline/index.html">Inline</a></h3><p>See for the result.</p></li>',
         # An empty source is no picture.
         '<li><h3><a href="projects/soon/index.html">Soon</a></h3><p>Coming.</p></li>',
         '<li><h3><a href="projects/words/index.html">Words only</a></h3>'
@@ -312,6 +333,7 @@ def test_index_is_a_gallery_with_a_card_per_project(tmp_path):
     gallery = index[index.index('<ul class="gallery">') : index.index('<h2 id="journal">')]
     assert re.findall(r"<li>.*?</li>", gallery, re.S) == cards
     assert check_links(out) > 0
+    check_card_picture(out, index, "chart")
 
 
 def test_build_replaces_a_previous_build_but_not_other_directories(tmp_path):
@@ -367,6 +389,23 @@ def test_the_real_repository_builds_with_no_broken_links(tmp_path):
         assert not re.search(r'="[^"]*<', text), page
 
 
+def check_card_picture(out: Path, index: str, slug: str) -> None:
+    """The project's card on the built index shows a picture copied from its out/."""
+    card = re.search(
+        rf'<a class="picture" href="projects/{slug}/index.html">'
+        r'<img src="([^"]+)" alt="([^"]+)"',
+        index,
+    )
+    assert card, f"projects/{slug}/README.md has no picture for its card on the front page"
+    # The attribute is HTML; the file is what it names once unescaped, less any fragment.
+    src = unescape(card.group(1)).partition("#")[0]
+    assert src.startswith(f"projects/{slug}/out/"), (
+        f"the first picture in projects/{slug}/README.md must be a file in its out/ "
+        f"directory, so the site can copy it; it is {card.group(1)}"
+    )
+    assert (out / src).is_file(), f"{src} was not copied into the site"
+
+
 def test_every_real_project_has_a_picture_on_the_front_page(tmp_path):
     """The front page shows each project by what it made (issue #21), so a
     picture in the README, first, is part of finishing a project."""
@@ -374,17 +413,7 @@ def test_every_real_project_has_a_picture_on_the_front_page(tmp_path):
     build(ROOT, out)
     index = (out / "index.html").read_text()
     for slug in sorted(p.parent.name for p in (ROOT / "projects").glob("*/README.md")):
-        card = re.search(
-            rf'<a class="picture" href="projects/{slug}/index.html">'
-            r'<img src="([^"]+)" alt="([^"]+)"',
-            index,
-        )
-        assert card, f"projects/{slug}/README.md has no picture for its card on the front page"
-        assert card.group(1).startswith(f"projects/{slug}/out/"), (
-            f"the first picture in projects/{slug}/README.md must be a file in its out/ "
-            f"directory, so the site can copy it; it is {card.group(1)}"
-        )
-        assert (out / card.group(1)).is_file(), f"{card.group(1)} was not copied into the site"
+        check_card_picture(out, index, slug)
 
 
 def test_relative_urls_never_leave_the_site(tmp_path):
