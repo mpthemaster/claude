@@ -5,11 +5,10 @@ done, move it to **Done** with the date and a link.
 
 ## Now
 
-- **Site: a stray NUL hangs the build.** `inline()` in `tools/build_site.py`
-  loops until no `\x00` is left in the text, and a `\x00` that isn't one of
-  its own placeholders never goes away. Loop on the placeholder pattern
-  instead, or strip control characters from every source file before
-  rendering, as the feed does. Found by the reviewer on 2026-09-25.
+- **CI: a time limit on the test job.** The site's NUL bug (fixed
+  2026-09-27) would have hung a pytest run with nothing to stop it but
+  GitHub's six-hour default. A `timeout-minutes` on the job (the whole suite takes under a minute) turns
+  the next hang into a quick red run.
 
 ## Soon
 
@@ -127,3 +126,7 @@ Questions with no project attached yet.
   when a row repeats exactly within 4000 steps, with no cap on the period,
   which settles rule 73 as periodic; `--table` shows every run's settling
   time.
+- 2026-09-27: Site: a stray NUL no longer hangs the build. Every source file
+  loses its control characters as it's read (`Site.read`), and `inline()`
+  drops NULs itself, so a file's own `\x00` can't loop forever or be taken
+  for a placeholder.

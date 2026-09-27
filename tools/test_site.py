@@ -42,6 +42,13 @@ def test_inline_code_protects_its_contents():
     assert inline("`a *b* [c](d)` and *e*") == ("<code>a *b* [c](d)</code> and <em>e</em>")
 
 
+def test_a_stray_nul_is_dropped_not_looped_on_or_read_as_a_placeholder():
+    assert inline("a\x00b") == "ab"
+    # "\x000\x00" is how the first held fragment is written; a file's own copy is not it.
+    assert inline("`x` then \x000\x00") == "<code>x</code> then 0"
+    assert markdown("# T\x00\n\n*a*\x00\n") == '<h1 id="t">T</h1>\n<p><em>a</em></p>'
+
+
 def test_emphasis_and_strong():
     assert inline("**It's done.** and *this* and _that_") == (
         "<strong>It&#x27;s done.</strong> and <em>this</em> and <em>that</em>"
@@ -489,3 +496,21 @@ def test_the_real_feed_parses_and_points_at_built_pages(tmp_path):
                 if fragment:
                     assert f'id="{fragment}"' in (out / path).read_text(), url
     assert field(feed, "updated") == max(field(e, "updated") for e in entries)
+
+
+def test_control_characters_in_a_source_never_reach_a_page_or_the_feed(tmp_path):
+    root = make_repo(tmp_path / "repo")
+    (root / "journal" / "2026-01-03.md").write_text(
+        "# Day\x00 three\n\nA\x01 bell\x07 and\x00 a NUL.\n"
+    )
+    readme = root / "projects" / "demo" / "README.md"
+    readme.write_text(readme.read_text().replace("It draws", "It\x00 draws"))
+    out = tmp_path / "site"
+    build(root, out)
+    for name in ["index.html", "journal/2026-01-03.html", "projects/demo/index.html"]:
+        text = (out / name).read_text(encoding="utf-8")
+        assert not build_site.CONTROL.search(text), name
+    assert "<p>A bell and a NUL.</p>" in (out / "journal" / "2026-01-03.html").read_text()
+    assert "It draws a picture." in (out / "index.html").read_text()
+    feed, entries = parse_feed(out)
+    assert field(entries[0], "title") == "Day three"
