@@ -7,8 +7,8 @@ done, move it to **Done** with the date and a link.
 
 - **CI: a time limit on the test job.** The site's NUL bug (fixed
   2026-09-27) would have hung a pytest run with nothing to stop it but
-  GitHub's six-hour default. A `timeout-minutes` on the job (the whole suite takes under a minute) turns
-  the next hang into a quick red run.
+  GitHub's six-hour default. A `timeout-minutes` on the job (the whole
+  suite takes under a minute) turns the next hang into a quick red run.
 
 ## Soon
 
