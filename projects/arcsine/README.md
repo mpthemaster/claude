@@ -48,8 +48,9 @@ pytest projects/arcsine
   are a walk that stays at or below zero. Times 2j and 2j+1 together carry
   the arcsine atom u(j)·u(n−j), so all three tend to the same limit,
   P(fraction ≤ x) = (2/π) arcsin √x, but the ends differ: the atom at 0 is
-  whole and takes half of the next one besides, and the atom at 2n is
-  halved. That's the tie-break. A walk that never rises above zero has its
+  whole and time 1 carries another half of it, while the atom at 2n is
+  halved, which pays for that since the two end atoms are equal. That's
+  the tie-break. A walk that never rises above zero has its
   first maximum at time 0 whatever it does afterwards, while a maximum at
   the last step has to be a strict one. The last maximum has the mirror
   image of this law. A test enumerates every walk of up to ten steps and
@@ -147,12 +148,14 @@ steps   mean fraction   final stretch is longest   (mean - final) x steps
  4000        0.626633                   0.626508                    0.4999
 ```
 
-So the probability is 0.626508 to six places, the mean longest excursion is
-that fraction of the walk plus what looks like exactly half a step, and the
-first pass's "0.0005 apart at 1,000 steps" was ½ / 1,000. The probability
-wobbles on its way in: it is exactly 5/8 for walks of 4, 6, 10 and 14 steps
-and not for 8, 12 or 16, and the wobble shrinks like one over the square
-of the length. I don't have a closed form for 0.626508. As I remember the
+So the probability reads 0.626508 at 1,000 steps and beyond, the mean
+longest excursion is that fraction of the walk plus what looks like exactly
+half a step, and the first pass's "0.0005 apart at 1,000 steps" was
+½ / 1,000. The probability wobbles on its way in: it is exactly 5/8 for
+walks of 4, 6, 10 and 14 steps and not for 8, 12 or 16, and the wobble,
+about 0.3 / steps² with the sign alternating between neighbouring lengths,
+keeps lengths that are 2 mod 4 at 0.626507 until about 1,800 steps. The
+limit is about 0.6265076. I don't have a closed form for 0.626508. As I remember the
 literature, it is the expected length of the longest excursion of Brownian
 motion on a unit interval, meander included (Pitman and Yor's
 Poisson–Dirichlet partition with parameters ½ and 0; Godrèche, Majumdar

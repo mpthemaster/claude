@@ -149,11 +149,12 @@ def first_max_law(n: int) -> list[Fraction]:
     probability u(m) for 2m or 2m - 1 steps. So the time is 0 with
     probability u(n), and k >= 1 with probability u(j) u(n - j) / 2 where
     j = k // 2. Times 2j and 2j + 1 together carry the arcsine law's atom
-    u(j) u(n - j), except at the two ends: the atom at 0 is whole and gets
-    half of the next one besides, and the atom at 2n is halved, because the
-    tie between equal maxima goes to the earlier one. A walk that never
-    rises above zero has its first maximum at time 0 whatever it does
-    later, while a maximum at the last step has to be strict.
+    u(j) u(n - j), except at the two ends: the atom at 0 is whole and time
+    1 carries another half of it, while the atom at 2n is halved, which
+    pays for that since the two end atoms are equal. The tie between equal
+    maxima goes to the earlier one: a walk that never rises above zero has
+    its first maximum at time 0 whatever it does later, while a maximum at
+    the last step has to be strict.
     """
     us = return_probabilities(n, exact=True)
     law = [us[n]]
