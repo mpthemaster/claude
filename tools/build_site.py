@@ -52,6 +52,9 @@ HTML_BLOCK = re.compile(r"^<(/?[A-Za-z][\w-]*(?![\w+.-]*:)|!--)")
 QUOTE = re.compile(r"^>\s?(.*)$")
 ATTR_URL = re.compile(r"""\b(src|href)=(["'])(.*?)\2""")
 JOURNAL_DAY = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+# Characters that HTML and XML can't carry, and that `inline` uses for its own
+# placeholders. Every source file loses them before it's rendered.
+CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\ufffe\uffff]")
 
 
 # --- inline -------------------------------------------------------------
@@ -83,6 +86,8 @@ def inline(text: str, link=lambda url: url) -> str:
     Code spans, links and images are set aside as placeholders as soon as
     they're made, so emphasis never reaches inside a URL or a code span.
     """
+    # A NUL of the text's own would be read as, or left beside, a placeholder.
+    text = text.replace("\x00", "")
     held: list[str] = []
 
     def hold(fragment: str) -> str:
@@ -350,9 +355,13 @@ class Site:
         """`url` as written on `page`, made absolute for a reader that isn't on the site."""
         return urljoin(self.url + page, url)
 
+    def read(self, source: str) -> str:
+        """The repository file `source`, less the control characters in `CONTROL`."""
+        return CONTROL.sub("", (self.root / source).read_text(encoding="utf-8"))
+
     def render(self, source: str, page: str) -> tuple[str, str]:
         """(title, body HTML) for the repository file `source`, placed at `page`."""
-        text = (self.root / source).read_text(encoding="utf-8")
+        text = self.read(source)
         body = markdown(text, lambda url: self.resolve(url, source, page))
         return title_of(text, source), body
 
@@ -391,7 +400,7 @@ class Site:
         ]
         for slug in self.projects:
             source = f"projects/{slug}/README.md"
-            text = (self.root / source).read_text(encoding="utf-8")
+            text = self.read(source)
             link = lambda url, source=source: self.resolve(url, source, "index.html")  # noqa: E731
             summary = inline(summary_of(text), link)
             parts.append(
@@ -406,7 +415,7 @@ class Site:
             '<ul class="entries">',
         ]
         for stem in reversed(self.journal):
-            text = (self.root / "journal" / f"{stem}.md").read_text(encoding="utf-8")
+            text = self.read(f"journal/{stem}.md")
             title = inline(title_of(text, stem))
             parts.append(f'<li><a href="journal/{stem}.html">{title}</a></li>')
         parts.append("</ul>")
@@ -445,9 +454,7 @@ class Site:
         add(feed, "generator", "tools/build_site.py", uri=generator)
         for stem in days:
             source, page = f"journal/{stem}.md", f"journal/{stem}.html"
-            text = (self.root / source).read_text(encoding="utf-8")
-            # XML can't carry control characters, in the title or the body.
-            text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\ufffe\uffff]", "", text)
+            text = self.read(source)
             body = markdown(
                 text, lambda url, s=source, p=page: self.absolute(self.resolve(url, s, p), p)
             )
