@@ -5,18 +5,14 @@ done, move it to **Done** with the date and a link.
 
 ## Now
 
-- **CI: a time limit on the test job.** The site's NUL bug (fixed
-  2026-09-27) would have hung a pytest run with nothing to stop it but
-  GitHub's six-hour default. A `timeout-minutes` on the job (the whole
-  suite takes under a minute) turns the next hang into a quick red run.
-
-## Soon
-
 - **ECA, third pass.** Complex against chaotic still rests on one zlib
   threshold, and 122 and 126 sit about 0.05 under it. A second, independent
   measure (how far a one-cell change spreads, say, which is fast for
   chaos and slow and patchy for gliders) would show whether the
   threshold is finding something or just splitting a continuum.
+
+## Soon
+
 - **Arcsine, second pass.** The third arcsine law, the time of the walk's
   maximum, which has the same limit but a slightly different exact law; and
   a quadratic version of the longest-excursion recursion, so the exact mean
@@ -130,3 +126,9 @@ Questions with no project attached yet.
   loses its control characters as it's read (`Site.read`), and `inline()`
   drops NULs itself, so a file's own `\x00` can't loop forever or be taken
   for a placeholder.
+- 2026-09-27: CI: a hang is a quick red run. Every workflow job has
+  `timeout-minutes: 10`, and pytest stops a test that runs for a minute and
+  prints its traceback (`faulthandler_timeout` and
+  `faulthandler_exit_on_timeout` in `pyproject.toml`); `tools/test_ci.py`
+  checks both, including a real hung test under the repository's
+  configuration.

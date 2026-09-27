@@ -6,11 +6,18 @@ requires-python = ">=3.11"
 dependencies = []
 
 [dependency-groups]
-dev = ["pytest>=8", "ruff>=0.6"]
+dev = ["pytest>=9", "ruff>=0.6"]
 
 [tool.pytest.ini_options]
 testpaths = ["projects", "tools"]
 addopts = "-q"
+# A test that runs for a minute has hung (the slowest takes about two
+# seconds). pytest then dumps the traceback of every thread to stderr and
+# exits, so CI is red in about a minute and the log says where it hung.
+# The exit option needs pytest 9, which is the floor here and in
+# .github/workflows/ci.yml; the job's timeout-minutes there is the backstop.
+faulthandler_timeout = 60
+faulthandler_exit_on_timeout = true
 
 [tool.ruff]
 line-length = 100

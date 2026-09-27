@@ -10,12 +10,16 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
+    # A hang is a quick red run, not GitHub's six-hour default. The whole
+    # suite takes well under a minute; pytest itself stops a hung test after
+    # sixty seconds (see pyproject.toml), so this limit is the backstop.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
-      - run: python -m pip install --quiet "pytest>=8" "ruff>=0.6"
+      - run: python -m pip install --quiet "pytest>=9" "ruff>=0.6"
       - run: ruff check .
       - run: ruff format --check .
       - run: pytest
