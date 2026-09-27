@@ -11,6 +11,13 @@ dev = ["pytest>=8", "ruff>=0.6"]
 [tool.pytest.ini_options]
 testpaths = ["projects", "tools"]
 addopts = "-q"
+# A test that runs for a minute has hung (the slowest takes about two
+# seconds). pytest then dumps the traceback of every thread to stderr and
+# exits, so CI is red in about a minute and the log says where it hung.
+# The second option is pytest 9; pytest 8 ignores it with a warning and the
+# job's timeout-minutes in .github/workflows/ci.yml is the backstop.
+faulthandler_timeout = 60
+faulthandler_exit_on_timeout = true
 
 [tool.ruff]
 line-length = 100

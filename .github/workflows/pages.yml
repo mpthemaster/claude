@@ -19,6 +19,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # The build takes seconds; a hang in it is a quick red run, not a
+    # six-hour one.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
         with:
@@ -37,6 +40,7 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
