@@ -174,6 +174,12 @@ def test_spread_keeps_the_light_cone_inside_the_ring():
     assert s.extent == eca.RING and s.speed == 1.0 and s.final == 2 ** (eca.RING // 2).bit_count()
     with pytest.raises(ValueError):
         eca.spread(90, 1, steps=eca.RING // 2 + 1)
+    # On an even ring the flipped cell has one cell fewer on its right, so
+    # the guard is a step tighter there: the whole cone still has to fit.
+    s = eca.spread(90, 1, steps=4, width=10)
+    assert (s.extent, s.final) == (9, 2)
+    with pytest.raises(ValueError):
+        eca.spread(90, 1, steps=5, width=10)
 
 
 def test_spread_separates_the_rules_near_the_zlib_threshold():
@@ -201,6 +207,9 @@ def test_damage_table_and_figure():
     svg = eca.damage_figure((30, 204), seed=1, steps=20)
     assert svg.count("<image ") == 2
     assert 'id="damage-30"' in svg and "rule 204 · periodic · speed 0.02" in svg
+    assert eca.damage_figure((30,), steps=5).count("<image ") == 1
+    with pytest.raises(ValueError):
+        eca.damage_figure(())
 
 
 def test_crop_takes_the_middle_window():

@@ -338,8 +338,9 @@ class Spread:
 
 def spread(rule: int, seed: int, steps: int = SPREAD_STEPS, width: int = RING) -> Spread:
     """Flip the middle cell of random row `seed` and measure the difference after `steps`."""
-    if steps > width // 2:
-        raise ValueError(f"steps must be at most {width // 2}, or the light cone wraps the ring")
+    # The flipped cell has (width - 1) // 2 cells on its narrower side.
+    if steps > (width - 1) // 2:
+        raise ValueError(f"steps must be at most {(width - 1) // 2}, or the cone wraps the ring")
     rows = damage(rule, random_row(seed, width), steps, width)
     final = rows[-1]
     peak = max(r.bit_count() for r in rows)
@@ -373,6 +374,8 @@ def damage_figure(
     columns: int = 4,
 ) -> str:
     """One panel per rule: the difference one flipped cell makes, black where the runs differ."""
+    if not rules:
+        raise ValueError("no rules to draw")
     classes = classify_all()
     gap, margin, label, title = 12, 20, 18, 30
     cols = min(columns, len(rules))
