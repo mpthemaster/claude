@@ -17,6 +17,8 @@ measurement instead of an eye, and puts them on one poster.
 python projects/eca/eca.py --out projects/eca/out/poster.svg   # the poster; a summary on stderr
 python projects/eca/eca.py --rule 30 --steps 16                # one rule from a single cell, as text
 python projects/eca/eca.py --table                             # every class's measurements
+python projects/eca/eca.py --damage                            # how far one flipped cell's difference spreads
+python projects/eca/eca.py --damage-out projects/eca/out/damage.svg   # eight rules' difference as a picture
 pytest projects/eca
 ```
 
@@ -44,6 +46,15 @@ pytest projects/eca
   The rule's class is the median verdict over the five seeds, on the scale
   uniform < periodic < complex < chaotic, and its whole equivalence class
   inherits it.
+- A second measure owes nothing to compression. The middle cell of a random
+  row is flipped, the ring runs 100 steps with and without the flip, and
+  the difference between the two runs is watched: how many cells disagree,
+  and how far apart the outermost disagreements are. That width, as a
+  fraction of the 201-cell light cone, is the speed; 1.0 is one cell per
+  step in both directions, the most any rule can manage. A hundred steps is
+  under half the ring, so the cone can't wrap round and meet itself.
+  `--damage` prints every class's speeds over twenty random rows beside its
+  zlib verdict; `--damage-out` draws eight rules.
 - The poster shows every rule twice: from a single black cell for 40 steps,
   so the whole light cone fits the 81-cell window, and from the same random
   row for 47 steps, 48 rows. Each panel is a 1-bit PNG written by hand with `zlib`
@@ -108,14 +119,54 @@ keeps this rule's verdict right.
 
 **Where the measurement is close.** Rules 122 and 126 sit just under the
 threshold, saving 0.15 to 0.16 bits per cell: zlib can see their nested
-triangles, but not well.
+triangles, but not well. That's why there's a second measure.
+
+**A second opinion: how far one flipped cell spreads.** The line between
+complex and chaotic rests on one zlib threshold, so I measured something zlib
+knows nothing about, the speed at which a rule carries the difference made
+by flipping a single cell, from twenty random rows per rule.
+
+<p align="center">
+  <a href="out/damage.svg"><img src="out/damage.svg" width="100%" alt="Eight panels, one per rule, each 100 rows of a 211-cell ring, black where a run from a random row differs from the run with one cell flipped. Rule 204 keeps a single line; 73 a narrow wobble; 41, 54 and 110 patchy cones of different widths; 30 a steady cone; 122 a nearly full light cone; 90 a Sierpinski triangle."></a>
+</p>
+
+- The rules just under the threshold are not borderline by this measure.
+  Rules 122 and 126 are among the fastest spreaders there are, at median
+  speeds of 0.93 and 0.94, and they carry the difference from nineteen rows
+  in twenty. Rule 30, the textbook chaotic rule, is steadier and slower:
+  0.55 to 0.68, never forgetting a flip. So zlib's near miss on 122 and 126
+  was its trouble seeing nested triangles, not those rules being nearly
+  ordered.
+- The complex rules are slow and uneven. Rule 54's speeds run from 0.00 to
+  0.58 with a median of 0.32, rule 110's from 0.04 to 0.56 with a median of
+  0.40; whether a flip matters depends on what it hits. The figure shows
+  it: under 54 and 110 the difference wanders in a narrow, ragged cone,
+  under 30 it fills a steady one. The gap between the slowest chaotic
+  median (rule 18 at 0.46) and the fastest complex one (0.40) is small, so
+  this measure alone wouldn't classify either; it's the agreement of two
+  unrelated measures on 122 and 126 that settles them.
+- The additive rules 90, 150 and 105 run at exactly 1.0 from every row,
+  and their difference is the rule's own single-cell pattern, because a rule
+  that is XOR of its inputs acts on differences the way it acts on rows. A
+  test checks that rule 90's damage is Pascal's triangle mod 2 to the last
+  cell, with 2^popcount(t) disagreeing cells at step t.
+- The measure has its own blind spots. Rule 41 is periodic (period 1688
+  after transients of up to 587 steps) but carries a difference at a median
+  0.59 in the first hundred steps, because it is still in its transient
+  then. Chaotic rule 18 forgets the flip from half of its rows and spreads
+  it at up to 0.97 from the others; rule 18 is known for defects that wander
+  and annihilate in pairs, which would explain it, but I haven't checked
+  that here.
 
 ## Files
 
-- `eca.py`: the automaton, the symmetries, the measurements, the PNG and SVG
-  writers, and a small CLI.
+- `eca.py`: the automaton, the symmetries, the measurements, the damage
+  measure, the PNG and SVG writers, and a small CLI.
 - `test_eca.py`: rule 30's textbook rows, rule 90 as Pascal's triangle mod 2,
   the shift rules, the 88 classes and the exactness of the fold, the
-  settling detector, rule 73's long cycles, the PNG chunks, the classification of the famous
-  rules, and the poster's contents.
+  settling detector, rule 73's long cycles, the damage of the identity, a
+  shift, rule 0 and rule 90 (exactly its single-cell run), the speeds that
+  the paragraph above claims, the PNG chunks, the classification of the
+  famous rules, and the poster's and the figure's contents.
 - `out/poster.svg`: the poster.
+- `out/damage.svg`: the difference one flipped cell makes under eight rules.

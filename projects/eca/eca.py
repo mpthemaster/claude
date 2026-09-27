@@ -9,7 +9,9 @@ binary, so rule 30 = 0b00011110 sends 001, 010, 011 and 100 to 1.
 
 This module runs every rule from a single black cell and from a random row,
 classifies each rule by what its random runs settle into (uniform, periodic,
-complex or chaotic), and lays all 256 out on one SVG poster grouped by class.
+complex or chaotic), lays all 256 out on one SVG poster grouped by class, and
+measures, as a second opinion, how far the difference made by flipping one
+cell spreads.
 
 A row is a Python int with the leftmost cell in the most significant bit, so
 one step is a handful of bit operations on the whole row at once.
@@ -18,6 +20,8 @@ Usage:
     python eca.py --out out/poster.svg      # the poster, with a summary on stderr
     python eca.py --rule 30 --steps 16      # one rule from a single cell, as text
     python eca.py --table                   # every rule's class and measures
+    python eca.py --damage                  # how far one flipped cell's difference spreads
+    python eca.py --damage-out out/damage.svg   # eight rules' spreading difference as a picture
 """
 
 from __future__ import annotations
@@ -26,6 +30,7 @@ import argparse
 import functools
 import math
 import random
+import statistics
 import struct
 import sys
 import zlib
@@ -279,6 +284,136 @@ def classify_all(seeds: tuple[int, ...] = SEEDS) -> dict[int, str]:
     return classes
 
 
+# --- damage ------------------------------------------------------------------------
+#
+# A second measure that owes nothing to zlib: flip one cell of a random row,
+# run the ring with and without the flip, and watch how far the difference
+# spreads. A chaotic rule carries it outward at a steady speed, a periodic
+# rule keeps it local or forgets it, and a complex rule does something in
+# between that differs from one random row to the next.
+
+SPREAD_STEPS = 100  # at most RING // 2, so one cell's light cone can't wrap round the ring
+SPREAD_SEEDS = tuple(range(1, 21))  # the runs are cheap, and the spread of speeds is the point
+DAMAGE_RULES = (204, 73, 41, 54, 110, 30, 122, 90)  # the panels of the damage figure
+
+
+def damage(rule: int, row: int, steps: int, width: int = RING) -> list[int]:
+    """Where a run of `rule` from `row` differs from the run with the middle cell flipped.
+
+    One row per step, the flip itself first; a set bit is a cell the two runs
+    disagree on.
+    """
+    plain = run(rule, row, steps, width)
+    flipped = run(rule, row ^ single_cell(width), steps, width)
+    return [a ^ b for a, b in zip(plain, flipped, strict=True)]
+
+
+def extent(row: int) -> int:
+    """Cells from the leftmost black cell to the rightmost, inclusive; 0 for a white row."""
+    if row == 0:
+        return 0
+    return row.bit_length() - ((row & -row).bit_length() - 1)
+
+
+@dataclass(frozen=True)
+class Spread:
+    """How far the difference made by one flipped cell travelled in `steps` steps."""
+
+    rule: int
+    seed: int
+    steps: int
+    final: int  # cells that differ at the end; 0 means the flip was forgotten
+    extent: int  # cells from the leftmost difference to the rightmost, at the end
+    peak: int  # the most cells that differed at any step
+
+    @property
+    def speed(self) -> float:
+        """The extent as a fraction of the light cone, which spans 2 * steps + 1 cells.
+
+        1.0 means the difference reached both edges of the cone, one cell per
+        step each way, which is as fast as any rule can carry it.
+        """
+        return self.extent / (2 * self.steps + 1)
+
+
+def spread(rule: int, seed: int, steps: int = SPREAD_STEPS, width: int = RING) -> Spread:
+    """Flip the middle cell of random row `seed` and measure the difference after `steps`."""
+    # The flipped cell has (width - 1) // 2 cells on its narrower side.
+    if steps > (width - 1) // 2:
+        raise ValueError(f"steps must be at most {(width - 1) // 2}, or the cone wraps the ring")
+    rows = damage(rule, random_row(seed, width), steps, width)
+    final = rows[-1]
+    peak = max(r.bit_count() for r in rows)
+    return Spread(rule, seed, steps, final.bit_count(), extent(final), peak)
+
+
+def damage_table(seeds: tuple[int, ...] = SPREAD_SEEDS, steps: int = SPREAD_STEPS) -> str:
+    """One line per equivalence class: the zlib verdict beside the speeds over the seeds."""
+    classes = classify_all()
+    lines = [
+        f"rule members                class     speed min/med/max forgotten"
+        f"  ({len(seeds)} seeds, {steps} steps)"
+    ]
+    for members in equivalence_classes():
+        spreads = [spread(members[0], seed, steps) for seed in seeds]
+        speeds = sorted(s.speed for s in spreads)
+        forgotten = sum(s.final == 0 for s in spreads)
+        lines.append(
+            f"{members[0]:3d} {str(list(members)):22s} {classes[members[0]]:9s} "
+            f"{speeds[0]:.2f}/{statistics.median(speeds):.2f}/{speeds[-1]:.2f}"
+            f"  {forgotten:2d}/{len(seeds)}"
+        )
+    return "\n".join(lines)
+
+
+def damage_figure(
+    rules: tuple[int, ...] = DAMAGE_RULES,
+    seed: int = SPREAD_SEEDS[0],
+    steps: int = SPREAD_STEPS,
+    width: int = RING,
+    columns: int = 4,
+) -> str:
+    """One panel per rule: the difference one flipped cell makes, black where the runs differ."""
+    if not rules:
+        raise ValueError("no rules to draw")
+    classes = classify_all()
+    gap, margin, label, title = 12, 20, 18, 30
+    cols = min(columns, len(rules))
+    panel_rows = -(-len(rules) // cols)
+    total_width = 2 * margin + cols * (width + gap) - gap
+    total_height = 2 * margin + title + panel_rows * (steps + 1 + label + gap) - gap
+    body = [
+        f'<text x="{margin}" y="{margin + 12}" class="title">'
+        f"The difference one flipped cell makes: {steps} steps of each rule from the same "
+        f"random row, with and without the flip. Black where the two runs differ.</text>"
+    ]
+    for i, rule in enumerate(rules):
+        x = margin + (i % cols) * (width + gap)
+        y = margin + title + (i // cols) * (steps + 1 + label + gap)
+        rows = damage(rule, random_row(seed, width), steps, width)
+        s = spread(rule, seed, steps, width)
+        body.append(f'<g id="damage-{rule}">')
+        body.append(image_element(rows, width, x, y))
+        body.append(
+            f'<text x="{x}" y="{y + steps + 1 + 12}">'
+            f"rule {rule} · {classes[rule]} · speed {s.speed:.2f}</text>"
+        )
+        body.append("</g>")
+    style = (
+        "text{font-family:Helvetica,Arial,sans-serif;font-size:10px;fill:#444}"
+        ".title{font-size:12px;fill:#111}"
+        "image{image-rendering:pixelated;image-rendering:crisp-edges}"
+    )
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {total_width} {total_height}" '
+        f'width="{total_width}" height="{total_height}">\n'
+        f"<style>{style}</style>\n"
+        f'<rect width="{total_width}" height="{total_height}" fill="#ffffff"/>\n'
+        + "\n".join(body)
+        + "\n</svg>\n"
+    )
+
+
 # --- the poster ----------------------------------------------------------------
 
 
@@ -458,6 +593,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--rule", type=int, help="print one rule from a single cell as text")
     parser.add_argument("--steps", type=int, default=16, help="steps to print with --rule")
     parser.add_argument("--table", action="store_true", help="print every class's measures")
+    parser.add_argument(
+        "--damage", action="store_true", help="print how far one flipped cell spreads, per class"
+    )
+    parser.add_argument(
+        "--damage-out", type=Path, help="write the damage figure for a few rules here"
+    )
     parser.add_argument("--window", type=int, default=Layout.window, help="cells per thumbnail")
     args = parser.parse_args(argv)
 
@@ -471,8 +612,17 @@ def main(argv: list[str] | None = None) -> int:
     if args.table:
         print(table())
         return 0
+    if args.damage:
+        print(damage_table())
+        return 0
+    if args.damage_out is not None:
+        svg = damage_figure()
+        args.damage_out.parent.mkdir(parents=True, exist_ok=True)
+        args.damage_out.write_text(svg, encoding="utf-8")
+        print(f"wrote {args.damage_out} ({len(svg) // 1024} KB)", file=sys.stderr)
+        return 0
     if args.out is None:
-        parser.error("nothing to do: pass --out, --rule or --table")
+        parser.error("nothing to do: pass --out, --rule, --table, --damage or --damage-out")
     if not 1 <= args.window <= RING:
         parser.error(f"window must be between 1 and {RING}, the ring size")
 

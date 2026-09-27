@@ -1,3 +1,4 @@
+import statistics
 import struct
 import zlib
 from math import comb
@@ -133,6 +134,84 @@ def test_measure_reports_cycles_of_any_length():
     assert m.transient is None and m.period is None and m.kind == "chaotic"
 
 
+def test_damage_of_the_identity_is_the_flipped_cell_for_ever():
+    rows = eca.damage(204, eca.random_row(3), 50)
+    assert len(rows) == 51
+    assert all(d == eca.single_cell(eca.RING) for d in rows)
+
+
+def test_damage_is_forgotten_by_rule_0_and_carried_along_by_a_shift():
+    row = eca.random_row(3)
+    assert eca.damage(0, row, 3) == [eca.single_cell(eca.RING), 0, 0, 0]
+    rows = eca.damage(170, row, 30)  # copies the right neighbour, so the difference moves left
+    assert all(d.bit_count() == 1 for d in rows)
+    start = eca.single_cell(eca.RING).bit_length()
+    assert [d.bit_length() for d in rows] == [start + t for t in range(31)]
+
+
+def test_rule_90_damage_is_its_single_cell_run_because_the_rule_is_linear():
+    # Rule 90 is the XOR of the two neighbours, so the difference between two
+    # runs evolves by rule 90 on its own, whatever the rows are. The damage
+    # from one flipped cell is Pascal's triangle mod 2, exactly, with
+    # 2 ** popcount(t) cells at step t for as long as the cone fits the ring.
+    steps = eca.RING // 2
+    for seed in (1, 2):
+        rows = eca.damage(90, eca.random_row(seed), steps)
+        assert rows == eca.run(90, eca.single_cell(eca.RING), steps)
+        assert [d.bit_count() for d in rows] == [2 ** t.bit_count() for t in range(steps + 1)]
+
+
+def test_extent_spans_the_outermost_differences():
+    assert eca.extent(0) == 0
+    assert eca.extent(1) == 1
+    assert eca.extent(0b1001) == 4
+    assert eca.extent(0b0110000) == 2
+    assert eca.extent(eca.single_cell(eca.RING)) == 1
+
+
+def test_spread_keeps_the_light_cone_inside_the_ring():
+    s = eca.spread(90, 1, steps=eca.RING // 2)
+    assert s.extent == eca.RING and s.speed == 1.0 and s.final == 2 ** (eca.RING // 2).bit_count()
+    with pytest.raises(ValueError):
+        eca.spread(90, 1, steps=eca.RING // 2 + 1)
+    # On an even ring the flipped cell has one cell fewer on its right, so
+    # the guard is a step tighter there: the whole cone still has to fit.
+    s = eca.spread(90, 1, steps=4, width=10)
+    assert (s.extent, s.final) == (9, 2)
+    with pytest.raises(ValueError):
+        eca.spread(90, 1, steps=5, width=10)
+
+
+def test_spread_separates_the_rules_near_the_zlib_threshold():
+    # The README's claim: the complex rules carry a difference slowly and
+    # unevenly, the chaotic rules just under the compression threshold carry
+    # it at nearly the speed of light, rule 30 sits between at a steady pace,
+    # and a periodic rule with a long transient (41) spreads it too.
+    def speeds(rule: int) -> list[float]:
+        return sorted(eca.spread(rule, seed).speed for seed in eca.SPREAD_SEEDS)
+
+    for rule in (54, 110):
+        s = speeds(rule)
+        assert s[0] < 0.1 and statistics.median(s) < 0.45 and s[-1] > 0.5, rule
+    for rule in (122, 126):
+        assert statistics.median(speeds(rule)) > 0.9, rule
+    s = speeds(30)
+    assert s[0] > 0.5 and s[-1] < 0.75 and 0.6 < statistics.median(s) < 0.7
+    assert eca.spread(41, 1).speed > 0.5
+
+
+def test_damage_table_and_figure():
+    text = eca.damage_table(seeds=(1, 2), steps=20)
+    assert len(text.splitlines()) == 89
+    assert text.splitlines()[1].startswith("  0 [0, 255]")
+    svg = eca.damage_figure((30, 204), seed=1, steps=20)
+    assert svg.count("<image ") == 2
+    assert 'id="damage-30"' in svg and "rule 204 · periodic · speed 0.02" in svg
+    assert eca.damage_figure((30,), steps=5).count("<image ") == 1
+    with pytest.raises(ValueError):
+        eca.damage_figure(())
+
+
 def test_crop_takes_the_middle_window():
     row = eca.from_bits([1, 0, 1, 1, 0, 1, 0])
     assert eca.to_bits(eca.crop(row, 7, 3), 3) == [1, 1, 0]
@@ -220,6 +299,14 @@ def test_cli_prints_a_rule_as_text(capsys):
     assert out == ["...#...", "..###..", ".##..#.", "##.####"]
     with pytest.raises(SystemExit):
         eca.main(["--rule", "256"])
+
+
+def test_cli_writes_the_damage_figure(tmp_path):
+    out = tmp_path / "damage.svg"
+    assert eca.main(["--damage-out", str(out)]) == 0
+    svg = out.read_text(encoding="utf-8")
+    assert svg.startswith("<svg ") and svg.count("<image ") == len(eca.DAMAGE_RULES)
+    assert out.stat().st_size < 60_000
 
 
 def test_cli_writes_the_poster(tmp_path):

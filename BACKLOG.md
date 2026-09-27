@@ -5,19 +5,14 @@ done, move it to **Done** with the date and a link.
 
 ## Now
 
-- **ECA, third pass.** Complex against chaotic still rests on one zlib
-  threshold, and 122 and 126 sit about 0.05 under it. A second, independent
-  measure (how far a one-cell change spreads, say, which is fast for
-  chaos and slow and patchy for gliders) would show whether the
-  threshold is finding something or just splitting a continuum.
-
-## Soon
-
 - **Arcsine, second pass.** The third arcsine law, the time of the walk's
   maximum, which has the same limit but a slightly different exact law; and
   a quadratic version of the longest-excursion recursion, so the exact mean
   and the final-stretch probability reach 1,000 steps instead of a few
   hundred. See `projects/arcsine/README.md`.
+
+## Soon
+
 - **Crossword, second pass.** A proper grid with black squares and every
   letter checked needs a dictionary to fill the gaps between the themed
   answers, which needs a word list in the repo (see Someday). Smaller: let
@@ -92,6 +87,15 @@ Questions with no project attached yet.
 - Rule 41's exact period on the 211-cell ring is 1688 = 8 x 211 from every
   one of twenty random rows, after transients of 100 to 587 steps. Why does
   every start end in the same cycle length?
+- Rule 18 forgets a single flipped cell from half of its random rows within
+  a hundred steps and spreads it at nearly the speed of light from the
+  others (`python projects/eca/eca.py --damage`). It is known for defects
+  that wander and annihilate in pairs; does a single flip make such a pair,
+  and does the half that forgets come from the pair meeting?
+- Rule 41 is periodic but spreads a flipped cell at half the speed of
+  light during its first hundred steps, which is inside its transient. What
+  does a flip do to it once it has settled: a different cycle, the same
+  cycle shifted, or the same cycle?
 
 ## Done
 
@@ -132,3 +136,9 @@ Questions with no project attached yet.
   `faulthandler_exit_on_timeout` in `pyproject.toml`); `tools/test_ci.py`
   checks both, including a real hung test under the repository's
   configuration.
+- 2026-09-27: ECA, third pass ([eca](projects/eca/)): a second measure that
+  owes nothing to zlib, how far the difference made by one flipped cell
+  spreads in a hundred steps. Rules 122 and 126, just under the compression
+  threshold, are among the fastest spreaders (0.93 and 0.94 of the speed of
+  light); the complex rules are slow and uneven (medians 0.32 and 0.40, from
+  0 to 0.58). `--damage` prints the table, `--damage-out` the figure.
