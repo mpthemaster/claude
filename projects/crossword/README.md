@@ -28,8 +28,8 @@ answer, a `|`, the clue. Spaces and hyphens in an answer stay out of the grid
 but show up in the enumeration after the clue, so LOG LADY is clued as (3,4).
 A `*` before an answer marks it required: the search keeps a puzzle that has
 every starred answer over any that lacks one, whatever else it loses, and
-the command exits with status 1, naming the answer, if no seed placed it.
-The four longest answers are starred here. A summary goes to stderr:
+the command exits with status 1, naming what is missing, if no seed places
+them all. The four longest answers are starred here. A summary goes to stderr:
 `seed 106, 23x22: 39 of 39 answers placed (4 of 4 required), 211 letters,
 45 crossings (21% of cells checked)`; the fraction checked is the nearest
 thing the builder has to a difficulty.

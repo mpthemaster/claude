@@ -252,8 +252,9 @@ def place_with_restarts(
 ) -> tuple[list[Placement], list[Entry]]:
     """``place_all`` over ``order``, starting over from the next word while
     the first word is left alone in the grid. Returns the placements and
-    leftovers of the attempt that placed the most answers."""
-    best: tuple[list[Placement], list[Entry]] = ([], [])
+    leftovers of the attempt that placed the most answers; when nothing
+    fits, that is no placements and the whole list left over."""
+    best: tuple[list[Placement], list[Entry]] = ([], list(order))
     for start in range(len(order)):
         placed, unplaced = place_all(order[start:] + order[:start], rng, max_size)
         if len(placed) > len(best[0]):

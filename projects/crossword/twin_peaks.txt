@@ -1,8 +1,9 @@
 # Twin Peaks, a medium-difficulty crossword. One entry per line: ANSWER | clue.
 # Spaces and hyphens in an answer only affect the enumeration shown after the
 # clue; the grid holds the letters alone. A * before an answer marks it
-# required: the search keeps it whenever any seed can place it, and the
-# command fails if none can. Lines starting with # are ignored.
+# required: the search prefers a puzzle with every starred answer, and the
+# command fails, naming what is missing, if no seed places them all. Lines
+# starting with # are ignored.
 
 *FIRE WALK WITH ME | Words on the scrap of paper found near the train car, and the title of the 1992 film
 *GREAT NORTHERN | Ben Horne's hotel above the falls, where Cooper took room 315

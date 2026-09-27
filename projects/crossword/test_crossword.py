@@ -234,6 +234,18 @@ def test_a_required_answer_that_can_never_fit_is_reported_not_forced():
     assert puzzle.required_missing == [cw.Entry("LOG LADY", "the log's keeper", required=True)]
     assert "(1 of 2 required)" in puzzle.summary()
     assert "required" not in cw.build(starred(entries), 0, max_size=5).summary()
+    # When nothing fits at all, the leftovers are still the whole list. The
+    # reviewer found the empty attempt used to come back with no unplaced
+    # entries, so a required answer vanished instead of being reported.
+    nothing = cw.build(
+        [cw.Entry("GARMONBOZIA", "g", required=True), cw.Entry("PERCOLATOR", "p")], 0, max_size=5
+    )
+    assert nothing.placements == []
+    assert sorted(e.answer for e in nothing.unplaced) == ["GARMONBOZIA", "PERCOLATOR"]
+    assert nothing.required_missing == [cw.Entry("GARMONBOZIA", "g", required=True)]
+    assert "0 of 2 answers placed (0 of 1 required)" in nothing.summary()
+    tiny, _ = cw.best_build([cw.Entry("BOB", "b", required=True)], tries=3, max_size=2)
+    assert "0 of 1 answers placed (0 of 1 required)" in tiny.summary()
 
 
 def test_placement_key_ranks_required_answers_before_letters():
