@@ -13,11 +13,18 @@ import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-WORKFLOWS = sorted((ROOT / ".github" / "workflows").glob("*.yml"))
+WORKFLOWS = sorted(
+    path for ext in ("*.yml", "*.yaml") for path in (ROOT / ".github" / "workflows").glob(ext)
+)
 PYPROJECT = ROOT / "pyproject.toml"
 
 JOB = re.compile(r"  ([A-Za-z0-9_-]+):")
 TIME_LIMIT = re.compile(r"    timeout-minutes: (\d+)")
+
+
+def bare(line: str) -> str:
+    """The line without a trailing comment or trailing whitespace."""
+    return re.sub(r"\s+#.*$", "", line).rstrip()
 
 
 def jobs(text: str) -> dict[str, list[str]]:
@@ -31,8 +38,9 @@ def jobs(text: str) -> dict[str, list[str]]:
     found: dict[str, list[str]] = {}
     current: str | None = None
     in_jobs = False
-    for line in text.splitlines():
-        if not line.strip() or line.lstrip().startswith("#"):
+    for raw in text.splitlines():
+        line = bare(raw)
+        if not line or line.lstrip().startswith("#"):
             continue
         if line == "jobs:":
             in_jobs = True
@@ -52,23 +60,26 @@ def jobs(text: str) -> dict[str, list[str]]:
 
 
 def time_limits(body: list[str]) -> list[int]:
-    return [int(m.group(1)) for line in body if (m := TIME_LIMIT.fullmatch(line))]
+    return [int(m.group(1)) for line in body if (m := TIME_LIMIT.fullmatch(bare(line)))]
 
 
 def test_jobs_reads_the_shape_the_workflows_use():
     text = (
         "name: x\n\non:\n  push:\n\njobs:\n"
         "  # a comment\n"
-        "  first:\n    runs-on: ubuntu-latest\n    timeout-minutes: 7\n"
+        "  first:\n    runs-on: ubuntu-latest\n    timeout-minutes: 7  # seven\n"
         "    steps:\n      - run: echo hi\n"
-        "  second:\n    needs: first\n    runs-on: ubuntu-latest\n"
+        "  second:  # a trailing comment must not hide the job\n"
+        "    needs: first\n    runs-on: ubuntu-latest\n"
         "    steps:\n      - run: echo timeout-minutes: 99\n"
-        "\nother:\n  third:\n    timeout-minutes: 3\n"
+        "  third: \n    runs-on: ubuntu-latest\n"
+        "\nother:\n  fourth:\n    timeout-minutes: 3\n"
     )
     found = jobs(text)
-    assert list(found) == ["first", "second"]
+    assert list(found) == ["first", "second", "third"]
     assert time_limits(found["first"]) == [7]
     assert time_limits(found["second"]) == []
+    assert time_limits(found["third"]) == []
 
 
 def test_every_workflow_has_jobs():
