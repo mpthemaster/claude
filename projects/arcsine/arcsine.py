@@ -225,7 +225,7 @@ def final_stretch_probabilities(steps: int, exact: bool = False) -> list:
     at once, as far as t = n - limit, so one pass over the rows gives every
     length up to `steps`. The work is about (steps / 2)^3 / 54
     multiplications, in C: a fifth of a second for 1,000 steps and about
-    ten for 4,000.
+    six for 4,000.
     """
     if steps <= 0 or steps % 2:
         raise ValueError("steps must be a positive even number")
@@ -250,7 +250,13 @@ def mean_longest_excursions(steps: int, exact: bool = False) -> list:
     grows by twice the probability in `final_stretch_probabilities` at each
     length, and the means are running sums of those.
     """
-    probabilities = final_stretch_probabilities(steps, exact)
+    return means_from_probabilities(final_stretch_probabilities(steps, exact))
+
+
+def means_from_probabilities(probabilities: Sequence) -> list:
+    """The means of `mean_longest_excursions` from the table of
+    `final_stretch_probabilities`, so a table already in hand isn't built
+    twice: twice the running sums, starting from a walk of no steps."""
     return [2 * s for s in accumulate(probabilities[:-1], initial=0 * probabilities[0])]
 
 
@@ -673,7 +679,7 @@ def exact_longest_report(steps: int) -> list[str]:
     round lengths up to `steps`, and at `steps`, from one pass of the
     recursion, with the gap between the two scaled by the length."""
     probabilities = final_stretch_probabilities(steps)
-    means = mean_longest_excursions(steps)
+    means = means_from_probabilities(probabilities)
     lengths = [m for m in REPORTED_LENGTHS if m < steps] + [steps]
     lines = [
         f"walks of {steps} steps, exactly:",
@@ -700,7 +706,7 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="print the exact mean longest excursion and the chance the final stretch is the "
         "longest, at every length up to --steps, instead of simulating; a fifth of a second "
-        "for 1,000 steps, about ten for 4,000",
+        "for 1,000 steps, about six for 4,000",
     )
     args = parser.parse_args(argv)
     steps = args.steps

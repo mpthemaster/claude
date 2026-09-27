@@ -19,7 +19,7 @@ histograms beside the exact laws.
 python projects/arcsine/arcsine.py                                         # 20,000 walks of 1,000 steps; summary as text
 python projects/arcsine/arcsine.py --out projects/arcsine/out/arcsine.svg  # and write the chart
 python projects/arcsine/arcsine.py --exact-longest                         # the longest excursion's exact mean, and the final-stretch probability, at every round length up to 1,000 steps
-python projects/arcsine/arcsine.py --exact-longest --steps 4000            # the same up to 4,000 steps, about ten seconds
+python projects/arcsine/arcsine.py --exact-longest --steps 4000            # the same up to 4,000 steps, about six seconds
 pytest projects/arcsine
 ```
 
@@ -80,7 +80,7 @@ pytest projects/arcsine
   the means are running sums. Both were cubic-time recursions that stopped
   at a few hundred steps; the whole table is still cubic in principle, about
   (n/2)³/54 multiplications for n steps, but 1,000 steps now take a fifth
-  of a second and 4,000 about ten. Everything is checked against the
+  of a second and 4,000 about six. Everything is checked against the
   enumeration of every short walk, and the identity is checked on every
   walk of up to ten steps and every way of extending it.
 - The chart is hand-written SVG: one sample walk, then four histograms with

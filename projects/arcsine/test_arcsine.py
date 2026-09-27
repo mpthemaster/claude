@@ -198,6 +198,7 @@ def test_the_lists_hold_every_shorter_length():
         assert probabilities[k] == arcsine.final_stretch_is_longest(2 * k, exact=True)
         assert means[k] == arcsine.mean_longest_excursion(2 * k, exact=True)
         assert means[k] == 2 * sum(probabilities[:k])
+    assert arcsine.means_from_probabilities(probabilities) == means
     # 4, 6, 10 and 14 steps give exactly 5/8; 8, 12 and 16 do not.
     assert [probabilities[k] == Fraction(5, 8) for k in (2, 3, 5, 7, 4, 6, 8)] == [True] * 4 + [
         False
@@ -434,6 +435,22 @@ def test_cli_exact_longest_shares_the_default_and_refuses_out(tmp_path, capsys):
     assert arcsine.main(["--steps", "8", "--exact-longest", "--out", str(out)]) == 2
     assert "--out" in capsys.readouterr().err
     assert not out.exists()
+
+
+def test_exact_longest_report_builds_the_table_once(monkeypatch):
+    # The means come from the probabilities already computed, not from a
+    # second run of the cubic recursion.
+    calls = []
+    table = arcsine.final_stretch_probabilities
+
+    def counted(steps, exact=False):
+        calls.append(steps)
+        return table(steps, exact)
+
+    monkeypatch.setattr(arcsine, "final_stretch_probabilities", counted)
+    lines = arcsine.exact_longest_report(40)
+    assert calls == [40]
+    assert lines[-1].split()[:2] == ["40", f"{arcsine.mean_longest_excursion(40) / 40:.6f}"]
 
 
 def test_cli_exact_longest(capsys):
