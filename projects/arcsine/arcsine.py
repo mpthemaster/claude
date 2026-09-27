@@ -10,16 +10,23 @@ time evenly. The same law governs the time of the last visit to zero.
 Feller gives an exact version for a walk of 2n steps: the time on the
 positive side is 2k with probability u(k) * u(n - k), where
 u(k) = C(2k, k) / 4^k is the probability of being back at zero after 2k
-steps, and the last zero is at time 2k with the same probability.
+steps, and the last zero is at time 2k with the same probability. The time
+of the walk's first maximum has the same limit and a slightly different
+exact law: u(k // 2) * u(n - k // 2) / 2 at each time k >= 1, and u(n) at
+time 0.
 
-This module simulates many walks, measures three things about each (the time
-on the positive side, the last zero, and the longest stretch away from zero),
-compares the first two with Feller's law and the third with a renewal
-recursion, and draws the comparison as an SVG.
+This module simulates many walks, measures four things about each (the time
+on the positive side, the last zero, the first maximum, and the longest
+stretch away from zero), compares the first three with Feller's laws and the
+fourth with a renewal recursion, and draws the comparison as an SVG. The
+same recursion gives the exact mean of the longest excursion and the chance
+that the unfinished final stretch is the longest, at every length up to the
+one asked for.
 
 Usage:
     python arcsine.py                              # simulate, print a summary
     python arcsine.py --out out/arcsine.svg        # and write the chart
+    python arcsine.py --exact-longest              # the longest excursion, exactly
 """
 
 from __future__ import annotations
@@ -33,6 +40,7 @@ from collections.abc import Iterable, Sequence
 from fractions import Fraction
 from itertools import accumulate
 from math import comb
+from operator import mul
 from pathlib import Path
 from typing import NamedTuple
 
@@ -40,17 +48,20 @@ STEP = {"0": -1, "1": 1}
 
 
 class Measure(NamedTuple):
-    """Three things measured on one walk of m steps.
+    """Four things measured on one walk of m steps.
 
     positive_time: time units spent on the positive side, in Feller's sense:
         the interval (k-1, k) counts if S_{k-1} > 0 or S_k > 0. Always even.
     last_zero: the last time the walk is at zero (0 if it never returns).
+    first_max: the first time the walk is at its maximum (0 if it never
+        rises above its start).
     longest_excursion: the longest stretch that never touches zero, counting
         the unfinished stretch after the last zero.
     """
 
     positive_time: int
     last_zero: int
+    first_max: int
     longest_excursion: int
 
 
@@ -91,7 +102,7 @@ def measure(walk: Sequence[int]) -> Measure:
     from_above = sum(1 for z in zeros if z > 0 and walk[z - 1] == 1)
     stretches = [b - a for a, b in zip(zeros, zeros[1:], strict=False)]
     stretches.append(len(walk) - 1 - zeros[-1])
-    return Measure(positives + from_above, zeros[-1], max(stretches))
+    return Measure(positives + from_above, zeros[-1], walk.index(max(walk)), max(stretches))
 
 
 def simulate(steps: int, walks: int, seed: int) -> list[Measure]:
@@ -128,6 +139,28 @@ def exact_law(n: int) -> list[Fraction]:
     return [us[k] * us[n - k] for k in range(n + 1)]
 
 
+def first_max_law(n: int) -> list[Fraction]:
+    """Feller's law for the time of the first maximum of a walk of 2n steps.
+
+    Entry k is the probability that the walk is first at its maximum at time
+    k. The k steps before that time, read backwards, are a walk that stays
+    strictly positive, which happens with probability u(k // 2) / 2 for
+    k >= 1; the steps after it are a walk that stays at or below zero, with
+    probability u(m) for 2m or 2m - 1 steps. So the time is 0 with
+    probability u(n), and k >= 1 with probability u(j) u(n - j) / 2 where
+    j = k // 2. Times 2j and 2j + 1 together carry the arcsine law's atom
+    u(j) u(n - j), except at the two ends: the atom at 0 is whole and gets
+    half of the next one besides, and the atom at 2n is halved, because the
+    tie between equal maxima goes to the earlier one. A walk that never
+    rises above zero has its first maximum at time 0 whatever it does
+    later, while a maximum at the last step has to be strict.
+    """
+    us = return_probabilities(n, exact=True)
+    law = [us[n]]
+    law.extend(us[k // 2] * us[n - k // 2] / 2 for k in range(1, 2 * n + 1))
+    return law
+
+
 def arcsine_cdf(x: float) -> float:
     """The limit law: the probability that the fraction is at most x."""
     return 2 / math.pi * math.asin(math.sqrt(x))
@@ -151,45 +184,84 @@ def longest_excursion_cdf(steps: int, max_len: int, exact: bool = False):
         return Fraction(0) if exact else 0.0
     limit = min(max_len // 2, n)
     us = return_probabilities(n, exact)
-    first_return = [None] + [us[j - 1] - us[j] for j in range(1, n + 1)]
-    g = _short_excursion_returns(first_return, limit, n)
+    g = _short_excursion_returns(us, limit, n)
     return sum(g[t] * us[n - t] for t in range(n - limit, n + 1))
 
 
-def _short_excursion_returns(first_return, limit: int, t: int) -> list:
+def _short_excursion_returns(us, limit: int, t: int) -> list:
     """g[0..t]: probability of being at zero at time 2s with every completed
-    stretch so far at most 2 * limit long."""
-    g = [first_return[1] * 0 + 1] + [first_return[1] * 0] * t
-    for s in range(1, t + 1):
-        g[s] = sum(first_return[j] * g[s - j] for j in range(1, min(limit, s) + 1))
+    stretch so far at most 2 * limit long, given u(0), ..., u(t).
+
+    Up to s = limit no stretch can be too long, so g[s] = u(s). Up to
+    s = 2 * limit at most one can, and a bridge of 2s steps holds one of
+    length 2j with probability f(j) whatever happens around it, so the too
+    long ones together weigh u(limit) - u(s) and g[s] = 2 u(s) - u(limit).
+    From there the renewal recursion g[s] = sum of f(j) g[s - j] over
+    j <= limit takes over, each step a dot product of the last `limit`
+    values with the first-return probabilities. That costs limit * (t - 2
+    * limit) multiplications for a row, and nothing for a row whose t is
+    within twice its limit.
+    """
+    g = list(us[: min(limit, t) + 1])
+    g.extend(2 * us[s] - us[limit] for s in range(limit + 1, min(2 * limit, t) + 1))
+    if t > 2 * limit:
+        first_return = [us[j - 1] - us[j] for j in range(limit, 0, -1)]
+        for s in range(2 * limit + 1, t + 1):
+            g.append(sum(map(mul, first_return, g[s - limit : s])))
     return g
 
 
-def final_stretch_is_longest(steps: int, exact: bool = False):
-    """Probability that the unfinished stretch after the last zero is at
-    least as long as every completed excursion. Cubic in the number of
-    steps, so meant for a few hundred steps at most."""
+def final_stretch_probabilities(steps: int, exact: bool = False) -> list:
+    """For walks of 0, 2, ..., `steps` steps in turn, the probability that
+    the unfinished stretch after the last zero is at least as long as every
+    completed excursion.
+
+    A walk of 2k steps whose last zero is at 2t ends with a stretch of
+    2(k - t) steps, which stays away from zero with probability u(k - t),
+    and the bridge before it must have no excursion longer than that: the
+    probability is the sum over t of g[t] u(k - t) with g the row of
+    `_short_excursion_returns` for limit k - t. Row `limit` serves every k
+    at once, as far as t = n - limit, so one pass over the rows gives every
+    length up to `steps`. The work is about (steps / 2)^3 / 54
+    multiplications, in C: a fifth of a second for 1,000 steps and about
+    ten for 4,000.
+    """
     if steps <= 0 or steps % 2:
         raise ValueError("steps must be a positive even number")
     n = steps // 2
     us = return_probabilities(n, exact)
-    first_return = [None] + [us[j - 1] - us[j] for j in range(1, n + 1)]
-    total = 0 * us[0]
-    for t in range(n + 1):
-        g = _short_excursion_returns(first_return, n - t, t)
-        total += g[t] * us[n - t]
-    return total
+    probabilities = [0 * us[0]] * (n + 1)
+    for limit in range(n + 1):
+        for t, g in enumerate(_short_excursion_returns(us, limit, n - limit)):
+            probabilities[limit + t] += g * us[limit]
+    return probabilities
+
+
+def mean_longest_excursions(steps: int, exact: bool = False) -> list:
+    """Expected length of the longest excursion, in steps, for walks of
+    0, 2, ..., `steps` steps in turn.
+
+    Two more steps lengthen the longest excursion by exactly two when the
+    final stretch was already at least as long as every completed
+    excursion, and not at all otherwise: whether or not the walk is back
+    at zero at the new end, the new longest is the larger of the longest
+    completed excursion and the old final stretch plus two. So the mean
+    grows by twice the probability in `final_stretch_probabilities` at each
+    length, and the means are running sums of those.
+    """
+    probabilities = final_stretch_probabilities(steps, exact)
+    return [2 * s for s in accumulate(probabilities[:-1], initial=0 * probabilities[0])]
+
+
+def final_stretch_is_longest(steps: int, exact: bool = False):
+    """Probability that the unfinished stretch after the last zero is at
+    least as long as every completed excursion."""
+    return final_stretch_probabilities(steps, exact)[-1]
 
 
 def mean_longest_excursion(steps: int, exact: bool = False):
-    """Expected length of the longest excursion, in steps. Cubic in the
-    number of steps, so meant for a few hundred steps at most."""
-    if steps <= 0 or steps % 2:
-        raise ValueError("steps must be a positive even number")
-    n = steps // 2
-    one = Fraction(1) if exact else 1.0
-    # Every length is even, so E[L] = 2 * sum over l of P(L > 2l).
-    return 2 * sum(one - longest_excursion_cdf(steps, 2 * lo, exact) for lo in range(n))
+    """Expected length of the longest excursion, in steps."""
+    return mean_longest_excursions(steps, exact)[-1]
 
 
 # --- binning ----------------------------------------------------------------------
@@ -230,6 +302,14 @@ def binned_exact_law(steps: int, edges: Sequence[int]) -> list[float]:
     return masses
 
 
+def binned_first_max_law(steps: int, edges: Sequence[int]) -> list[float]:
+    """Feller's law for the first maximum of `steps` steps, as probability per bin."""
+    masses = [0.0] * len(edges)
+    for k, p in enumerate(first_max_law(steps // 2)):
+        masses[bin_of(k, edges)] += float(p)
+    return masses
+
+
 def binned_arcsine_law(steps: int, edges: Sequence[int]) -> list[float]:
     """The limit law, as probability per bin."""
     uppers = [*edges[1:], steps]
@@ -251,15 +331,16 @@ def binned_longest_excursion_law(steps: int, edges: Sequence[int]) -> list[float
 # --- summary ---------------------------------------------------------------------------
 
 
-def ks_distance(values: Sequence[int], law: Sequence, steps: int) -> float:
-    """Largest gap between the empirical distribution and Feller's law."""
+def ks_distance(values: Sequence[int], law: Sequence, spacing: int) -> float:
+    """Largest gap between the empirical distribution of the values and an
+    exact law whose entry k is the probability of the value k * spacing."""
     ordered = sorted(values)
     total = len(ordered)
     worst = 0.0
     cdf = 0.0
     for k, p in enumerate(law):
         cdf += float(p)
-        empirical = bisect_right(ordered, 2 * k) / total
+        empirical = bisect_right(ordered, k * spacing) / total
         worst = max(worst, abs(empirical - cdf))
     return worst
 
@@ -269,41 +350,53 @@ def report(steps: int, results: Sequence[Measure], bins: int = 20) -> list[str]:
     n = len(results)
     edges = bin_edges(steps, bins)
     law = exact_law(steps // 2)
+    max_law = first_max_law(steps // 2)
     positive = [r.positive_time for r in results]
     last = [r.last_zero for r in results]
+    first_max = [r.first_max for r in results]
     longest = [r.longest_excursion for r in results]
     one_sided = sum(1 for p in positive if p <= steps / 10 or p >= steps * 9 / 10) / n
     even = sum(1 for p in positive if steps * 2 / 5 <= p <= steps * 3 / 5) / n
     exact_one_sided = float(sum(p for k, p in enumerate(law) if 2 * k <= steps / 10)) * 2
     exact_even = float(sum(p for k, p in enumerate(law) if steps * 2 / 5 <= 2 * k <= steps * 3 / 5))
+    early = sum(1 for t in first_max if t <= steps / 10) / n
+    late = sum(1 for t in first_max if t >= steps * 9 / 10) / n
+    exact_early = float(sum(p for k, p in enumerate(max_law) if k <= steps / 10))
+    exact_late = float(sum(p for k, p in enumerate(max_law) if k >= steps * 9 / 10))
+    exact_mean_max = float(sum(k * p for k, p in enumerate(max_law))) / steps
     final_is_longest = sum(1 for r in results if steps - r.last_zero == r.longest_excursion) / n
     lines = [
         f"{n} walks of {steps} steps",
-        f"positive side, mean fraction: {sum(positive) / n / steps:.4f}"
-        f"  (KS distance from the exact law {ks_distance(positive, law, steps):.4f})",
-        f"last zero, mean fraction:     {sum(last) / n / steps:.4f}"
-        f"  (KS distance from the exact law {ks_distance(last, law, steps):.4f})",
+        f"positive side, mean fraction:     {sum(positive) / n / steps:.4f}"
+        f"  (KS distance from the exact law {ks_distance(positive, law, 2):.4f})",
+        f"last zero, mean fraction:         {sum(last) / n / steps:.4f}"
+        f"  (KS distance from the exact law {ks_distance(last, law, 2):.4f})",
+        f"first maximum, mean fraction:     {sum(first_max) / n / steps:.4f}"
+        f"  (KS distance from the exact law {ks_distance(first_max, max_law, 1):.4f}; "
+        f"exact mean {exact_mean_max:.4f})",
         f"longest excursion, mean fraction: {sum(longest) / n / steps:.4f}",
         f"walks at least 90% on one side: {one_sided:.4f}  (exact {exact_one_sided:.4f})",
         f"walks between 40% and 60% positive: {even:.4f}  (exact {exact_even:.4f})",
+        f"walks whose maximum comes in the first tenth: {early:.4f}  (exact {exact_early:.4f}),"
+        f" in the last tenth: {late:.4f}  (exact {exact_late:.4f})",
         f"walks whose final stretch is the longest: {final_is_longest:.4f}",
         "",
-        "bin      positive   exact   last zero   exact   longest   exact   arcsine",
     ]
-    rows = zip(
-        edges,
-        histogram(positive, edges),
-        histogram(last, edges),
-        binned_exact_law(steps, edges),
-        histogram(longest, edges),
-        binned_longest_excursion_law(steps, edges),
-        binned_arcsine_law(steps, edges),
-        strict=True,
-    )
-    for lo, sim_positive, sim_last, feller, sim_longest, longest_law, arcsine in rows:
+    columns = [
+        ("positive", histogram(positive, edges)),
+        ("exact", binned_exact_law(steps, edges)),
+        ("last zero", histogram(last, edges)),
+        ("exact", binned_exact_law(steps, edges)),
+        ("first max", histogram(first_max, edges)),
+        ("exact", binned_first_max_law(steps, edges)),
+        ("longest", histogram(longest, edges)),
+        ("exact", binned_longest_excursion_law(steps, edges)),
+        ("arcsine", binned_arcsine_law(steps, edges)),
+    ]
+    lines.append("bin   " + "  ".join(f"{name:>9}" for name, _ in columns))
+    for b, lo in enumerate(edges):
         lines.append(
-            f"{lo / steps:.2f}     {sim_positive:.4f}    {feller:.4f}   {sim_last:.4f}     "
-            f"{feller:.4f}   {sim_longest:.4f}    {longest_law:.4f}   {arcsine:.4f}"
+            f"{lo / steps:.2f}  " + "  ".join(f"{values[b]:9.4f}" for _, values in columns)
         )
     return lines
 
@@ -365,9 +458,9 @@ def _walk_panel(
 
     out = [
         f'<text x="{_num(x0)}" y="{_num(y0)}" font-size="13" font-weight="600" fill="{INK}">'
-        f"One walk of {m:,} steps: on the positive side for "
-        f"{found.positive_time / m:.0%} of the time, last at zero at step "
-        f"{found.last_zero:,}, longest stretch away from zero {found.longest_excursion:,} steps"
+        f"One walk of {m:,} steps: {found.positive_time / m:.0%} on the positive side, "
+        f"highest at step {found.first_max:,}, last at zero at step {found.last_zero:,}, "
+        f"longest stretch away from zero {found.longest_excursion:,} steps"
         "</text>",
         f'<line x1="{_num(x0)}" y1="{_num(mid)}" x2="{_num(x0 + width)}" y2="{_num(mid)}" '
         f'stroke="{GRID}" stroke-width="1"/>',
@@ -384,6 +477,19 @@ def _walk_panel(
     out.append(
         f'<text x="{_num(lz + dx)}" y="{_num(bottom + 4)}" font-size="11" fill="{MUTED}" '
         f'text-anchor="{anchor}">last zero</text>'
+    )
+    peak_x, peak_y = x(found.first_max), y(walk[found.first_max])
+    out.append(f'<circle cx="{_num(peak_x)}" cy="{_num(peak_y)}" r="3" fill="{INK}"/>')
+    # Nothing is higher than the maximum, so the label goes above it when
+    # the peak is clear of the title, and beside it when it is not.
+    if peak_y - top >= 14:
+        anchor, label_x, label_y = "middle", peak_x, peak_y - 7
+    else:
+        anchor = "end" if found.first_max > m / 2 else "start"
+        label_x, label_y = peak_x + (-7 if anchor == "end" else 7), peak_y + 4
+    out.append(
+        f'<text x="{_num(label_x)}" y="{_num(label_y)}" font-size="11" fill="{MUTED}" '
+        f'text-anchor="{anchor}">first maximum</text>'
     )
     xa, xb = x(longest[0]), x(longest[1])
     yb = bottom + 16
@@ -471,18 +577,36 @@ def render_svg(
     bins: int = 20,
     walk: Sequence[int] | None = None,
 ) -> str:
-    """The chart: one sample walk on top, then three histograms with their laws."""
+    """The chart: one sample walk on top, then four histograms, two by two,
+    with their laws: the three arcsine quantities and the longest excursion."""
     edges = bin_edges(steps, bins)
     exact = binned_exact_law(steps, edges)
     limit = binned_arcsine_law(steps, edges)
+    max_law = binned_first_max_law(steps, edges)
     longest_law = binned_longest_excursion_law(steps, edges)
     panels = [
-        ("Time on the positive side", histogram((r.positive_time for r in results), edges), exact),
-        ("Time of the last zero", histogram((r.last_zero for r in results), edges), exact),
-        ("Longest excursion", histogram((r.longest_excursion for r in results), edges), None),
+        (
+            "Time on the positive side",
+            histogram((r.positive_time for r in results), edges),
+            exact,
+            limit,
+        ),
+        ("Time of the last zero", histogram((r.last_zero for r in results), edges), exact, limit),
+        (
+            "Time of the first maximum",
+            histogram((r.first_max for r in results), edges),
+            max_law,
+            limit,
+        ),
+        (
+            "Longest excursion",
+            histogram((r.longest_excursion for r in results), edges),
+            longest_law,
+            None,
+        ),
     ]
-    ymax = max(max(s) for _, s, _ in panels)
-    ymax = max(ymax, max(exact), max(limit), max(longest_law))
+    ymax = max(max(simulated) for _, simulated, _, _ in panels)
+    ymax = max(ymax, max(exact), max(limit), max(max_law), max(longest_law))
     ymax = math.ceil(ymax / 0.05 + 0.2) * 0.05
 
     width, margin, gap = 960, 36, 30
@@ -490,8 +614,8 @@ def render_svg(
     # row goes under them, then the histograms.
     walk_height = 150 if walk is not None else 0
     hist_top = 70 + (walk_height + 38 if walk is not None else 0)
-    hist_height = 230
-    height = hist_top + hist_height + 8
+    hist_height, row_gap = 230, 30
+    height = hist_top + 2 * hist_height + row_gap + 8
     out = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
         f'viewBox="0 0 {width} {height}" font-family="Helvetica, Arial, sans-serif" '
@@ -505,21 +629,13 @@ def render_svg(
     ]
     if walk is not None:
         out.extend(_walk_panel(walk, margin, 72, width - 2 * margin, walk_height))
-    panel_width = (width - 2 * margin - 2 * gap) / 3
-    laws = (limit, limit, None)
-    for i, ((title, simulated, law), limit_law) in enumerate(zip(panels, laws, strict=True)):
-        x0 = margin + i * (panel_width + gap)
+    panel_width = (width - 2 * margin - gap) / 2
+    for i, (title, simulated, law, limit_law) in enumerate(panels):
+        x0 = margin + (i % 2) * (panel_width + gap)
+        y0 = hist_top + (i // 2) * (hist_height + row_gap)
         out.extend(
             _histogram_panel(
-                title,
-                simulated,
-                law if law is not None else longest_law,
-                limit_law,
-                x0,
-                hist_top,
-                panel_width,
-                hist_height,
-                ymax,
+                title, simulated, law, limit_law, x0, y0, panel_width, hist_height, ymax
             )
         )
     legend_y = hist_top - 14
@@ -548,14 +664,32 @@ def render_svg(
 
 # --- CLI -----------------------------------------------------------------------------------
 
+REPORTED_LENGTHS = (10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000)
+
+
+def exact_longest_report(steps: int) -> list[str]:
+    """The exact mean longest excursion and final-stretch probability at the
+    round lengths up to `steps`, and at `steps`, from one pass of the
+    recursion, with the gap between the two scaled by the length."""
+    probabilities = final_stretch_probabilities(steps)
+    means = mean_longest_excursions(steps)
+    lengths = [m for m in REPORTED_LENGTHS if m < steps] + [steps]
+    lines = [
+        f"walks of {steps} steps, exactly:",
+        f"longest excursion, mean fraction: {means[-1] / steps:.6f}",
+        f"walks whose final stretch is the longest: {probabilities[-1]:.6f}",
+        "",
+        "steps   mean fraction   final stretch is longest   (mean - final) x steps",
+    ]
+    for m in lengths:
+        mean, final = means[m // 2] / m, probabilities[m // 2]
+        lines.append(f"{m:5d}   {mean:13.6f}   {final:24.6f}   {(mean - final) * m:23.4f}")
+    return lines
+
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Random walks against the arcsine law.")
-    parser.add_argument(
-        "--steps",
-        type=int,
-        help="steps per walk, an even number (default 1000, or 200 with --exact-longest)",
-    )
+    parser.add_argument("--steps", type=int, default=1000, help="steps per walk, an even number")
     parser.add_argument("--walks", type=int, default=20000, help="number of walks")
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--bins", type=int, default=20)
@@ -564,26 +698,22 @@ def main(argv: list[str] | None = None) -> int:
         "--exact-longest",
         action="store_true",
         help="print the exact mean longest excursion and the chance the final stretch is the "
-        "longest, for --steps steps, instead of simulating; cubic time, so 200 steps take a "
-        "fraction of a second and 1,000 take several",
+        "longest, at every length up to --steps, instead of simulating; a fifth of a second "
+        "for 1,000 steps, about ten for 4,000",
     )
     args = parser.parse_args(argv)
+    steps = args.steps
     if args.exact_longest:
         if args.out:
             print("error: --out has no meaning with --exact-longest", file=sys.stderr)
             return 2
-        steps = 200 if args.steps is None else args.steps
         try:
-            mean = mean_longest_excursion(steps)
-            final = final_stretch_is_longest(steps)
+            lines = exact_longest_report(steps)
         except ValueError as err:
             print(f"error: {err}", file=sys.stderr)
             return 2
-        print(f"walks of {steps} steps, exactly:")
-        print(f"longest excursion, mean fraction: {mean / steps:.6f}")
-        print(f"walks whose final stretch is the longest: {final:.6f}")
+        print("\n".join(lines))
         return 0
-    steps = 1000 if args.steps is None else args.steps
     try:
         results = simulate(steps, args.walks, args.seed)
         lines = report(steps, results, args.bins)

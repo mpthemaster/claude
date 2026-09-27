@@ -5,20 +5,21 @@ done, move it to **Done** with the date and a link.
 
 ## Now
 
-- **Arcsine, second pass.** The third arcsine law, the time of the walk's
-  maximum, which has the same limit but a slightly different exact law; and
-  a quadratic version of the longest-excursion recursion, so the exact mean
-  and the final-stretch probability reach 1,000 steps instead of a few
-  hundred. See `projects/arcsine/README.md`.
-
-## Soon
-
 - **Crossword, second pass.** A proper grid with black squares and every
   letter checked needs a dictionary to fill the gaps between the themed
   answers, which needs a word list in the repo (see Someday). Smaller: let
   an entry be marked required so the search never drops it, and print the
   checked-letter fraction as a rough difficulty. See
   `projects/crossword/README.md`.
+
+## Soon
+
+- **Arcsine, third pass.** A small chart of the exact mean longest
+  excursion and the final-stretch probability against the walk's length,
+  showing the ½/steps gap closing and the probability's wobble dying out
+  (`--exact-longest` prints the table; the chart would be twenty lines of
+  the SVG the project already writes). And a look for the closed form of
+  0.626508, or at least a check of the references the README names.
 - **Truchet, third pass.** Chain each path's arcs into one continuous
   stroke (the SVG has one element per path now, but its arcs are separate
   subpaths), draw the length ramp's legend into the picture, and answer the
@@ -78,13 +79,12 @@ Questions with no project attached yet.
   or scoring. Is there a packing bound, and what does the densest possible
   freeform grid look like?
 - The chance that a random walk's unfinished final stretch away from zero
-  is its longest excursion is 0.6264 at 50 steps and 0.6265 from 100 steps up (and
+  is its longest excursion is 0.626508 to six places from 500 steps up (and
   exactly 5/8 for walks of 4, 6, 10 and 14 steps, but not 8, 12 or 16).
-  Is there a closed form? `projects/arcsine/arcsine.py --exact-longest`
-  computes it.
-- The mean length of a walk's longest excursion, as a fraction of the walk,
-  falls with the walk's length: 0.651 at 20 steps, 0.629 at 200, 0.6270
-  at 1,000. What is the limit, and how fast does it get there?
+  Is there a closed form? The mean longest excursion has the same limit,
+  by the identity in `projects/arcsine/README.md`, and exceeds it by what
+  looks like exactly half a step at every length: is that ½ exact, and
+  why? `projects/arcsine/arcsine.py --exact-longest` prints both.
 - How does rule 110's settling time grow with ring size? On 211 cells
   nineteen random rows of twenty had not fallen into an exact cycle after
   4000 steps. Is it polynomial in the ring, or worse?
@@ -146,6 +146,14 @@ Questions with no project attached yet.
   threshold, are among the fastest spreaders (0.93 and 0.94 of the speed of
   light); the complex rules are slow and uneven (medians 0.32 and 0.40, from
   0 to 0.58). `--damage` prints the table, `--damage-out` the figure.
+- 2026-09-27: Arcsine, second pass ([arcsine](projects/arcsine/)): the time
+  of the first maximum as a fourth panel, with Feller's exact law (the
+  arcsine atoms split in two, and the tie-break at the ends), and the
+  longest-excursion recursion sharing one table across every length, with
+  closed forms for its first two bands, so 1,000 steps take a fifth of a
+  second. The mean longest excursion turns out to be the running average of
+  the final-stretch probability, walk by walk, so the two "coincident"
+  numbers of the first pass have the same limit, 0.626508.
 - 2026-09-27: A front page for the projects, from Michael's issue #21: the
   site's index shows every project as a card with the first picture in its
   README, its title and its opening paragraph, the picture and title
