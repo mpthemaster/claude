@@ -1,9 +1,10 @@
 """A freeform crossword builder, and a medium-difficulty Twin Peaks puzzle made with it.
 
-Entries come from a text file, one per line, as ``ANSWER | clue``. The builder
-places as many entries as it can in a grid where every answer crosses at least
-one other and no two letters touch by accident, numbers the result the usual
-way, and renders it as SVG (puzzle and solution) or plain text.
+Entries come from a text file, one per line, as ``ANSWER | clue``; a ``*``
+before an answer marks it required. The builder places as many entries as it
+can, the required ones ahead of the rest, in a grid where every answer crosses
+at least one other and no two letters touch by accident, numbers the result
+the usual way, and renders it as SVG (puzzle and solution) or plain text.
 
 Usage:
     python projects/crossword/crossword.py --out-dir projects/crossword/out
@@ -35,10 +36,13 @@ Cell = tuple[int, int]
 @dataclass(frozen=True)
 class Entry:
     """One answer and its clue. ``answer`` keeps its spaces and hyphens so the
-    enumeration after the clue can show them; the grid holds ``letters``."""
+    enumeration after the clue can show them; the grid holds ``letters``. A
+    ``required`` entry (a ``*`` before the answer in the word list) is one the
+    puzzle must have; ``build`` and ``best_build`` say what that buys."""
 
     answer: str
     clue: str
+    required: bool = False
 
     @property
     def letters(self) -> str:
@@ -63,7 +67,8 @@ def letters_of(answer: str) -> str:
 
 
 def parse_entries(text: str) -> list[Entry]:
-    """Read ``ANSWER | clue`` lines. Blank lines and ``#`` comments are skipped."""
+    """Read ``ANSWER | clue`` lines. Blank lines and ``#`` comments are skipped.
+    A ``*`` before the answer marks it required."""
     entries: list[Entry] = []
     seen: set[str] = set()
     for lineno, raw in enumerate(text.splitlines(), 1):
@@ -73,8 +78,14 @@ def parse_entries(text: str) -> list[Entry]:
         if "|" not in line:
             raise ValueError(f"line {lineno}: expected 'ANSWER | clue'")
         answer, clue = (part.strip() for part in line.split("|", 1))
+        required = answer.startswith("*")
+        if required:
+            answer = answer[1:].strip()
         if not re.fullmatch(r"[A-Za-z' -]+", answer):
-            raise ValueError(f"line {lineno}: answer may only contain letters, spaces and hyphens")
+            raise ValueError(
+                f"line {lineno}: answer may only contain letters, spaces and hyphens"
+                " (a * before it marks it required)"
+            )
         letters = letters_of(answer)
         if len(letters) < 2:
             raise ValueError(f"line {lineno}: an answer needs at least two letters")
@@ -83,7 +94,7 @@ def parse_entries(text: str) -> list[Entry]:
         if not clue:
             raise ValueError(f"line {lineno}: missing clue")
         seen.add(letters)
-        entries.append(Entry(answer, clue))
+        entries.append(Entry(answer, clue, required))
     return entries
 
 
@@ -178,12 +189,25 @@ class Puzzle:
     def down(self) -> list[Placement]:
         return [p for p in self.placements if not p.across]
 
+    @property
+    def required_placed(self) -> int:
+        return sum(1 for p in self.placements if p.entry.required)
+
+    @property
+    def required_missing(self) -> list[Entry]:
+        """The required entries the build could not place."""
+        return [e for e in self.unplaced if e.required]
+
     def summary(self) -> str:
         letters = len(self.cells)
         checked = self.crossings
+        required = self.required_placed + len(self.required_missing)
+        total = len(self.placements) + len(self.unplaced)
+        placed = f"{len(self.placements)} of {total} answers placed"
+        if required:
+            placed += f" ({self.required_placed} of {required} required)"
         return (
-            f"{self.rows}x{self.cols}: {len(self.placements)} of "
-            f"{len(self.placements) + len(self.unplaced)} answers placed, "
+            f"{self.rows}x{self.cols}: {placed}, "
             f"{letters} letters, {checked} crossings ({100 * checked / max(letters, 1):.0f}%"
             f" of cells checked)"
         )
@@ -197,17 +221,47 @@ def build(entries: list[Entry], seed: int = 0, max_size: int = DEFAULT_MAX_SIZE)
 
     The first word goes in without a crossing. If nothing ever crosses it,
     the build starts over with the next word first, so one odd word can't
-    block the rest. A one-word list still gives a one-word grid."""
+    block the rest. A one-word list still gives a one-word grid.
+
+    A required entry is placed like any other, but if the build drops one,
+    it runs again with the required entries ahead of the rest (in the same
+    order among themselves), and whichever result keeps more of them, then
+    more letters, is returned. The order changes only when that is needed,
+    so a list whose required entries fit anyway builds as it did unstarred."""
     rng = random.Random(seed)
     order = sorted(entries, key=lambda e: -(len(e.letters) + rng.uniform(-2, 2)))
-    best: tuple[list[Placement], list[Entry]] = ([], [])
+    placed, unplaced = place_with_restarts(order, rng, max_size)
+    if any(e.required for e in unplaced):
+        again = place_with_restarts(sorted(order, key=lambda e: not e.required), rng, max_size)
+        if placement_key(again[0]) > placement_key(placed):
+            placed, unplaced = again
+    return finish(placed, unplaced)
+
+
+def placement_key(placed: list[Placement]) -> tuple[int, int]:
+    """What a build is judged by: required entries placed, then letters
+    placed (so a long answer counts for more than a short one)."""
+    return (
+        sum(1 for p in placed if p.entry.required),
+        sum(len(p.entry.letters) for p in placed),
+    )
+
+
+def place_with_restarts(
+    order: list[Entry], rng: random.Random, max_size: int
+) -> tuple[list[Placement], list[Entry]]:
+    """``place_all`` over ``order``, starting over from the next word while
+    the first word is left alone in the grid. Returns the placements and
+    leftovers of the attempt that placed the most answers; when nothing
+    fits, that is no placements and the whole list left over."""
+    best: tuple[list[Placement], list[Entry]] = ([], list(order))
     for start in range(len(order)):
         placed, unplaced = place_all(order[start:] + order[:start], rng, max_size)
         if len(placed) > len(best[0]):
             best = (placed, unplaced)
         if len(placed) != 1 or not unplaced:
             break
-    return finish(*best)
+    return best
 
 
 def place_all(
@@ -297,14 +351,14 @@ def finish(placed: list[Placement], unplaced: list[Entry]) -> Puzzle:
 def best_build(
     entries: list[Entry], tries: int = DEFAULT_TRIES, max_size: int = DEFAULT_MAX_SIZE
 ) -> tuple[Puzzle, int]:
-    """Build with seeds 0 to tries-1 and keep the best: most letters placed
-    (so a long answer counts for more than a short one), then the most
-    crossings, then the smallest grid. Returns (puzzle, seed)."""
-    best: tuple[tuple[int, int, int], Puzzle, int] | None = None
+    """Build with seeds 0 to tries-1 and keep the best: most required
+    entries placed, then most letters placed (so a long answer counts for
+    more than a short one), then the most crossings, then the smallest
+    grid. Returns (puzzle, seed)."""
+    best: tuple[tuple[int, int, int, int], Puzzle, int] | None = None
     for seed in range(tries):
         puzzle = build(entries, seed, max_size)
-        letters = sum(len(p.entry.letters) for p in puzzle.placements)
-        key = (letters, puzzle.crossings, -puzzle.rows * puzzle.cols)
+        key = (*placement_key(puzzle.placements), puzzle.crossings, -puzzle.rows * puzzle.cols)
         if best is None or key > best[0]:
             best = (key, puzzle, seed)
     assert best is not None
@@ -502,6 +556,12 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--tries must be at least 1 and --max-size at least 2")
 
     entries = parse_entries(args.words.read_text(encoding="utf-8"))
+    for entry in entries:
+        if entry.required and len(entry.letters) > args.max_size:
+            parser.error(
+                f"{entry.answer} is required but has {len(entry.letters)} letters"
+                f" and --max-size is {args.max_size}"
+            )
     if args.seed is None:
         puzzle, seed = best_build(entries, args.tries, args.max_size)
     else:
@@ -521,7 +581,15 @@ def main(argv: list[str] | None = None) -> int:
         print(render_markdown(puzzle))
     print(f"seed {seed}, {puzzle.summary()}", file=sys.stderr)
     for entry in puzzle.unplaced:
-        print(f"  not placed: {entry.answer}", file=sys.stderr)
+        tag = " (required)" if entry.required else ""
+        print(f"  not placed: {entry.answer}{tag}", file=sys.stderr)
+    if puzzle.required_missing:
+        print(
+            f"{len(puzzle.required_missing)} required answer(s) left out;"
+            " try a larger --max-size or more --tries",
+            file=sys.stderr,
+        )
+        return 1
     return 0
 
 

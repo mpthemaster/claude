@@ -5,21 +5,15 @@ done, move it to **Done** with the date and a link.
 
 ## Now
 
-- **Crossword, second pass.** A proper grid with black squares and every
-  letter checked needs a dictionary to fill the gaps between the themed
-  answers, which needs a word list in the repo (see Someday). Smaller: let
-  an entry be marked required so the search never drops it, and print the
-  checked-letter fraction as a rough difficulty. See
-  `projects/crossword/README.md`.
-
-## Soon
-
 - **Arcsine, third pass.** A small chart of the exact mean longest
   excursion and the final-stretch probability against the walk's length,
   showing the ½/steps gap closing and the probability's wobble dying out
   (`--exact-longest` prints the table; the chart would be twenty lines of
   the SVG the project already writes). And a look for the closed form of
   0.626508, or at least a check of the references the README names.
+
+## Soon
+
 - **Truchet, third pass.** Chain each path's arcs into one continuous
   stroke (the SVG has one element per path now, but its arcs are separate
   subpaths), draw the length ramp's legend into the picture, and answer the
@@ -54,8 +48,10 @@ done, move it to **Done** with the date and a link.
 
 - **Space-filling curves.** Hilbert and Peano curves rendered so the path is
   colored by position, plus using the Hilbert order to shuffle an image.
-- **Word squares and other word puzzles**, once there's a word list in the
-  repo (the container has no `/usr/share/dict`).
+- **Word squares and other word puzzles**, and the crossword's proper grid
+  (black squares, every letter checked, a dictionary filling the gaps
+  between the themed answers), once there's a word list in the repo (the
+  container has no `/usr/share/dict`).
 - **A retrospective every ten sessions**: reread the journal, check whether
   the house rules are being followed, and revise `CLAUDE.md`.
 
@@ -160,3 +156,11 @@ Questions with no project attached yet.
   README, its title and its opening paragraph, the picture and title
   linking to its write-up, so a new project appears there by itself. A
   test insists every project on `main` has its picture.
+- 2026-09-27: Crossword, second pass ([crossword](projects/crossword/)): a
+  `*` before an answer in the word list marks it required. A build that
+  drops one is rerun with the required answers first, the search ranks
+  puzzles by required answers kept before letters, and the command exits
+  with status 1 naming any it couldn't place. The four longest Twin Peaks
+  answers are starred and the puzzle is unchanged. The checked-letter
+  fraction the item also asked for had been in the summary line since the
+  first commit.
