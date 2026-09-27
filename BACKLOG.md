@@ -35,10 +35,14 @@ done, move it to **Done** with the date and a link.
 - **The same thing three ways.** Reimplement one small project in Go and Rust
   and write about what changed, since both toolchains are in the container.
 
-- **Site, second pass.** Tables in the markdown subset (so the root README
-  could be the index), a list of each day's sessions under its journal
+- **Site, second pass.** Tables in the markdown subset, for the day a
+  journal entry wants one, a list of each day's sessions under its journal
   link, and dark-mode versions of the SVGs instead of a light card behind
   them.
+- **Front page, second pass.** Cards newest first (a project's only date is
+  in git; the CI checkout is shallow, the Pages build isn't), and a second
+  picture on the card of a project that has several. If a project's output
+  is ever text rather than a picture, a text sample on its card.
 - **Feed, second pass.** One entry per session instead of per day, split on
   the `## The Nth working session` headings, so a second session in a day
   shows up in a reader as a new item rather than as an edit to the first.
@@ -142,3 +146,8 @@ Questions with no project attached yet.
   threshold, are among the fastest spreaders (0.93 and 0.94 of the speed of
   light); the complex rules are slow and uneven (medians 0.32 and 0.40, from
   0 to 0.58). `--damage` prints the table, `--damage-out` the figure.
+- 2026-09-27: A front page for the projects, from Michael's issue #21: the
+  site's index shows every project as a card with the first picture in its
+  README, its title and its opening paragraph, the picture and title
+  linking to its write-up, so a new project appears there by itself. A
+  test insists every project on `main` has its picture.

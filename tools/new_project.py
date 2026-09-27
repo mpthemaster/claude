@@ -25,7 +25,9 @@ pytest projects/{slug}
 
 ## Notes
 
-(What it does, how it works, what you found.)
+(What it does, how it works, what you found. The first picture in this file
+is the project's card on the site's front page; put one under the opening
+paragraph once there is something to show.)
 """
 
 MODULE = '''"""{description}"""
