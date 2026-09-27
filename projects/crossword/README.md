@@ -26,8 +26,13 @@ pytest projects/crossword
 The word list is [`twin_peaks.txt`](twin_peaks.txt): one entry per line, the
 answer, a `|`, the clue. Spaces and hyphens in an answer stay out of the grid
 but show up in the enumeration after the clue, so LOG LADY is clued as (3,4).
-A summary goes to stderr: `seed 106, 23x22: 39 of 39 answers placed, 211
-letters, 45 crossings (21% of cells checked)`.
+A `*` before an answer marks it required: the search keeps a puzzle that has
+every starred answer over any that lacks one, whatever else it loses, and
+the command exits with status 1, naming the answer, if no seed placed it.
+The four longest answers are starred here. A summary goes to stderr:
+`seed 106, 23x22: 39 of 39 answers placed (4 of 4 required), 211 letters,
+45 crossings (21% of cells checked)`; the fraction checked is the nearest
+thing the builder has to a difficulty.
 
 ## How it works
 
@@ -48,9 +53,15 @@ letters, 45 crossings (21% of cells checked)`.
   goes in without a crossing; if nothing ever crosses it, the build starts
   over with the next word first, so one odd word can't block the rest. A
   one-word list gives a one-word grid, and the summary says 0 crossings.
-- **Search.** 200 seeds; keep the one that places the most letters (so a
-  long answer counts for more than a short one), then the most crossings,
-  then the smallest grid. For this list that is seed 106.
+  A required answer is placed like any other, but if a build drops one, it
+  runs again with the required answers ahead of the rest, in the same order
+  among themselves, and the result that keeps more of them, then more
+  letters, is the one kept. The rerun happens only when it's needed, so a
+  list whose starred answers fit anyway builds exactly as it did unstarred.
+- **Search.** 200 seeds; keep the one that places the most required
+  answers, then the most letters (so a long answer counts for more than a
+  short one), then the most crossings, then the smallest grid. For this
+  list that is seed 106.
 - **Numbering** is the usual: row by row, left to right, one number per
   starting cell, shared by an across and a down answer that start together.
 - **Output.** One SVG with the title, the grid, and the clues in two columns,
@@ -81,6 +92,22 @@ answers, for the same reason.
 grid within 200. The last two or three short words are always the hard ones:
 they need a crossing plus clear cells all round, and by then there aren't
 many.
+
+**A star costs letters, and only when it bites.** With the four longest
+answers starred, 199 of the 200 seeds place them without help; seed 199
+drops WINDOM EARLE, and the rerun brings it back for one answer fewer and
+one letter more (33 answers and 227 letters placed instead of 34 and 226),
+so the search still lands on seed 106 and the puzzle above is what it was.
+In a 21-square grid, where the list doesn't fit, seven seeds need the rerun
+and all seven keep the four; the best seed there, 58, is the same starred
+or not, at 37 of 39 answers. Starring what a seed would otherwise drop is
+where it bites: at 21 squares seed 8 leaves out BLACK LODGE and CHERRY PIE
+among six answers, and starred they come back with nine short answers out
+instead of four (30 answers placed instead of 33, 215 letters instead of
+218). Over the first five seeds at that size the plain search takes seed 0,
+237 letters and no COOPER; with COOPER starred it takes seed 4, with 229.
+The rerun is rare, so the 200-seed search costs the same to within a few
+hundredths of a second.
 
 **The screenshot trap.** Headless Chromium's `--window-size` is the window,
 not the viewport, so a screenshot the exact size of the SVG cuts off the
@@ -143,11 +170,15 @@ If it's wrong, the fix is `twin_peaks.txt`, then regenerate.
 ## Files
 
 - `crossword.py`: entries, placement rules, the seeded build and search,
-  numbering, and SVG, text and Markdown rendering, with a small CLI.
-- `twin_peaks.txt`: the 39 answers and their clues.
+  required answers, numbering, and SVG, text and Markdown rendering, with a
+  small CLI.
+- `twin_peaks.txt`: the 39 answers and their clues, the four longest
+  starred as required.
 - `test_crossword.py`: enumerations and parsing, every placement rule, the
   runs-equal-answers invariant on many seeds, numbering, the size cap,
-  determinism, the search order, and that the committed outputs and this
-  README's clue list are what the code produces.
+  determinism, the search order, required answers (the star, the rerun and
+  what it costs, the search's preference, the command's failure), and that
+  the committed outputs and this README's clue list are what the code
+  produces.
 - `out/twin-peaks.svg`, `out/twin-peaks-solution.svg`: the puzzle and its
   answers.

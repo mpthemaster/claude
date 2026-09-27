@@ -1,3 +1,4 @@
+from dataclasses import replace
 from pathlib import Path
 
 import crossword as cw
@@ -26,6 +27,19 @@ def twin_peaks() -> cw.Puzzle:
 def grid_from(word: str, row: int = 0, col: int = 0, across: bool = True) -> dict[cw.Cell, str]:
     p = cw.Placement(cw.Entry(word, "x"), row, col, across)
     return dict(zip(p.cells, word, strict=True))
+
+
+def starred(entries: list[cw.Entry], *answers: str) -> list[cw.Entry]:
+    """The same entries with exactly ``answers`` marked required."""
+    return [replace(e, required=e.answer in answers) for e in entries]
+
+
+def letters_placed(puzzle: cw.Puzzle) -> int:
+    return sum(len(p.entry.letters) for p in puzzle.placements)
+
+
+def read_back(puzzle: cw.Puzzle) -> set[tuple[cw.Cell, bool, str]]:
+    return {((p.row, p.col), p.across, p.entry.letters) for p in puzzle.placements}
 
 
 # ---------------------------------------------------------------- entries
@@ -61,6 +75,16 @@ def test_parse_entries_skips_comments_and_blank_lines():
 def test_parse_entries_rejects_bad_lines(line):
     with pytest.raises(ValueError):
         cw.parse_entries(line)
+
+
+def test_parse_entries_reads_a_star_as_required():
+    entries = cw.parse_entries("*GARMONBOZIA | pain\n* LOG LADY | the log's keeper\nBOB | killer")
+    assert [e.answer for e in entries] == ["GARMONBOZIA", "LOG LADY", "BOB"]
+    assert [e.required for e in entries] == [True, True, False]
+    assert cw.Entry("BOB", "killer").required is False
+    for line in ("**BOB | two stars", "BOB* | after", "* | no answer"):
+        with pytest.raises(ValueError, match="marks it required"):
+            cw.parse_entries(line)
 
 
 # ---------------------------------------------------------------- placing
@@ -175,6 +199,68 @@ def test_a_first_word_nothing_can_cross_is_swapped_out():
         assert puzzle.crossings >= 1
 
 
+def test_a_required_answer_is_kept_when_the_plain_build_drops_it():
+    # At 21 squares a side the list doesn't fit, and seed 8 drops two long
+    # answers among the six it leaves out. Starred, both come back in, and
+    # the grid is still a valid puzzle inside the cap.
+    entries = starred(cw.parse_entries(cw.DEFAULT_WORDS.read_text(encoding="utf-8")))
+    plain = cw.build(entries, 8, max_size=21)
+    assert {"BLACK LODGE", "CHERRY PIE"} <= {e.answer for e in plain.unplaced}
+    puzzle = cw.build(starred(entries, "BLACK LODGE", "CHERRY PIE"), 8, max_size=21)
+    assert {"BLACK LODGE", "CHERRY PIE"} <= {p.entry.answer for p in puzzle.placements}
+    assert puzzle.required_missing == [] and puzzle.required_placed == 2
+    assert puzzle.rows <= 21 and puzzle.cols <= 21
+    assert set(cw.runs(puzzle.cells)) == read_back(puzzle)
+    assert "(2 of 2 required)" in puzzle.summary()
+
+
+def test_stars_change_nothing_when_the_plain_build_keeps_them():
+    entries = starred(cw.parse_entries(cw.DEFAULT_WORDS.read_text(encoding="utf-8")))
+    plain = cw.build(entries, 106)
+    assert plain.unplaced == []
+    with_stars = cw.build(starred(entries, "BOB", "GUM", "GREAT NORTHERN"), 106)
+    assert with_stars.cells == plain.cells
+    assert read_back(with_stars) == read_back(plain)
+    assert with_stars.required_placed == 3 and "(3 of 3 required)" in with_stars.summary()
+
+
+def test_a_required_answer_that_can_never_fit_is_reported_not_forced():
+    # LOG LADY has seven letters and can't go in a five-square grid however
+    # early it is tried; LAURA can. The rerun keeps what it can and the
+    # puzzle says what is missing.
+    entries = starred(cw.parse_entries(SMALL), "LAURA", "LOG LADY")
+    puzzle = cw.build(entries, 0, max_size=5)
+    assert "LAURA" in {p.entry.answer for p in puzzle.placements}
+    assert puzzle.required_missing == [cw.Entry("LOG LADY", "the log's keeper", required=True)]
+    assert "(1 of 2 required)" in puzzle.summary()
+    assert "required" not in cw.build(starred(entries), 0, max_size=5).summary()
+
+
+def test_placement_key_ranks_required_answers_before_letters():
+    long = cw.Placement(cw.Entry("PERCOLATOR", "x"), 0, 0, True)
+    short = cw.Placement(cw.Entry("BOB", "x", required=True), 0, 0, True)
+    assert cw.placement_key([short]) > cw.placement_key([long])
+    assert cw.placement_key([long, long]) > cw.placement_key([long])
+    assert cw.placement_key([short, long]) > cw.placement_key([short])
+    assert cw.placement_key([]) == (0, 0)
+
+
+def test_best_build_prefers_the_seed_that_keeps_a_required_answer():
+    # Over the first five seeds at 21 squares, seed 0 places the most letters
+    # and leaves COOPER out. Starred, the search takes a seed that has him,
+    # at the cost of letters.
+    entries = starred(cw.parse_entries(cw.DEFAULT_WORDS.read_text(encoding="utf-8")))
+    plain, plain_seed = cw.best_build(entries, tries=5, max_size=21)
+    assert "COOPER" in {e.answer for e in plain.unplaced}
+    puzzle, seed = cw.best_build(starred(entries, "COOPER"), tries=5, max_size=21)
+    assert "COOPER" in {p.entry.answer for p in puzzle.placements}
+    assert puzzle.required_missing == []
+    assert letters_placed(puzzle) < letters_placed(plain)
+    for s in range(5):
+        other = cw.build(starred(entries, "COOPER"), s, max_size=21)
+        assert cw.placement_key(other.placements) <= cw.placement_key(puzzle.placements)
+
+
 def test_one_entry_gives_a_one_word_grid():
     puzzle = cw.build([cw.Entry("COOPER", "x")], 0)
     assert [p.entry.letters for p in puzzle.placements] == ["COOPER"]
@@ -220,6 +306,15 @@ def test_twin_peaks_places_every_entry(twin_peaks):
     assert twin_peaks.unplaced == []
     assert len(twin_peaks.placements) == 39
     assert twin_peaks.rows <= cw.DEFAULT_MAX_SIZE and twin_peaks.cols <= cw.DEFAULT_MAX_SIZE
+    # The four longest answers are starred in twin_peaks.txt as the theme the
+    # puzzle can't do without; the search places them without needing to.
+    assert {p.entry.answer for p in twin_peaks.placements if p.entry.required} == {
+        "FIRE WALK WITH ME",
+        "GREAT NORTHERN",
+        "WINDOM EARLE",
+        "GARMONBOZIA",
+    }
+    assert "(4 of 4 required)" in twin_peaks.summary()
 
 
 def test_committed_outputs_match_the_code(twin_peaks):
@@ -299,3 +394,34 @@ def test_cli_writes_puzzle_and_solution(tmp_path, capsys):
 def test_cli_rejects_bad_numbers():
     with pytest.raises(SystemExit):
         cw.main(["--tries", "0"])
+
+
+def test_cli_fails_when_a_required_answer_cannot_be_placed(tmp_path, capsys):
+    # Nothing shares a letter with the starred answer, so no order places it
+    # with a crossing. The best effort is still written; the exit status and
+    # the message say what is missing.
+    words = tmp_path / "odd.txt"
+    words.write_text("*ZZZZZZZZZZ | z\nLAURA | a\nANDY | b\nDONNA | c\n", encoding="utf-8")
+    out = tmp_path / "out"
+    assert cw.main(["--words", str(words), "--out-dir", str(out), "--tries", "3"]) == 1
+    err = capsys.readouterr().err
+    assert "(0 of 1 required)" in err
+    assert "not placed: ZZZZZZZZZZ (required)" in err
+    assert "1 required answer(s) left out" in err
+    assert (out / "odd.svg").read_text(encoding="utf-8").startswith("<svg ")
+
+    words.write_text("*LAURA | a\nANDY | b\nDONNA | c\n", encoding="utf-8")
+    assert cw.main(["--words", str(words), "--tries", "3", "--text"]) == 0
+    err = capsys.readouterr().err
+    assert "(1 of 1 required)" in err and "not placed" not in err
+
+
+def test_cli_refuses_a_required_answer_longer_than_the_grid(tmp_path, capsys):
+    words = tmp_path / "long.txt"
+    words.write_text("*GARMONBOZIA | g\nBOB | b\n", encoding="utf-8")
+    with pytest.raises(SystemExit) as info:
+        cw.main(["--words", str(words), "--max-size", "10", "--text"])
+    assert info.value.code == 2
+    assert "GARMONBOZIA is required but has 11 letters" in capsys.readouterr().err
+    # One square more and it is an ordinary build.
+    assert cw.main(["--words", str(words), "--max-size", "11", "--seed", "0", "--text"]) == 0
