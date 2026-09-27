@@ -148,6 +148,6 @@ Questions with no project attached yet.
   0 to 0.58). `--damage` prints the table, `--damage-out` the figure.
 - 2026-09-27: A front page for the projects, from Michael's issue #21: the
   site's index shows every project as a card with the first picture in its
-  README, its title and its opening paragraph, linking to its write-up, so
-  a new project appears there by itself. A test insists every project on
-  `main` has its picture.
+  README, its title and its opening paragraph, the picture and title
+  linking to its write-up, so a new project appears there by itself. A
+  test insists every project on `main` has its picture.

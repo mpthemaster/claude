@@ -4,10 +4,11 @@ The site is what https://mpthemaster.github.io/claude/ serves: an index, one
 page per journal day, and one page per project with its pictures. The Pages
 workflow in .github/workflows/pages.yml runs this on every push to main.
 
-The index is a gallery. Every project is a card showing the first picture in
-its README, its title and its opening paragraph, all linking to the project's
-page, so a new project appears on the front page by itself; a project whose
-README has no picture gets a card with the words alone.
+The index is a gallery. Every project is a card: the first picture in its
+README, its title and its opening paragraph, with the picture and the title
+linking to the project's page, so a new project appears on the front page by
+itself; a project whose README has no picture gets a card with the words
+alone.
 
 The markdown converter covers the subset this repository writes: headings,
 paragraphs, bullet and numbered lists (nested by indentation), fenced code,
@@ -55,9 +56,11 @@ HEADING = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
 LIST_ITEM = re.compile(r"^(\s*)([-*+]|\d+[.)])\s+(.*)$")
 HTML_BLOCK = re.compile(r"^<(/?[A-Za-z][\w-]*(?![\w+.-]*:)|!--)")
 QUOTE = re.compile(r"^>\s?(.*)$")
-ATTR_URL = re.compile(r"""\b(src|href)=(["'])(.*?)\2""")
-IMG = re.compile(r"<img\b[^>]*>", re.I)
-ATTR = re.compile(r"""\b(\w+)=(["'])(.*?)\2""")
+# An HTML attribute, quoted or not; `data-src` is not `src`.
+ATTR = re.compile(r"""(?<![\w-])(\w+)=(?:(["'])(.*?)\2|([^\s"'>]+))""")
+# A whole <img> tag, however many `>` its quoted values hold.
+IMG = re.compile(r"""<img\b(?:[^>"']|"[^"]*"|'[^']*')*>""", re.I)
+IMAGE_LINE = re.compile(r"!\[[^\]]*\]\([^)\s]+\)")
 COMMENT = re.compile(r"<!--.*?-->", re.S)
 JOURNAL_DAY = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 # Characters that HTML and XML can't carry, and that `inline` uses for its own
@@ -170,6 +173,13 @@ def markdown(text: str, link=lambda url: url) -> str:
     def url(raw: str) -> str:
         return html.escape(link(html.unescape(raw)), quote=True)
 
+    def mapped(m: re.Match) -> str:
+        """A src or href with its URL mapped and quoted; any other attribute as written."""
+        value = attribute_value(m)
+        if m.group(1).lower() not in ("src", "href") or not value:
+            return m.group(0)
+        return f'{m.group(1)}="{url(value)}"'
+
     def starts_block(line: str) -> bool:
         item = LIST_ITEM.match(line)
         return bool(
@@ -209,8 +219,7 @@ def markdown(text: str, link=lambda url: url) -> str:
             while i < len(lines) and lines[i].strip():
                 body.append(lines[i])
                 i += 1
-            raw = "\n".join(body)
-            out.append(ATTR_URL.sub(lambda m: f'{m.group(1)}="{url(m.group(3))}"', raw))
+            out.append(ATTR.sub(mapped, "\n".join(body)))
         elif QUOTE.match(line):
             body = []
             while i < len(lines) and (quote := QUOTE.match(lines[i])):
@@ -250,28 +259,54 @@ def title_of(text: str, fallback: str) -> str:
 
 
 def summary_of(text: str) -> str:
-    """The first ordinary paragraph after the title, as markdown."""
+    """The first ordinary paragraph after the title, as markdown.
+
+    Headings, pictures, raw HTML, fenced code, lists and quotes before it are
+    passed over; the paragraph runs to the next blank line.
+    """
     body: list[str] = []
+    in_code = False
     for line in text.splitlines():
-        if body and not line.strip():
-            break
-        if line.strip() and not (body or HEADING.match(line) or HTML_BLOCK.match(line)):
-            if FENCE.match(line) or LIST_ITEM.match(line) or QUOTE.match(line):
-                continue
-            body.append(line.strip())
-        elif body:
-            body.append(line.strip())
+        stripped = line.strip()
+        if body:
+            if not stripped:
+                break
+            body.append(stripped)
+        elif FENCE.match(line):
+            in_code = not in_code
+        elif stripped and not (
+            in_code
+            or HEADING.match(line)
+            or HTML_BLOCK.match(stripped)
+            or IMAGE_LINE.fullmatch(stripped)
+            or LIST_ITEM.match(line)
+            or QUOTE.match(line)
+        ):
+            body.append(stripped)
     return " ".join(body)
+
+
+def attribute_value(m: re.Match) -> str:
+    """The value of an ATTR match, as written, whether it was quoted or not."""
+    return m.group(3) if m.group(2) else m.group(4)
+
+
+def attributes(tag: str) -> dict[str, str]:
+    """A tag's attributes: names lowercased, values unescaped, the first of a name kept."""
+    found: dict[str, str] = {}
+    for m in ATTR.finditer(tag):
+        found.setdefault(m.group(1).lower(), html.unescape(attribute_value(m)))
+    return found
 
 
 def first_image(rendered: str) -> tuple[str, str] | None:
     """(src, alt) of the first picture in rendered HTML, as plain text, or None.
 
     A picture inside a code block is escaped text there, and one inside an
-    HTML comment isn't shown, so neither counts.
+    HTML comment isn't shown, so neither counts; nor does one with no source.
     """
     for tag in IMG.finditer(COMMENT.sub("", rendered)):
-        attrs = {m.group(1).lower(): html.unescape(m.group(3)) for m in ATTR.finditer(tag.group(0))}
+        attrs = attributes(tag.group(0))
         if attrs.get("src"):
             return attrs["src"], attrs.get("alt", "")
     return None
