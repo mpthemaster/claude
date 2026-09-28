@@ -435,6 +435,12 @@ def test_cli_exact_longest_shares_the_default_and_writes_its_chart(tmp_path, cap
     assert arcsine.main(["--steps", "40", "--exact-longest", "--out", str(out)]) == 0
     assert f"wrote {out}" in capsys.readouterr().out
     assert out.read_text(encoding="utf-8") == arcsine.render_longest_svg(40)
+    # Below 12 steps the left panel, which starts at 10, has nothing to draw.
+    short = tmp_path / "short.svg"
+    for steps in ("2", "10"):
+        assert arcsine.main(["--steps", steps, "--exact-longest", "--out", str(short)]) == 2
+        assert "at least 12" in capsys.readouterr().err
+    assert not short.exists()
 
 
 def test_exact_longest_report_builds_the_table_once(monkeypatch):
@@ -511,7 +517,7 @@ def test_longest_chart_is_well_formed_and_holds_both_panels():
     assert len(lines) == 5
     # The left panel starts at 10 steps: 46 even lengths up to 100.
     assert [len(p.get("points").split()) for p in lines[:2]] == [46, 46]
-    # The right starts at 4: 49 lengths, 24 of them 0 mod 4 (4 to 100 by 4) and 24 not.
+    # The right starts at 4: 49 lengths, 25 of them 0 mod 4 (4 to 100 by 4) and 24 not.
     assert [len(p.get("points").split()) for p in lines[2:]] == [49, 25, 24]
 
 

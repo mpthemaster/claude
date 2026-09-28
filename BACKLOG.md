@@ -71,7 +71,8 @@ Questions with no project attached yet.
 - The chance that a random walk's unfinished final stretch is its longest
   excursion is 0.6265075988 in the limit (the integral in
   `projects/arcsine/README.md`), and at 2k steps it is off by
-  (−1)^k / (π (2k)²) to four digits of the coefficient. Why 1/π? And the
+  (−1)^k / (π (2k)²), with the coefficient heading for 1/π (0.3181 at
+  4,000 steps, and closing). Why 1/π? And the
   mean longest excursion exceeds the limit by half a step, which is the
   same as saying the probability's excesses over the limit, summed over
   every even length from 0, come to exactly ¼. Is that exact, and is there

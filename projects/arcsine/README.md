@@ -194,9 +194,9 @@ steps   mean fraction   final stretch is longest   (mean - limit) x steps   (fin
 
 The mean's gap is half a step to four places from 100 steps on. The
 probability's gap, scaled by the square of the length, settles on
-±0.3183 with the sign set by the length mod 4, which is 1/π = 0.318310 to
-the digits there are; at 4,000 steps the difference is 0.00016 and halving
-each time the length doubles. So, empirically,
+±1/π = ±0.318310 with the sign set by the length mod 4: it is 0.3181 at
+4,000 steps, three digits of agreement, and the difference, 0.00019
+there, roughly halves each time the length doubles. So, empirically,
 
   P(final stretch is longest) ≈ 0.6265075988 + (−1)^(steps/2) / (π · steps²),
 

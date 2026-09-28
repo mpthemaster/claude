@@ -772,6 +772,8 @@ def render_longest_svg(steps: int) -> str:
     """The second chart: the exact mean longest excursion and final-stretch
     probability at every even length up to `steps`, closing on their common
     limit, and beside them the two gaps, scaled so that they settle."""
+    if steps < 12 or steps % 2:
+        raise ValueError("the chart needs an even number of steps, at least 12")
     probabilities = final_stretch_probabilities(steps)
     means = means_from_probabilities(probabilities)
     limit = longest_excursion_limit()
@@ -910,13 +912,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.exact_longest:
         try:
             lines = exact_longest_report(steps)
+            svg = render_longest_svg(steps) if args.out else None
         except ValueError as err:
             print(f"error: {err}", file=sys.stderr)
             return 2
         print("\n".join(lines))
-        if args.out:
+        if svg is not None:
             args.out.parent.mkdir(parents=True, exist_ok=True)
-            args.out.write_text(render_longest_svg(steps), encoding="utf-8")
+            args.out.write_text(svg, encoding="utf-8")
             print(f"wrote {args.out}")
         return 0
     try:
