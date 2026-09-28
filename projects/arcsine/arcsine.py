@@ -768,13 +768,15 @@ def _log_panel(
     return out
 
 
-def render_longest_svg(steps: int) -> str:
+def render_longest_svg(steps: int, probabilities: Sequence | None = None) -> str:
     """The second chart: the exact mean longest excursion and final-stretch
     probability at every even length up to `steps`, closing on their common
-    limit, and beside them the two gaps, scaled so that they settle."""
+    limit, and beside them the two gaps, scaled so that they settle. Pass
+    the table of `final_stretch_probabilities` if it is already in hand."""
     if steps < 12 or steps % 2:
         raise ValueError("the chart needs an even number of steps, at least 12")
-    probabilities = final_stretch_probabilities(steps)
+    if probabilities is None:
+        probabilities = final_stretch_probabilities(steps)
     means = means_from_probabilities(probabilities)
     limit = longest_excursion_limit()
     lengths = range(2, steps + 1, 2)
@@ -867,11 +869,13 @@ def render_longest_svg(steps: int) -> str:
 REPORTED_LENGTHS = (10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000)
 
 
-def exact_longest_report(steps: int) -> list[str]:
+def exact_longest_report(steps: int, probabilities: Sequence | None = None) -> list[str]:
     """The exact mean longest excursion and final-stretch probability at the
     round lengths up to `steps`, and at `steps`, from one pass of the
-    recursion, with the gap between the two scaled by the length."""
-    probabilities = final_stretch_probabilities(steps)
+    recursion (or the table given), with each one's gap to their common
+    limit, scaled so that it settles."""
+    if probabilities is None:
+        probabilities = final_stretch_probabilities(steps)
     means = means_from_probabilities(probabilities)
     lengths = [m for m in REPORTED_LENGTHS if m < steps] + [steps]
     limit = longest_excursion_limit()
@@ -911,8 +915,10 @@ def main(argv: list[str] | None = None) -> int:
     steps = args.steps
     if args.exact_longest:
         try:
-            lines = exact_longest_report(steps)
-            svg = render_longest_svg(steps) if args.out else None
+            # The report and the chart share one run of the cubic recursion.
+            probabilities = final_stretch_probabilities(steps)
+            lines = exact_longest_report(steps, probabilities)
+            svg = render_longest_svg(steps, probabilities) if args.out else None
         except ValueError as err:
             print(f"error: {err}", file=sys.stderr)
             return 2

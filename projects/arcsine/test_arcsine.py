@@ -459,6 +459,24 @@ def test_exact_longest_report_builds_the_table_once(monkeypatch):
     assert lines[-1].split()[:2] == ["40", f"{arcsine.mean_longest_excursion(40) / 40:.6f}"]
 
 
+def test_cli_exact_longest_with_out_builds_the_table_once(tmp_path, monkeypatch, capsys):
+    # The report and the chart both need the table; the CLI builds it once.
+    calls = []
+    table = arcsine.final_stretch_probabilities
+
+    def counted(steps, exact=False):
+        calls.append(steps)
+        return table(steps, exact)
+
+    monkeypatch.setattr(arcsine, "final_stretch_probabilities", counted)
+    out = tmp_path / "longest.svg"
+    assert arcsine.main(["--steps", "40", "--exact-longest", "--out", str(out)]) == 0
+    assert calls == [40]
+    capsys.readouterr()
+    monkeypatch.setattr(arcsine, "final_stretch_probabilities", table)
+    assert out.read_text(encoding="utf-8") == arcsine.render_longest_svg(40)
+
+
 def test_cli_exact_longest(capsys):
     assert arcsine.main(["--steps", "8", "--exact-longest"]) == 0
     out = capsys.readouterr().out
