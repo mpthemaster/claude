@@ -27,6 +27,7 @@ Usage:
     python arcsine.py                              # simulate, print a summary
     python arcsine.py --out out/arcsine.svg        # and write the chart
     python arcsine.py --exact-longest              # the longest excursion, exactly
+    python arcsine.py --exact-longest --out out/longest.svg   # and its chart
 """
 
 from __future__ import annotations
@@ -269,6 +270,29 @@ def final_stretch_is_longest(steps: int, exact: bool = False):
 def mean_longest_excursion(steps: int, exact: bool = False):
     """Expected length of the longest excursion, in steps."""
     return mean_longest_excursions(steps, exact)[-1]
+
+
+def longest_excursion_limit(intervals: int = 20000) -> float:
+    """The limit, as the walk grows, of the chance that the final stretch is
+    the longest, which is also the limit of the mean longest excursion as a
+    fraction of the walk: the integral over a > 0 of
+    1 / (1 + sqrt(pi a) e^a erf(sqrt a)), by Simpson's rule.
+
+    The integral is Brownian motion's version of the renewal sum in
+    `final_stretch_probabilities`, stopped at an exponential time (the
+    README derives it). The integrand is smooth, starts at 1 and falls like
+    e^-a / sqrt(pi a), so [0, 40] holds all of it that a float can see.
+    """
+    if intervals <= 0 or intervals % 2:
+        raise ValueError("intervals must be a positive even number")
+
+    def f(a: float) -> float:
+        root = math.sqrt(a)
+        return 1 / (1 + math.sqrt(math.pi) * root * math.exp(a) * math.erf(root))
+
+    h = 40 / intervals
+    inner = sum((4 if i % 2 else 2) * f(i * h) for i in range(1, intervals))
+    return (f(0) + inner + f(40)) * h / 3
 
 
 # --- binning ----------------------------------------------------------------------
@@ -669,6 +693,173 @@ def render_svg(
     return "\n".join(out) + "\n"
 
 
+def _log_panel(
+    title: str,
+    series: Sequence[tuple[str, Sequence[tuple[int, float]], float]],
+    references: Sequence[tuple[float, str]],
+    x0: float,
+    y0: float,
+    width: float,
+    height: float,
+    xlim: tuple[int, int],
+    ylim: tuple[float, float],
+    yticks: Sequence[float],
+    tick_format: str,
+) -> list[str]:
+    """A panel with the walk's length across on a log scale: each series is
+    a colour, points (steps, value) and a stroke width, and each reference
+    a dashed level with a label at its right end."""
+    top, bottom = y0 + 22, y0 + height - 24
+    right = x0 + width - 44  # room for the reference labels
+    lx0, lx1 = math.log10(xlim[0]), math.log10(xlim[1])
+
+    def x(m: float) -> float:
+        return x0 + (math.log10(m) - lx0) / (lx1 - lx0) * (right - x0)
+
+    def y(v: float) -> float:
+        return bottom - (v - ylim[0]) / (ylim[1] - ylim[0]) * (bottom - top)
+
+    out = [
+        f'<text x="{_num(x0)}" y="{_num(y0 + 6)}" font-size="13" font-weight="600" '
+        f'fill="{INK}">{title}</text>'
+    ]
+    for tick in yticks:
+        out.append(
+            f'<line x1="{_num(x0)}" y1="{_num(y(tick))}" x2="{_num(right)}" '
+            f'y2="{_num(y(tick))}" stroke="{GRID}" stroke-width="1"/>'
+        )
+        out.append(
+            f'<text x="{_num(x0 - 6)}" y="{_num(y(tick) + 4)}" font-size="11" fill="{MUTED}" '
+            f'text-anchor="end">{tick:{tick_format}}</text>'
+        )
+    decade = 10 ** math.ceil(lx0)
+    while decade <= xlim[1]:
+        out.append(
+            f'<text x="{_num(x(decade))}" y="{_num(bottom + 15)}" font-size="11" '
+            f'fill="{MUTED}" text-anchor="middle">{decade:,}</text>'
+        )
+        decade *= 10
+    for level, label in references:
+        out.append(
+            f'<line x1="{_num(x0)}" y1="{_num(y(level))}" x2="{_num(right)}" '
+            f'y2="{_num(y(level))}" stroke="{INK}" stroke-width="1" stroke-dasharray="4 3"/>'
+        )
+        out.append(
+            f'<text x="{_num(right + 5)}" y="{_num(y(level) + 4)}" font-size="11" '
+            f'fill="{INK}">{label}</text>'
+        )
+    for color, points, stroke_width in series:
+        # On a log scale the long walks crowd together; a point less than
+        # half a pixel along from the last one kept adds nothing but bytes.
+        kept = [points[0]]
+        for point in points[1:-1]:
+            if x(point[0]) - x(kept[-1][0]) >= 0.5:
+                kept.append(point)
+        kept.append(points[-1])
+        drawn = " ".join(f"{_num(x(m))},{_num(y(v))}" for m, v in kept)
+        out.append(
+            f'<polyline points="{drawn}" fill="none" stroke="{color}" '
+            f'stroke-width="{stroke_width}" stroke-linejoin="round"/>'
+        )
+    out.append(
+        f'<line x1="{_num(x0)}" y1="{_num(bottom)}" x2="{_num(right)}" y2="{_num(bottom)}" '
+        f'stroke="{MUTED}" stroke-width="1"/>'
+    )
+    return out
+
+
+def render_longest_svg(steps: int) -> str:
+    """The second chart: the exact mean longest excursion and final-stretch
+    probability at every even length up to `steps`, closing on their common
+    limit, and beside them the two gaps, scaled so that they settle."""
+    probabilities = final_stretch_probabilities(steps)
+    means = means_from_probabilities(probabilities)
+    limit = longest_excursion_limit()
+    lengths = range(2, steps + 1, 2)
+    left_start, right_start = 10, 4
+    mean_fraction = [(m, means[m // 2] / m) for m in lengths if m >= left_start]
+    final = [(m, probabilities[m // 2]) for m in lengths if m >= left_start]
+    mean_gap = [(m, (means[m // 2] / m - limit) * m) for m in lengths if m >= right_start]
+    wobble = {
+        r: [(m, (probabilities[m // 2] - limit) * m * m) for m in lengths if m >= right_start]
+        for r in (0, 2)
+    }
+    for r in wobble:
+        wobble[r] = [(m, v) for m, v in wobble[r] if m % 4 == r]
+
+    width, margin, gap = 960, 40, 50
+    panel_top, panel_height = 94, 320
+    height = panel_top + panel_height + 8
+    panel_width = (width - 2 * margin - gap) / 2
+    out = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
+        f'viewBox="0 0 {width} {height}" font-family="Helvetica, Arial, sans-serif" '
+        f'font-size="12">',
+        f'<rect width="{width}" height="{height}" fill="#ffffff"/>',
+        f'<text x="{margin}" y="28" font-size="17" font-weight="600" fill="{INK}">'
+        "The longest excursion: the mean and the final stretch share a limit</text>",
+        f'<text x="{margin}" y="46" fill="{MUTED}">Exact, for walks of every even length up '
+        f"to {steps:,} steps (across, log scale). The limit {limit:.7f} is Brownian "
+        "motion's, from an integral.</text>",
+    ]
+    out.extend(
+        _log_panel(
+            "Both close on the limit",
+            [(BLUE, mean_fraction, 2), (ORANGE, final, 1.5)],
+            [(limit, f"{limit:.4f}")],
+            margin,
+            panel_top,
+            panel_width,
+            panel_height,
+            (left_start, steps),
+            (0.62, 0.68),
+            [0.62, 0.63, 0.64, 0.65, 0.66, 0.67, 0.68],
+            ".2f",
+        )
+    )
+    out.extend(
+        _log_panel(
+            "The gaps to it, times steps (mean) and steps² (chance)",
+            [(BLUE, mean_gap, 2), (ORANGE, wobble[0], 1.5), (ORANGE, wobble[2], 1.5)],
+            [(0.5, "½"), (1 / math.pi, "1/π"), (-1 / math.pi, "−1/π")],
+            margin + panel_width + gap,
+            panel_top,
+            panel_width,
+            panel_height,
+            (right_start, steps),
+            (-0.6, 0.8),
+            [-0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8],
+            ".1f",
+        )
+    )
+    legend_y = panel_top - 22
+    items = [
+        (BLUE, "mean longest excursion"),
+        (ORANGE, "chance the final stretch is the longest"),
+    ]
+    lx = margin
+    for color, label in items:
+        out.append(
+            f'<line x1="{_num(lx)}" y1="{legend_y}" x2="{_num(lx + 18)}" y2="{legend_y}" '
+            f'stroke="{color}" stroke-width="2"/>'
+        )
+        out.append(
+            f'<text x="{_num(lx + 24)}" y="{legend_y + 4}" font-size="11" fill="{MUTED}">'
+            f"{label}</text>"
+        )
+        lx += 24 + len(label) * 6.2 + 24
+    out.append(
+        f'<line x1="{_num(lx)}" y1="{legend_y}" x2="{_num(lx + 18)}" y2="{legend_y}" '
+        f'stroke="{INK}" stroke-width="1" stroke-dasharray="4 3"/>'
+    )
+    out.append(
+        f'<text x="{_num(lx + 24)}" y="{legend_y + 4}" font-size="11" fill="{MUTED}">'
+        "the level each settles to</text>"
+    )
+    out.append("</svg>")
+    return "\n".join(out) + "\n"
+
+
 # --- CLI -----------------------------------------------------------------------------------
 
 REPORTED_LENGTHS = (10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000)
@@ -681,16 +872,22 @@ def exact_longest_report(steps: int) -> list[str]:
     probabilities = final_stretch_probabilities(steps)
     means = means_from_probabilities(probabilities)
     lengths = [m for m in REPORTED_LENGTHS if m < steps] + [steps]
+    limit = longest_excursion_limit()
     lines = [
         f"walks of {steps} steps, exactly:",
         f"longest excursion, mean fraction: {means[-1] / steps:.6f}",
         f"walks whose final stretch is the longest: {probabilities[-1]:.6f}",
+        f"the limit of both, from Brownian motion: {limit:.10f}",
         "",
-        "steps   mean fraction   final stretch is longest   (mean - final) x steps",
+        "steps   mean fraction   final stretch is longest   (mean - limit) x steps"
+        "   (final - limit) x steps^2",
     ]
     for m in lengths:
         mean, final = means[m // 2] / m, probabilities[m // 2]
-        lines.append(f"{m:5d}   {mean:13.6f}   {final:24.6f}   {(mean - final) * m:23.4f}")
+        lines.append(
+            f"{m:5d}   {mean:13.6f}   {final:24.6f}   {(mean - limit) * m:23.4f}"
+            f"   {(final - limit) * m * m:26.4f}"
+        )
     return lines
 
 
@@ -706,20 +903,21 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="print the exact mean longest excursion and the chance the final stretch is the "
         "longest, at every length up to --steps, instead of simulating; a fifth of a second "
-        "for 1,000 steps, about six for 4,000",
+        "for 1,000 steps, about six for 4,000; with --out, write their chart there",
     )
     args = parser.parse_args(argv)
     steps = args.steps
     if args.exact_longest:
-        if args.out:
-            print("error: --out has no meaning with --exact-longest", file=sys.stderr)
-            return 2
         try:
             lines = exact_longest_report(steps)
         except ValueError as err:
             print(f"error: {err}", file=sys.stderr)
             return 2
         print("\n".join(lines))
+        if args.out:
+            args.out.parent.mkdir(parents=True, exist_ok=True)
+            args.out.write_text(render_longest_svg(steps), encoding="utf-8")
+            print(f"wrote {args.out}")
         return 0
     try:
         results = simulate(steps, args.walks, args.seed)
