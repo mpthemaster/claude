@@ -20,6 +20,7 @@ python projects/arcsine/arcsine.py                                         # 20,
 python projects/arcsine/arcsine.py --out projects/arcsine/out/arcsine.svg  # and write the chart
 python projects/arcsine/arcsine.py --exact-longest                         # the longest excursion's exact mean, and the final-stretch probability, at every round length up to 1,000 steps
 python projects/arcsine/arcsine.py --exact-longest --steps 4000            # the same up to 4,000 steps, about six seconds
+python projects/arcsine/arcsine.py --exact-longest --steps 2000 --out projects/arcsine/out/longest.svg  # and the chart of it below
 pytest projects/arcsine
 ```
 
@@ -83,11 +84,30 @@ pytest projects/arcsine
   of a second and 4,000 about six. Everything is checked against the
   enumeration of every short walk, and the identity is checked on every
   walk of up to ten steps and every way of extending it.
+- The **limit** of both is Brownian motion's, and there it is an integral.
+  Brownian motion's excursions away from zero, ordered by local time at
+  zero, are a Poisson process whose lengths have the measure
+  ν(dx) = x^(−3/2) dx / (2√π), so ν̄(a) = 1/√(πa) of them per unit of local
+  time are longer than a. Stop the motion at an exponential time T of rate
+  1; by scaling, the chance that the final stretch is the longest is the
+  same at every fixed time, so it is the same at T. The final stretch is
+  the longest, of length a, when the motion reaches some local time L with
+  every excursion so far shorter than a (and T not yet reached), then
+  enters an excursion longer than a and meets T a into it. Integrating
+  over L and a gives
+  ∫₀^∞ e^(−a) ν̄(a) da / (ν̄(a) + ∫₀^a (1 − e^(−x)) ν(dx)), and working out
+  the inner integral leaves
+  ∫₀^∞ da / (1 + √(πa) e^a erf √a). Simpson's rule on [0, 40] gives
+  0.6265075988. That is the renewal sum above with the walk replaced by
+  Brownian motion, so it is the same argument, but it is computed a wholly
+  different way.
 - The chart is hand-written SVG: one sample walk, then four histograms with
   the exact law as dots and the arcsine law as an orange staircase. The
   staircase is the probability the limit law gives each bin, not its
   density, so the end bins compare honestly with the bars. A test
-  regenerates the chart and checks that the committed file matches.
+  regenerates the chart and checks that the committed file matches. The
+  second chart, `out/longest.svg`, draws the exact table for every even
+  length up to 2,000 steps on a log scale, with the same test.
 
 ## What I found
 
@@ -152,19 +172,48 @@ So the probability reads 0.626508 at 1,000 steps and beyond, the mean
 longest excursion is that fraction of the walk plus what looks like exactly
 half a step, and the first pass's "0.0005 apart at 1,000 steps" was
 ½ / 1,000. The probability wobbles on its way in: it is exactly 5/8 for
-walks of 4, 6, 10 and 14 steps and not for 8, 12 or 16, and the wobble,
-about 0.3 / steps² with the sign alternating between neighbouring lengths,
-keeps lengths that are 2 mod 4 at 0.626507 until about 1,800 steps. The
-limit is about 0.6265076. I don't have a closed form for 0.626508. As I remember the
-literature, it is the expected length of the longest excursion of Brownian
-motion on a unit interval, meander included (Pitman and Yor's
-Poisson–Dirichlet partition with parameters ½ and 0; Godrèche, Majumdar
-and Schehr's constant for the longest excursion), and the identity is the
-discrete form of a simple fact about Brownian motion: the longest excursion
-grows at rate one exactly while the current unfinished stretch is the
-longest, so its expected length at time t is t times the probability that
-the unfinished stretch is the longest, and by scaling that probability is
-the same at every t. I couldn't check the references from here.
+walks of 4, 6, 10 and 14 steps and not for 8, 12 or 16.
+
+**The constant is an integral, and the wobble is 1/π.** The third pass
+derived the Brownian limit above and computed it: 0.6265075988, which is
+where the recursion was heading. `--exact-longest` now prints it and
+measures both gaps against it:
+
+```
+steps   mean fraction   final stretch is longest   (mean - limit) x steps   (final - limit) x steps^2
+   10        0.676562                   0.625000                    0.5005                      -0.1508
+   20        0.651480                   0.627129                    0.4995                       0.2484
+   50        0.636510                   0.626384                    0.5001                      -0.3101
+  100        0.631507                   0.626539                    0.5000                       0.3113
+  200        0.629008                   0.626515                    0.5000                       0.3146
+  500        0.627508                   0.626509                    0.5000                       0.3169
+ 1000        0.627008                   0.626508                    0.5000                       0.3177
+ 2000        0.626758                   0.626508                    0.5000                       0.3180
+ 4000        0.626633                   0.626508                    0.5000                       0.3181
+```
+
+The mean's gap is half a step to four places from 100 steps on. The
+probability's gap, scaled by the square of the length, settles on
+±1/π = ±0.318310 with the sign set by the length mod 4: it is 0.3181 at
+4,000 steps, three digits of agreement, and the difference, 0.00019
+there, roughly halves each time the length doubles. So, empirically,
+
+  P(final stretch is longest) ≈ 0.6265075988 + (−1)^(steps/2) / (π · steps²),
+
+and the mean is the limit plus ½ step. I haven't proved the 1/π; it comes
+out of the numbers, not an argument. The chart shows both:
+
+<p align="center">
+  <a href="out/longest.svg"><img src="out/longest.svg" width="100%" alt="Left: the exact mean longest excursion, as a fraction of the walk, falling from 0.677 at 10 steps to 0.627 at 2,000, and the chance that the final stretch is the longest, zigzagging around 0.6265 and flattening onto it. Right: the mean's gap times the length, flat at one half, and the probability's gap times the length squared, in two branches that settle at plus and minus one over pi."></a>
+</p>
+
+On the references: the integral is the form I remember from Godrèche,
+Majumdar and Schehr's work on the longest excursion, and as I remember it
+the constant is also the mean largest part of Pitman and Yor's
+Poisson–Dirichlet partition with parameters ½ and 0. I still couldn't
+check either from here, and I no longer need to: the recursion over walks
+and the integral over Brownian motion are separate computations, and they
+agree to ten digits. Whatever the papers say, 0.6265075988 is the number.
 
 **The sample walk.** The first walk the seed produces is on the positive
 side for 12% of its time, is first at its maximum at step 39, is last at
@@ -183,3 +232,5 @@ that's an ordinary walk.
   binning; the chart's contents; the CLI; and that the committed chart
   matches the code.
 - `out/arcsine.svg`: the chart, 32 KB.
+- `out/longest.svg`: the longest excursion's exact table against its
+  limit, 24 KB.

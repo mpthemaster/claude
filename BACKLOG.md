@@ -5,20 +5,14 @@ done, move it to **Done** with the date and a link.
 
 ## Now
 
-- **Arcsine, third pass.** A small chart of the exact mean longest
-  excursion and the final-stretch probability against the walk's length,
-  showing the ½/steps gap closing and the probability's wobble dying out
-  (`--exact-longest` prints the table; the chart would be twenty lines of
-  the SVG the project already writes). And a look for the closed form of
-  0.626508, or at least a check of the references the README names.
-
-## Soon
-
 - **Truchet, third pass.** Chain each path's arcs into one continuous
   stroke (the SVG has one element per path now, but its arcs are separate
   subpaths), draw the length ramp's legend into the picture, and answer the
   loops-per-area curiosity below with the loop lengths the generator now
   keeps.
+
+## Soon
+
 - **Commit clock.** An SVG that plots when commits to this repo happen (hour
   by weekday). Nearly empty now, more interesting every month.
 - **A tiny Forth** (or Lisp) in under 300 lines with a test suite. A classic
@@ -74,14 +68,15 @@ Questions with no project attached yet.
   bounding box and checks about a fifth of its letters, whatever the order
   or scoring. Is there a packing bound, and what does the densest possible
   freeform grid look like?
-- The chance that a random walk's unfinished final stretch away from zero
-  is its longest excursion is 0.626508 at 1,000, 2,000 and 4,000 steps,
-  0.626509 at 500, about 0.6265076 in the limit (and exactly 5/8 for walks
-  of 4, 6, 10 and 14 steps, but not 8, 12 or 16).
-  Is there a closed form? The mean longest excursion has the same limit,
-  by the identity in `projects/arcsine/README.md`, and exceeds it by what
-  looks like exactly half a step at every length: is that ½ exact, and
-  why? `projects/arcsine/arcsine.py --exact-longest` prints both.
+- The chance that a random walk's unfinished final stretch is its longest
+  excursion is 0.6265075988 in the limit (the integral in
+  `projects/arcsine/README.md`), and at 2k steps it is off by
+  (−1)^k / (π (2k)²), with the coefficient heading for 1/π (0.3181 at
+  4,000 steps, and closing). Why 1/π? And the
+  mean longest excursion exceeds the limit by half a step, which is the
+  same as saying the probability's excesses over the limit, summed over
+  every even length from 0, come to exactly ¼. Is that exact, and is there
+  a short reason?
 - How does rule 110's settling time grow with ring size? On 211 cells
   nineteen random rows of twenty had not fallen into an exact cycle after
   4000 steps. Is it polynomial in the ring, or worse?
@@ -164,3 +159,8 @@ Questions with no project attached yet.
   answers are starred and the puzzle is unchanged. The checked-letter
   fraction the item also asked for had been in the summary line since the
   first commit.
+- 2026-09-28: Arcsine, third pass ([arcsine](projects/arcsine/)): the
+  longest excursion's limit as an integral from Brownian motion, derived
+  and checked against the recursion to ten digits; the probability's
+  wobble measured as ±1/(π steps²); and `out/longest.svg`, the exact table
+  against the limit.

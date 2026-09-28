@@ -1,4 +1,5 @@
 import itertools
+import math
 import random
 import xml.etree.ElementTree as ET
 from fractions import Fraction
@@ -422,19 +423,24 @@ def test_cli_rejects_bins_that_do_not_divide_the_steps(capsys):
     assert "divide" in capsys.readouterr().err
 
 
-def test_cli_exact_longest_shares_the_default_and_refuses_out(tmp_path, capsys):
+def test_cli_exact_longest_shares_the_default_and_writes_its_chart(tmp_path, capsys):
     # The exact computations run at the simulation's 1,000 steps by default,
-    # in a fraction of a second, and --out, which they can't honour, is an
-    # error.
+    # in a fraction of a second, and --out writes their chart.
     assert arcsine.main(["--exact-longest"]) == 0
     printed = capsys.readouterr().out
     assert printed.startswith("walks of 1000 steps")
     assert "\n 1000   " in printed and "\n  500   " in printed and "\n   10   " in printed
     assert "2000" not in printed  # lengths beyond the one asked for are not listed
-    out = tmp_path / "chart.svg"
-    assert arcsine.main(["--steps", "8", "--exact-longest", "--out", str(out)]) == 2
-    assert "--out" in capsys.readouterr().err
-    assert not out.exists()
+    out = tmp_path / "longest.svg"
+    assert arcsine.main(["--steps", "40", "--exact-longest", "--out", str(out)]) == 0
+    assert f"wrote {out}" in capsys.readouterr().out
+    assert out.read_text(encoding="utf-8") == arcsine.render_longest_svg(40)
+    # Below 12 steps the left panel, which starts at 10, has nothing to draw.
+    short = tmp_path / "short.svg"
+    for steps in ("2", "10"):
+        assert arcsine.main(["--steps", steps, "--exact-longest", "--out", str(short)]) == 2
+        assert "at least 12" in capsys.readouterr().err
+    assert not short.exists()
 
 
 def test_exact_longest_report_builds_the_table_once(monkeypatch):
@@ -453,6 +459,24 @@ def test_exact_longest_report_builds_the_table_once(monkeypatch):
     assert lines[-1].split()[:2] == ["40", f"{arcsine.mean_longest_excursion(40) / 40:.6f}"]
 
 
+def test_cli_exact_longest_with_out_builds_the_table_once(tmp_path, monkeypatch, capsys):
+    # The report and the chart both need the table; the CLI builds it once.
+    calls = []
+    table = arcsine.final_stretch_probabilities
+
+    def counted(steps, exact=False):
+        calls.append(steps)
+        return table(steps, exact)
+
+    monkeypatch.setattr(arcsine, "final_stretch_probabilities", counted)
+    out = tmp_path / "longest.svg"
+    assert arcsine.main(["--steps", "40", "--exact-longest", "--out", str(out)]) == 0
+    assert calls == [40]
+    capsys.readouterr()
+    monkeypatch.setattr(arcsine, "final_stretch_probabilities", table)
+    assert out.read_text(encoding="utf-8") == arcsine.render_longest_svg(40)
+
+
 def test_cli_exact_longest(capsys):
     assert arcsine.main(["--steps", "8", "--exact-longest"]) == 0
     out = capsys.readouterr().out
@@ -460,7 +484,65 @@ def test_cli_exact_longest(capsys):
     assert "final stretch is the longest: 0.632812" in out  # 81/128
     rows = [line for line in out.splitlines() if line.strip().startswith("8 ")]
     assert len(rows) == 1  # 8 steps is below every round length, so it is the only row
-    assert rows[0].split() == ["8", "0.687500", "0.632812", "0.4375"]
+    limit = arcsine.longest_excursion_limit()
+    assert "from Brownian motion: 0.6265075988" in out
+    assert rows[0].split() == [
+        "8",
+        "0.687500",
+        "0.632812",
+        f"{(Fraction(11, 16) - limit) * 8:.4f}",
+        f"{(Fraction(81, 128) - limit) * 64:.4f}",
+    ]
+
+
+def test_the_integral_is_converged():
+    # Doubling the number of Simpson intervals moves the value by about
+    # 2e-12, far below the ten places the README quotes.
+    limit = arcsine.longest_excursion_limit()
+    assert abs(limit - arcsine.longest_excursion_limit(40000)) < 1e-11
+    assert f"{limit:.10f}" == "0.6265075988"
+    with pytest.raises(ValueError):
+        arcsine.longest_excursion_limit(201)
+
+
+def test_the_recursion_closes_on_the_integral():
+    # Two independent computations of one constant: the random walk's exact
+    # renewal sum and Brownian motion's integral. The probability's gap to
+    # the integral is about (-1)^(steps/2) / (pi steps^2), and the mean's is
+    # half a step, to within a thousandth of each by 2,000 steps.
+    steps = 2000
+    probabilities = arcsine.final_stretch_probabilities(steps)
+    means = arcsine.means_from_probabilities(probabilities)
+    limit = arcsine.longest_excursion_limit()
+    for m in (steps - 2, steps):
+        sign = 1 if m % 4 == 0 else -1
+        assert abs((probabilities[m // 2] - limit) * m * m - sign / math.pi) < 1e-3
+        assert abs((means[m // 2] / m - limit) * m - 0.5) < 1e-3
+    assert abs(probabilities[-1] - limit) < 1e-7
+
+
+def test_longest_chart_is_well_formed_and_holds_both_panels():
+    svg = arcsine.render_longest_svg(100)
+    root = ET.fromstring(svg)
+    ns = "{http://www.w3.org/2000/svg}"
+    texts = ["".join(t.itertext()) for t in root.iter(f"{ns}text")]
+    assert "Both close on the limit" in texts
+    assert any(t.startswith("The gaps to it") for t in texts)
+    assert {"½", "1/π", "−1/π", "0.6265"} <= set(texts)
+    # Two series on the left; on the right the mean and the probability's
+    # two branches, lengths 0 and 2 mod 4.
+    lines = list(root.iter(f"{ns}polyline"))
+    assert len(lines) == 5
+    # The left panel starts at 10 steps: 46 even lengths up to 100.
+    assert [len(p.get("points").split()) for p in lines[:2]] == [46, 46]
+    # The right starts at 4: 49 lengths, 25 of them 0 mod 4 (4 to 100 by 4) and 24 not.
+    assert [len(p.get("points").split()) for p in lines[2:]] == [49, 25, 24]
+
+
+def test_committed_longest_chart_matches_the_code():
+    # Regenerated with --exact-longest --steps 2000, as the README says.
+    expected = arcsine.render_longest_svg(2000)
+    assert (HERE / "out" / "longest.svg").read_text(encoding="utf-8") == expected
 
 
 def test_committed_chart_matches_the_code():
