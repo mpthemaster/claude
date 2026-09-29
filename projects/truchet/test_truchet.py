@@ -1,4 +1,6 @@
+import itertools
 import math
+import re
 from pathlib import Path
 
 import pytest
@@ -220,6 +222,85 @@ def test_svg_has_one_element_per_path_and_valid_header():
     assert svg.rstrip().endswith("</svg>")
 
 
+def test_chains_walk_every_arc_once_end_to_start():
+    for n, seed in ((1, 0), (2, 4), (7, 1), (16, 3)):
+        t = truchet.generate(n, seed)
+        chains = truchet.chain_paths(t)
+        assert len(chains) == t.path_count
+        walked = [arc for steps in chains for arc, _, _ in steps]
+        assert len(walked) == len(t.arcs) and set(walked) == set(t.arcs)
+        for pid, steps in enumerate(chains):
+            assert len(steps) == t.lengths[pid]
+            assert all(arc.path_id == pid for arc, _, _ in steps)
+            # Each step is one of its arc's two ends to the other.
+            assert all({a, b} == {arc.a, arc.b} for arc, a, b in steps)
+            ends = [
+                (truchet.tile_nodes(arc.row, arc.col)[a], truchet.tile_nodes(arc.row, arc.col)[b])
+                for arc, a, b in steps
+            ]
+            for (_, end), (start, _) in itertools.pairwise(ends):
+                assert end == start, (n, seed, pid)
+            first, last = ends[0][0], ends[-1][1]
+            if t.loops[pid]:
+                assert first == last
+            else:
+                assert truchet.is_boundary(first, n) and truchet.is_boundary(last, n)
+                assert first < last  # starts at the smaller border midpoint
+
+
+def test_svg_paths_are_single_strokes_and_loops_close():
+    t = truchet.generate(12, 5)
+    svg = truchet.render_svg(t)
+    ds = re.findall(r'<path d="([^"]*)"', svg)
+    assert len(ds) == t.path_count
+    for pid, d in enumerate(ds):
+        assert d.count("M") == 1 and d.startswith("M")
+        assert d.count("A") == t.lengths[pid]
+        assert d.endswith(" Z") == t.loops[pid]
+        if t.loops[pid]:
+            # The last arc lands back on the starting point.
+            start = d[1:].split(" ")[0]
+            last_end = d.split(" ")[-2]
+            assert start == last_end
+
+
+def test_bucket_labels_name_each_ramps_range():
+    assert [truchet.bucket_label(k) for k in range(4)] == ["1", "2–3", "4–7", "8–15"]
+    assert truchet.bucket_label(len(truchet.LENGTH_RAMP) - 1) == "2048+"
+
+
+def test_length_mode_draws_a_legend_up_to_the_longest_path():
+    t = truchet.generate(10, 4)
+    plain = truchet.render_svg(t)
+    length = truchet.render_svg(t, color="length")
+    assert "<text" not in plain
+    assert 'height="320"' in plain and 'height="380.8"' in length
+    shown = truchet.length_bucket(max(t.lengths)) + 1
+    labels = re.findall(r"<text [^>]*>([^<]*)</text>", length)
+    assert labels == [truchet.bucket_label(k) for k in range(shown)] + ["arcs per path"]
+    for k in range(shown):
+        assert f'fill="{truchet.LENGTH_RAMP[k]}"' in length
+    assert f'fill="{truchet.LENGTH_RAMP[shown]}"' not in length
+
+
+def test_legend_text_fits_on_small_grids():
+    # Each label must fit its swatch's cell, and the caption the picture, at
+    # the generous TEXT_WIDTH estimate of a glyph's width.
+    for n in (1, 2, 3, 4, 6, 24):
+        for seed in range(20):
+            t = truchet.generate(n, seed)
+            svg = truchet.render_svg(t, 64, color="length")
+            width = n * 64
+            shown = truchet.length_bucket(max(t.lengths)) + 1
+            group_font = float(re.search(r'<g font-family[^>]*font-size="([^"]+)"', svg)[1])
+            for k in range(shown):
+                label = truchet.bucket_label(k)
+                assert len(label) * truchet.TEXT_WIDTH * group_font <= width / shown, (n, seed)
+            caption = re.search(r'font-size="([^"]+)">arcs per path<', svg)
+            chars = len(truchet.LEGEND_CAPTION_TEXT)
+            assert chars * truchet.TEXT_WIDTH * float(caption[1]) <= width, (n, seed)
+
+
 def test_loops_only_dims_exactly_the_open_paths():
     t = truchet.generate(12, 5)
     assert t.loop_count > 0
@@ -277,6 +358,85 @@ def test_cli_modes(tmp_path):
     assert truchet.DIM in loops.read_text()
     with pytest.raises(SystemExit):
         truchet.main([*base, "--color", "hue"])
+
+
+def test_torus_uses_the_same_tiles_and_closes_every_path():
+    # Gluing the edges joins the 2n open paths end to end, so the torus has
+    # every flat loop plus whatever loops the open paths become.
+    for seed in range(5):
+        flat = truchet.generate(8, seed)
+        torus = truchet.torus_loop_lengths(8, seed)
+        assert sum(torus) == len(flat.arcs)
+        remaining = list(torus)
+        for m, loop in zip(flat.lengths, flat.loops, strict=True):
+            if loop:
+                remaining.remove(m)  # every flat loop survives unchanged
+        assert remaining  # and the open paths close up into at least one more
+    with pytest.raises(ValueError):
+        truchet.torus_loop_lengths(7, 0)
+
+
+def test_torus_two_by_two_all_one_type():
+    # Four tiles of type 0 on a 2x2 torus: each tile's NE arc and its SW arc
+    # belong to diagonal staircases that wrap around, two of them, 4 arcs each.
+    import random
+
+    for seed in range(200):
+        rng = random.Random(seed)
+        if all(rng.randrange(2) == 0 for _ in range(4)):
+            assert sorted(truchet.torus_loop_lengths(2, seed)) == [4, 4]
+            break
+    else:
+        pytest.fail("no all-type-0 seed found")
+
+
+def test_census_counts_add_up():
+    c = truchet.loop_census(12, 5)
+    assert c.seeds == 5 and c.tiles == 5 * 144
+    loops = sum(round(x * 144) for x in c.loops_per_tile)
+    assert sum(c.by_bucket.values()) == loops
+    assert c.by_bucket[2] == sum(round(x * 144) for x in c.smallest_per_tile)
+    assert min(c.by_bucket) == 2  # the smallest loop has 4 arcs
+    assert len(c.torus_per_tile) == 5
+    assert truchet.loop_census(7, 2).torus_per_tile == []
+    with pytest.raises(ValueError):
+        truchet.loop_census(12, 0)
+
+
+def test_smallest_loops_average_one_per_sixteen_interior_points():
+    # A 4-arc loop circles one interior grid point, and needs each of the four
+    # tiles around it to turn an arc towards that point: probability 1/16.
+    n, seeds = 16, 400
+    c = truchet.loop_census(n, seeds)
+    mean, err = truchet.mean_and_error(c.smallest_per_tile)
+    expected = (n - 1) ** 2 / (16 * n * n)
+    assert abs(mean - expected) < 5 * err
+
+
+def test_torus_loop_density_is_near_the_bulk_value():
+    # On a torus there is no border to open loops up, so at n = 32 the
+    # density is already within its sampling error of (3√3 − 5)/2; the
+    # finite-size excess (about 0.0008 here) is smaller than that error.
+    c = truchet.loop_census(32, 32)
+    mean, err = truchet.mean_and_error(c.torus_per_tile)
+    assert abs(mean - truchet.BULK_LOOP_DENSITY) < 3 * err
+    flat, _ = truchet.mean_and_error(c.loops_per_tile)
+    assert flat < mean  # the border turns loops into open paths
+
+
+def test_mean_and_error():
+    assert truchet.mean_and_error([2.0]) == (2.0, 0.0)
+    mean, err = truchet.mean_and_error([1.0, 2.0, 3.0])
+    assert mean == 2.0 and math.isclose(err, 1 / math.sqrt(3))
+
+
+def test_cli_census(capsys):
+    assert truchet.main(["--size", "8", "--census", "3"]) == 0
+    out = capsys.readouterr().out
+    assert out.startswith("loops in 3 tilings of 8x8 (seeds 0-2)")
+    assert "on a torus" in out and "4–7" in out
+    with pytest.raises(SystemExit):
+        truchet.main(["--size", "8", "--census", "0"])
 
 
 @pytest.mark.parametrize(

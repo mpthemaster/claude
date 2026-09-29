@@ -15,11 +15,13 @@ Usage:
     python truchet.py --size 24 --seed 7 --out out/seed-7.svg
     python truchet.py --color length --out out/seed-7-length.svg
     python truchet.py --loops-only --out out/seed-7-loops.svg
+    python truchet.py --size 128 --census 64
 """
 
 from __future__ import annotations
 
 import argparse
+import math
 import random
 import sys
 from dataclasses import dataclass
@@ -67,6 +69,11 @@ LENGTH_RAMP = [
 COLOR_MODES = ("path", "length")
 BACKGROUND = "#14151a"
 DIM = "#2a2c33"
+LEGEND_TEXT = "#c9ccd6"
+LEGEND_CAPTION = "#8a8e9c"
+LEGEND_TILES = 1.9  # height of the --color length legend strip, in tiles
+LEGEND_CAPTION_TEXT = "arcs per path"
+TEXT_WIDTH = 0.6  # a generous average glyph width, in font sizes, for sans-serif digits
 
 
 class UnionFind:
@@ -186,6 +193,38 @@ def generate(n: int, seed: int) -> Tiling:
     return Tiling(n, seed, tiles, arcs, lengths, loops)
 
 
+def torus_loop_lengths(n: int, seed: int) -> list[int]:
+    """Arcs per loop of the same n x n tiling as generate(n, seed), on a torus.
+
+    The bottom edge is glued to the top and the right to the left, so there is
+    no border and every path closes. Used only for counting: some loops wrap
+    around the torus and can't be drawn on the flat grid.
+    """
+    if n < 2 or n % 2:
+        raise ValueError("a torus needs an even size, so the corners still checkerboard")
+    rng = random.Random(seed)
+    tiles = [[rng.randrange(2) for _ in range(n)] for _ in range(n)]
+    uf = UnionFind()
+
+    def glue(node: Node) -> Node:
+        kind, r, c = node
+        return (kind, r % n, c % n)
+
+    for r in range(n):
+        for c in range(n):
+            nodes = tile_nodes(r, c)
+            for a, b in tile_arcs(tiles[r][c]):
+                uf.union(glue(nodes[a]), glue(nodes[b]))
+    lengths: dict[Node, int] = {}
+    for r in range(n):
+        for c in range(n):
+            nodes = tile_nodes(r, c)
+            for a, _ in tile_arcs(tiles[r][c]):
+                root = uf.find(glue(nodes[a]))
+                lengths[root] = lengths.get(root, 0) + 1
+    return list(lengths.values())
+
+
 def touching_pairs(tiling: Tiling) -> set[tuple[int, int]]:
     """Unordered pairs of distinct paths that share a tile.
 
@@ -287,14 +326,125 @@ def sweep_flag(
     return 1 if sx * ey - sy * ex > 0 else 0
 
 
-def arc_path(arc: Arc, s: float) -> str:
+def arc_step(a: str, b: str, arc: Arc, s: float) -> str:
+    """The SVG arc command from arc's midpoint a to its midpoint b.
+
+    The pen is assumed to be at midpoint a already; a and b may be the arc's
+    own ends in either order, so a chained path can walk an arc backwards.
+    """
     x0, y0 = arc.col * s, arc.row * s
-    start = midpoint(arc.a, x0, y0, s)
-    end = midpoint(arc.b, x0, y0, s)
-    center = corner(arc.a, arc.b, x0, y0, s)
+    start = midpoint(a, x0, y0, s)
+    end = midpoint(b, x0, y0, s)
+    center = corner(a, b, x0, y0, s)
     r = s / 2
     flag = sweep_flag(start, end, center)
-    return f"M{start[0]:g},{start[1]:g} A{r:g},{r:g} 0 0 {flag} {end[0]:g},{end[1]:g}"
+    return f"A{r:g},{r:g} 0 0 {flag} {end[0]:g},{end[1]:g}"
+
+
+# A step along a chained path: the arc, and the edge letters it is walked
+# from and to.
+Step = tuple[Arc, str, str]
+
+
+def chain_paths(tiling: Tiling) -> list[list[Step]]:
+    """Each path's arcs in walking order, oriented so each ends where the next starts.
+
+    An open path starts at the smaller of its two border midpoints; a loop
+    starts at the first-named midpoint of its first arc in row-major order
+    and walks that arc forwards. Either way the result is deterministic.
+    """
+    n = tiling.n
+    at_node: list[dict[Node, list[int]]] = [{} for _ in range(tiling.path_count)]
+    starts: list[Node | None] = [None] * tiling.path_count
+    for i, arc in enumerate(tiling.arcs):
+        nodes = tile_nodes(arc.row, arc.col)
+        pid = arc.path_id
+        for edge in (arc.a, arc.b):
+            at_node[pid].setdefault(nodes[edge], []).append(i)
+        if tiling.loops[pid]:
+            if starts[pid] is None:
+                starts[pid] = nodes[arc.a]
+        else:
+            for edge in (arc.a, arc.b):
+                node = nodes[edge]
+                if is_boundary(node, n) and (starts[pid] is None or node < starts[pid]):
+                    starts[pid] = node
+
+    chains: list[list[Step]] = []
+    for pid in range(tiling.path_count):
+        node = starts[pid]
+        steps: list[Step] = []
+        prev = -1
+        while len(steps) < tiling.lengths[pid]:
+            # A midpoint touches at most two arcs of a path; take the one we
+            # didn't arrive by. (A loop's start node has two, and prev = -1 on
+            # the first step picks the first-listed, the first arc.)
+            i = next(j for j in at_node[pid][node] if j != prev)
+            arc = tiling.arcs[i]
+            nodes = tile_nodes(arc.row, arc.col)
+            a, b = (arc.a, arc.b) if nodes[arc.a] == node else (arc.b, arc.a)
+            steps.append((arc, a, b))
+            node, prev = nodes[b], i
+        chains.append(steps)
+    return chains
+
+
+def path_d(steps: list[Step], s: float, closed: bool) -> str:
+    """SVG path data for one chained path: a single move, then every arc.
+
+    A loop ends with Z so the stroke is joined where it closes, rather than
+    meeting itself at two round caps.
+    """
+    first, a, _ = steps[0]
+    x, y = midpoint(a, first.col * s, first.row * s, s)
+    parts = [f"M{x:g},{y:g}"]
+    parts += [arc_step(a, b, arc, s) for arc, a, b in steps]
+    if closed:
+        parts.append("Z")
+    return " ".join(parts)
+
+
+def bucket_label(k: int) -> str:
+    """The range of arc counts LENGTH_RAMP entry k stands for, e.g. "4–7"."""
+    low, high = 2**k, 2 ** (k + 1) - 1
+    if k == len(LENGTH_RAMP) - 1:
+        return f"{low}+"
+    return str(low) if low == high else f"{low}–{high}"
+
+
+def legend_svg(tiling: Tiling, width: float, s: float) -> list[str]:
+    """A strip of LEGEND_TILES tile heights under the tiling explaining the ramp.
+
+    One swatch per ramp entry from a single arc up to the entry of the
+    longest path, so the legend shows the whole scale the picture uses and
+    nothing it doesn't. The swatches share the width equally, and on a grid
+    too small for the labels at their usual size the text shrinks to fit.
+    """
+    shown = length_bucket(max(tiling.lengths)) + 1
+    cell = width / shown
+    top = width + s * 0.35
+    widest = max(len(bucket_label(k)) for k in range(shown))
+    font = min(s * 0.34, 0.9 * cell / (TEXT_WIDTH * widest))
+    caption_font = min(s * 0.34, 0.9 * width / (TEXT_WIDTH * len(LEGEND_CAPTION_TEXT)))
+    lines = [
+        f'  <g font-family="sans-serif" font-size="{font:g}" fill="{LEGEND_TEXT}" '
+        f'text-anchor="middle">',
+    ]
+    for k in range(shown):
+        x = k * cell
+        lines.append(
+            f'    <rect x="{x + s * 0.1:g}" y="{top:g}" width="{cell - s * 0.2:g}" '
+            f'height="{s * 0.34:g}" rx="{s * 0.17:g}" fill="{LENGTH_RAMP[k]}"/>'
+        )
+        lines.append(
+            f'    <text x="{x + cell / 2:g}" y="{top + s * 0.8:g}">{bucket_label(k)}</text>'
+        )
+    lines.append(
+        f'    <text x="{width / 2:g}" y="{top + s * 1.3:g}" fill="{LEGEND_CAPTION}" '
+        f'font-size="{caption_font:g}">{LEGEND_CAPTION_TEXT}</text>'
+    )
+    lines.append("  </g>")
+    return lines
 
 
 def render_svg(
@@ -311,22 +461,102 @@ def render_svg(
     """
     n, s = tiling.n, tile_px
     width = n * s
+    legend = legend_svg(tiling, width, s) if color == "length" else []
+    height = width + (s * LEGEND_TILES if legend else 0)
     stroke = s * 0.34
     colors = path_colors(tiling, color)
-    segments: list[list[str]] = [[] for _ in range(tiling.path_count)]
-    for arc in tiling.arcs:
-        segments[arc.path_id].append(arc_path(arc, s))
+    chains = chain_paths(tiling)
     lines = [
-        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width:g} {width:g}" '
-        f'width="{width:g}" height="{width:g}">',
-        f'  <rect width="{width:g}" height="{width:g}" fill="{background}"/>',
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width:g} {height:g}" '
+        f'width="{width:g}" height="{height:g}">',
+        f'  <rect width="{width:g}" height="{height:g}" fill="{background}"/>',
         f'  <g fill="none" stroke-width="{stroke:g}" stroke-linecap="round">',
     ]
-    for pid, parts in enumerate(segments):
+    for pid, steps in enumerate(chains):
         shade = DIM if loops_only and not tiling.loops[pid] else colors[pid]
-        lines.append(f'    <path d="{" ".join(parts)}" stroke="{shade}"/>')
+        d = path_d(steps, s, tiling.loops[pid])
+        lines.append(f'    <path d="{d}" stroke="{shade}"/>')
     lines.append("  </g>")
+    lines.extend(legend)
     lines.append("</svg>")
+    return "\n".join(lines) + "\n"
+
+
+# Loops per tile in an infinite tiling: the cluster density of critical bond
+# percolation on the square lattice (Temperley and Lieb). See the README.
+BULK_LOOP_DENSITY = (3 * math.sqrt(3) - 5) / 2
+
+
+@dataclass
+class Census:
+    """Loop statistics over several tilings of one size."""
+
+    n: int
+    seeds: int
+    loops_per_tile: list[float]  # one entry per tiling
+    smallest_per_tile: list[float]  # 4-arc loops, one entry per tiling
+    torus_per_tile: list[float]  # loops per tile of the same tilings on a torus
+    by_bucket: dict[int, int]  # loops per length_bucket, summed over tilings
+
+    @property
+    def tiles(self) -> int:
+        return self.seeds * self.n * self.n
+
+
+def loop_census(n: int, seeds: int) -> Census:
+    """Count the loops in the n x n tilings for seeds 0 .. seeds - 1."""
+    if seeds < 1:
+        raise ValueError("a census needs at least one seed")
+    loops, smallest, torus = [], [], []
+    by_bucket: dict[int, int] = {}
+    for seed in range(seeds):
+        t = generate(n, seed)
+        lengths = [m for m, loop in zip(t.lengths, t.loops, strict=True) if loop]
+        loops.append(len(lengths) / (n * n))
+        smallest.append(lengths.count(4) / (n * n))
+        for m in lengths:
+            k = m.bit_length() - 1  # floor(log2), uncapped, unlike length_bucket
+            by_bucket[k] = by_bucket.get(k, 0) + 1
+        if n % 2 == 0:
+            torus.append(len(torus_loop_lengths(n, seed)) / (n * n))
+    return Census(n, seeds, loops, smallest, torus, dict(sorted(by_bucket.items())))
+
+
+def mean_and_error(values: list[float]) -> tuple[float, float]:
+    """Sample mean and its standard error (zero for a single value)."""
+    mean = sum(values) / len(values)
+    if len(values) < 2:
+        return mean, 0.0
+    var = sum((v - mean) ** 2 for v in values) / (len(values) - 1)
+    return mean, math.sqrt(var / len(values))
+
+
+def census_report(c: Census) -> str:
+    """A plain-text table of a census, for the CLI."""
+    n = c.n
+    loops, loops_err = mean_and_error(c.loops_per_tile)
+    small, small_err = mean_and_error(c.smallest_per_tile)
+    exact_small = (n - 1) ** 2 / (16 * n * n)
+    lines = [
+        f"loops in {c.seeds} tilings of {n}x{n} (seeds 0-{c.seeds - 1})",
+        f"  loops per tile      {loops:.5f} ± {loops_err:.5f}   "
+        f"bulk limit (3√3 − 5)/2 = {BULK_LOOP_DENSITY:.5f}",
+        f"  4-arc loops / tile  {small:.5f} ± {small_err:.5f}   "
+        f"exact (n − 1)²/16n² = {exact_small:.5f}",
+    ]
+    if c.torus_per_tile:
+        torus, torus_err = mean_and_error(c.torus_per_tile)
+        lines.append(f"  on a torus          {torus:.5f} ± {torus_err:.5f}")
+    lines += [
+        "",
+        "  arcs        loops / tile   ratio to the row above",
+    ]
+    prev = None
+    for k, count in c.by_bucket.items():
+        low, high = 2**k, 2 ** (k + 1) - 1
+        ratio = f"{count / prev:.3f}" if prev else ""
+        lines.append(f"  {f'{low}–{high}':<10}  {count / c.tiles:.6f}       {ratio}")
+        prev = count
     return "\n".join(lines) + "\n"
 
 
@@ -346,7 +576,19 @@ def main(argv: list[str] | None = None) -> int:
         "--loops-only", action="store_true", help="dim every path that reaches the border"
     )
     parser.add_argument("--out", type=Path, help="write SVG here (default: stdout)")
+    parser.add_argument(
+        "--census",
+        type=int,
+        metavar="SEEDS",
+        help="instead of drawing, count the loops in SEEDS tilings of --size and print a table",
+    )
     args = parser.parse_args(argv)
+
+    if args.census is not None:
+        if args.census < 1:
+            parser.error("--census needs at least one seed")
+        sys.stdout.write(census_report(loop_census(args.size, args.census)))
+        return 0
 
     tiling = generate(args.size, args.seed)
     svg = render_svg(tiling, args.tile, color=args.color, loops_only=args.loops_only)
