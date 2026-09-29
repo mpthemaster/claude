@@ -283,6 +283,24 @@ def test_length_mode_draws_a_legend_up_to_the_longest_path():
     assert f'fill="{truchet.LENGTH_RAMP[shown]}"' not in length
 
 
+def test_legend_text_fits_on_small_grids():
+    # Each label must fit its swatch's cell, and the caption the picture, at
+    # the generous TEXT_WIDTH estimate of a glyph's width.
+    for n in (1, 2, 3, 4, 6, 24):
+        for seed in range(20):
+            t = truchet.generate(n, seed)
+            svg = truchet.render_svg(t, 64, color="length")
+            width = n * 64
+            shown = truchet.length_bucket(max(t.lengths)) + 1
+            group_font = float(re.search(r'<g font-family[^>]*font-size="([^"]+)"', svg)[1])
+            for k in range(shown):
+                label = truchet.bucket_label(k)
+                assert len(label) * truchet.TEXT_WIDTH * group_font <= width / shown, (n, seed)
+            caption = re.search(r'font-size="([^"]+)">arcs per path<', svg)
+            chars = len(truchet.LEGEND_CAPTION_TEXT)
+            assert chars * truchet.TEXT_WIDTH * float(caption[1]) <= width, (n, seed)
+
+
 def test_loops_only_dims_exactly_the_open_paths():
     t = truchet.generate(12, 5)
     assert t.loop_count > 0

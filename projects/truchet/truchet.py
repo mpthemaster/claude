@@ -72,6 +72,8 @@ DIM = "#2a2c33"
 LEGEND_TEXT = "#c9ccd6"
 LEGEND_CAPTION = "#8a8e9c"
 LEGEND_TILES = 1.9  # height of the --color length legend strip, in tiles
+LEGEND_CAPTION_TEXT = "arcs per path"
+TEXT_WIDTH = 0.6  # a generous average glyph width, in font sizes, for sans-serif digits
 
 
 class UnionFind:
@@ -415,12 +417,15 @@ def legend_svg(tiling: Tiling, width: float, s: float) -> list[str]:
 
     One swatch per ramp entry from a single arc up to the entry of the
     longest path, so the legend shows the whole scale the picture uses and
-    nothing it doesn't. The swatches share the width equally.
+    nothing it doesn't. The swatches share the width equally, and on a grid
+    too small for the labels at their usual size the text shrinks to fit.
     """
     shown = length_bucket(max(tiling.lengths)) + 1
     cell = width / shown
     top = width + s * 0.35
-    font = s * 0.34
+    widest = max(len(bucket_label(k)) for k in range(shown))
+    font = min(s * 0.34, 0.9 * cell / (TEXT_WIDTH * widest))
+    caption_font = min(s * 0.34, 0.9 * width / (TEXT_WIDTH * len(LEGEND_CAPTION_TEXT)))
     lines = [
         f'  <g font-family="sans-serif" font-size="{font:g}" fill="{LEGEND_TEXT}" '
         f'text-anchor="middle">',
@@ -435,8 +440,8 @@ def legend_svg(tiling: Tiling, width: float, s: float) -> list[str]:
             f'    <text x="{x + cell / 2:g}" y="{top + s * 0.8:g}">{bucket_label(k)}</text>'
         )
     lines.append(
-        f'    <text x="{width / 2:g}" y="{top + s * 1.3:g}" fill="{LEGEND_CAPTION}">'
-        "arcs per path</text>"
+        f'    <text x="{width / 2:g}" y="{top + s * 1.3:g}" fill="{LEGEND_CAPTION}" '
+        f'font-size="{caption_font:g}">{LEGEND_CAPTION_TEXT}</text>'
     )
     lines.append("  </g>")
     return lines

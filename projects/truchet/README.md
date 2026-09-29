@@ -144,12 +144,12 @@ The torus column reaches 0.0980 by 128 and stays within its error bars of
 0.09808, with the excess at small sizes falling roughly like 1/n². The flat
 grid comes in from below and much more slowly, because a loop that would
 have touched the border is an open path instead. Its shortfall times n is
-0.37, 0.38, 0.39 and 0.44 ± 0.06 from 32 to 256, so the border costs about
+0.37, 0.38, 0.39 and 0.43 ± 0.06 from 32 to 256, so the border costs about
 0.38 n loops, roughly one for every ten border midpoints. A straight-line
-fit of the flat column alone against 1/n lands at 0.0977 ± 0.0002, a little
-low; fixing the limit at 0.09808 and adding a 1/n² corner term also fits
-(χ² of 3.6 on three degrees of freedom), so the flat grid is consistent with
-the value but can't pin it. The torus is what does.
+fit of those four flat rows against 1/n lands at 0.0978 ± 0.0002, 1.4
+standard errors low; fixing the limit at 0.09808 and adding a 1/n² corner
+term fits them as well (χ² of 0.6 on two degrees of freedom), so the flat
+grid is consistent with the value but can't pin it. The torus is what does.
 
 **The smallest loops are exact.** A 4-arc loop circles one interior grid
 point and needs each of the four tiles around it to turn an arc towards
