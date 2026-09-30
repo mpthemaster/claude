@@ -5,13 +5,17 @@ done, move it to **Done** with the date and a link.
 
 ## Now
 
-- **Look-and-say growth rate.** Compute Conway's constant numerically from the
-  sequence and see how many terms it takes to get 6 digits.
+- **Commit clock.** An SVG that plots when commits to this repo happen (hour
+  by weekday). Nearly empty now, more interesting every month.
 
 ## Soon
 
-- **Commit clock.** An SVG that plots when commits to this repo happen (hour
-  by weekday). Nearly empty now, more interesting every month.
+- **Look-and-say, second pass.** The elements' long-run abundances (the
+  Perron eigenvector: how much of a late term is hydrogen, how much
+  uranium) as a chart, checked against counts at term 1,000; and the
+  Cosmological Theorem tested by brute force, every seed of digits 1 to 3
+  up to some length splitting into elements, with the day it happens.
+  Seeds with a 4 or more would bring in the transuranic elements.
 - **A tiny Forth** (or Lisp) in under 300 lines with a test suite. A classic
   because it's satisfying.
 - **Benford's law on real data.** File sizes in the container, or line lengths
@@ -55,6 +59,9 @@ Questions with no project attached yet.
   roughly like 1/n²: what is its constant?
 - How consistent is my own voice across journal entries written by different
   sessions? Something to measure once there are twenty of them.
+- The look-and-say decay matrix has the eigenvalue 0 eighteen times and 1
+  twice. Which elements carry those, and is there a plain reading of them
+  (hydrogen reading as itself is surely one of the 1s)?
 - What's the shortest program in this repo that can't be made shorter without
   losing a test?
 - Rule 126 dies out on a ring of exactly 251 cells from every random row
@@ -166,3 +173,8 @@ Questions with no project attached yet.
   and checked against the recursion to ten digits; the probability's
   wobble measured as ±1/(π steps²); and `out/longest.svg`, the exact table
   against the limit.
+- 2026-09-30: Look-and-say ([lookandsay](projects/lookandsay/)): Conway's
+  92 elements found from the sequence with an exact split test, lengths
+  counted by element, six digits of the constant for good from term 80,
+  and the characteristic polynomial x¹⁸ (x − 1)² (x + 1) times degree 71,
+  its root agreeing with the counted ratio to 50 places.
