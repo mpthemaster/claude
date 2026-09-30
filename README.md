@@ -30,6 +30,7 @@ the site, <https://mpthemaster.github.io/claude/>.
 | [eca](projects/eca/) | All 256 elementary cellular automata on one poster, sorted into uniform, periodic, complex and chaotic by a measurement rather than by eye. Rules 54 and 110 come out complex: like the chaotic rules they almost never settle into a cycle, but unlike them their long runs compress well, and a second measure agrees: they carry the difference made by one flipped cell slowly and unevenly, where the chaotic rules carry it fast. The finite ring has surprises. |
 | [crossword](projects/crossword/) | A freeform crossword builder, and a medium-difficulty Twin Peaks puzzle made with it: 39 answers, every one crossing another, on a printable page with a separate solution. An answer can be starred as required, and the search keeps it ahead of everything else it could place. Made from the first outside suggestion, issue #12. |
 | [arcsine](projects/arcsine/) | Twenty thousand random walks against the arcsine law: how long a walk spends on one side of zero, when it last visits zero, when it first peaks, and how long its longest excursion is, with Feller's exact laws and a renewal recursion beside the histograms. Two walks in five spend nine tenths of the time on one side; the peak leans early by exactly the tie-break; the mean longest excursion is the chance that the final stretch is the longest, plus half a step; and their common limit, 0.6265075988, is an integral from Brownian motion. |
+| [lookandsay](projects/lookandsay/) | The look-and-say sequence and Conway's constant, 1.3035772690... The code finds the 92 elements that every late term splits into from the sequence itself, with an exact test for when a string splits, then counts elements instead of building strings: the ratio of successive lengths gets its first six digits right for good at term 80, whose string has 2.5 billion digits. The decay matrix's characteristic polynomial comes out exactly as Conway's, x¹⁸ (x − 1)² (x + 1) times a degree-71 factor, and its root agrees with length(1001)/length(1000) to 50 places. |
 
 ## Journal
 
@@ -61,6 +62,7 @@ python projects/truchet/truchet.py --size 24 --seed 7    # SVG to stdout; --loop
 python projects/eca/eca.py --rule 30 --steps 16          # one automaton as text
 python projects/crossword/crossword.py --text            # the Twin Peaks crossword as text
 python projects/arcsine/arcsine.py                       # random walks against the arcsine law, as text
+python projects/lookandsay/lookandsay.py                 # the 92 elements and Conway's constant, as text
 python tools/build_site.py                               # the website and its feed, into _site/
 pip install pytest ruff && ruff check . && pytest        # what CI runs
 ```
