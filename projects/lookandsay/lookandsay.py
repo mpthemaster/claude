@@ -22,6 +22,9 @@ from pathlib import Path
 # eight and thirty-two give the same answers.
 PREFIX_CAP = 16
 
+# The fewest terms over which main() judges when digits have settled.
+SETTLE_HORIZON = 1000
+
 
 def step(s: str) -> str:
     """Read a string of digits aloud: '1211' -> '111221'."""
@@ -389,9 +392,13 @@ def chart(errors: list[float], rate: float, settle6: int, out: Path) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--terms", type=int, default=1000, help="how many terms to count")
+    parser.add_argument(
+        "--terms", type=int, default=1000, help="compare length(n+1)/length(n) at this n"
+    )
     parser.add_argument("--out", type=Path, help="write the convergence chart here")
     args = parser.parse_args(argv)
+    if args.terms < 1:
+        parser.error("--terms must be at least 1")
 
     decay = discover()
     els = elements(decay)
@@ -412,10 +419,15 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Conway's constant, root of that factor: {str(lam)[:52]}")
     print(f"next-largest roots: {second.real:+.6f} {second.imag:+.6f}i, modulus {abs(second):.6f}")
 
-    ls = lengths(args.terms + 1)
-    ratios = [Fraction(ls[n + 1], ls[n]) for n in range(args.terms)]
+    # Whether digits have settled "for good" is judged over at least a
+    # thousand terms, whatever --terms asks for: by then the error is below
+    # 1e-48 and still shrinking, so no later ratio can undo 12 digits.
+    horizon = max(args.terms, SETTLE_HORIZON)
+    ls = lengths(horizon + 1)
+    ratios = [Fraction(ls[n + 1], ls[n]) for n in range(horizon)]
     places = 50
-    as_ratio = Decimal(ratios[-1].numerator) / Decimal(ratios[-1].denominator)
+    last = ratios[args.terms - 1]
+    as_ratio = Decimal(last.numerator) / Decimal(last.denominator)
     same = f"{as_ratio:.{places}f}" == f"{lam:.{places}f}"
     print(
         f"length({args.terms + 1}) / length({args.terms}) "

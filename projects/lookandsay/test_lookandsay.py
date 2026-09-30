@@ -179,3 +179,18 @@ def test_main_writes_a_chart(tmp_path, capsys):
     ET.parse(out)
     text = capsys.readouterr().out
     assert "92" in text and "degree-71" in text and "6 digits: from n = 80" in text
+
+
+@pytest.mark.parametrize("n", [3, 66, 67])
+def test_short_runs_still_judge_settling_over_the_full_horizon(n, tmp_path, capsys):
+    out = tmp_path / "c.svg"
+    assert las.main(["--terms", str(n), "--out", str(out)]) == 0
+    ET.parse(out)
+    text = capsys.readouterr().out
+    assert "6 digits: from n = 80" in text
+    assert f"length({n + 1}) / length({n}) does not agree" in text
+
+
+def test_terms_must_be_positive():
+    with pytest.raises(SystemExit):
+        las.main(["--terms", "0"])
