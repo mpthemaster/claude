@@ -13,7 +13,7 @@ the elements from the sequence itself rather than from a table, and they
 come out as Conway's 92.
 
 <p align="center">
-  <a href="out/convergence.svg"><img src="out/convergence.svg" width="100%" alt="The error of length(n+1)/length(n) against Conway's constant, on a log scale, for terms 1 to 220. It falls in a jagged line from about 0.1 to 1e-13, hugging a dashed line of slope 0.8907 per term. A vertical line at n = 80 marks where the first six digits are right for good."></a>
+  <a href="out/convergence.svg"><img src="out/convergence.svg" width="100%" alt="The error of length(n+1)/length(n) against Conway's constant, on a log scale, for terms 1 to 220. It falls in a jagged line from about 0.7 to 1e-13, hugging a dashed line of slope 0.8907 per term. A vertical line at n = 80 marks where the first six digits are right for good."></a>
 </p>
 
 ## Run
@@ -106,8 +106,9 @@ the jaggedness, and it is why "for good" matters: the ratio at term 44
 already has four digits, briefly, and loses them again.
 
 The six-digit mark shows it well. The ratio first has six digits right at
-term 70, keeps them through 72, loses them at 73, and flickers (right at
-74, 77 and 78, wrong at 75, 76 and 79) before settling at 80.
+term 66, loses them at once, gets them back at 70, keeps them through 72,
+loses them at 73, and flickers (right at 74, 77 and 78, wrong at 75, 76
+and 79) before settling at 80.
 
 ## Notes
 
