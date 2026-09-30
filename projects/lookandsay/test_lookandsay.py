@@ -1,3 +1,4 @@
+import math
 import random
 import xml.etree.ElementTree as ET
 from decimal import Decimal
@@ -166,6 +167,8 @@ def test_six_digits_from_term_80(conway):
     ls = las.lengths(401)
     ratios = [Fraction(ls[n + 1], ls[n]) for n in range(400)]
     assert las.settled(ratios, lam, 6) + 1 == 80
+    six = [n for n in range(1, 80) if math.floor(ratios[n - 1] * 10**5) == 130357]
+    assert six == [66, 70, 71, 72, 74, 77, 78]
     assert str(ratios[79].numerator / ratios[79].denominator).startswith("1.30357")
     assert not str(ratios[78].numerator / ratios[78].denominator).startswith("1.30357")
 
