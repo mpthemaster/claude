@@ -16,6 +16,7 @@ recorded in, which mixes clocks when committers sit in different zones.
 from __future__ import annotations
 
 import argparse
+import re
 import subprocess
 import sys
 from collections.abc import Iterable
@@ -201,14 +202,19 @@ def render_svg(counts: list[list[int]], subtitle: str = "") -> str:
     return "\n".join(parts) + "\n"
 
 
+OFFSET = re.compile(r"([+-]?)(\d{1,2})(?::(\d{2}))?")
+
+
 def parse_offset(text: str) -> timedelta:
-    """'-4', '+5:30' or '0' as a UTC offset."""
-    sign = -1 if text.startswith("-") else 1
-    hours, _, minutes = text.lstrip("+-").partition(":")
-    offset = timedelta(hours=int(hours), minutes=int(minutes or 0))
-    if offset >= timedelta(hours=24):
+    """'-4', '+5:30' or '0' as a UTC offset; anything malformed is a ValueError."""
+    match = OFFSET.fullmatch(text)
+    if not match:
+        raise ValueError(f"not a UTC offset: {text}")
+    sign, hours, minutes = match.groups()
+    if int(hours) > 23 or int(minutes or 0) > 59:
         raise ValueError(f"offset out of range: {text}")
-    return sign * offset
+    offset = timedelta(hours=int(hours), minutes=int(minutes or 0))
+    return -offset if sign == "-" else offset
 
 
 def utc_name(offset: timedelta) -> str:
@@ -256,8 +262,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.out:
         if times:
-            zoned = [t if offset is None else t.astimezone(timezone(offset)) for t in times]
-            newest, oldest = max(zoned), min(zoned)
+            # The dates on the clock the grid uses: in --recorded mode each
+            # commit's own, which need not follow the order of the instants.
+            days = [(t if offset is None else t.astimezone(timezone(offset))).date() for t in times]
+            newest, oldest = max(days), min(days)
             zone = "each commit's own time zone" if offset is None else utc_name(offset)
             subtitle = (
                 f"Commits{'' if args.ref == 'HEAD' else ' on ' + args.ref} "

@@ -91,8 +91,9 @@ def test_parse_offset_and_its_name():
     assert commitclock.parse_offset("-9:30") == -timedelta(hours=9, minutes=30)
     with pytest.raises(ValueError):
         commitclock.parse_offset("24")
-    with pytest.raises(ValueError):
-        commitclock.parse_offset("east")
+    for bad in ("east", "4:60", "1:-30", "--4", "+-4", "4:5", "", "-", "123"):
+        with pytest.raises(ValueError):
+            commitclock.parse_offset(bad)
 
 
 # --- shading, summaries, and the text table ---------------------------------
@@ -175,6 +176,18 @@ def test_main_recorded_and_offset_options(repo, capsys):
     # A negative offset with minutes has to be passed with "=".
     assert commitclock.main(["--repo", str(path), "--utc-offset=-9:30"]) == 0
     assert "busiest hour: Thursday 18:00, 1 commit\n" in capsys.readouterr().out
+
+
+def test_recorded_date_range_follows_the_wall_clocks(tmp_path, monkeypatch, repo):
+    # 2 January at +14 happens before 1 January at -12, but on their own wall
+    # clocks the range runs from the 1st to the 2nd, not backwards.
+    path, _ = repo
+    times = [at("2026-01-02T00:30:00+14:00"), at("2026-01-01T23:00:00-12:00")]
+    assert times[0] < times[1]
+    out = tmp_path / "clock.svg"
+    monkeypatch.setattr(commitclock, "commit_times", lambda repo, ref="HEAD": times)
+    assert commitclock.main(["--repo", str(path), "--recorded", "--out", str(out)]) == 0
+    assert "from 2026-01-01 to 2026-01-02, in each commit" in out.read_text()
 
 
 def test_main_fails_cleanly(repo, capsys):
