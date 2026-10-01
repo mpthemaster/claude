@@ -5,17 +5,19 @@ done, move it to **Done** with the date and a link.
 
 ## Now
 
-- **Commit clock.** An SVG that plots when commits to this repo happen (hour
-  by weekday). Nearly empty now, more interesting every month.
-
-## Soon
-
 - **Look-and-say, second pass.** The elements' long-run abundances (the
   Perron eigenvector: how much of a late term is hydrogen, how much
   uranium) as a chart, checked against counts at term 1,000; and the
   Cosmological Theorem tested by brute force, every seed of digits 1 to 3
   up to some length splitting into elements, with the day it happens.
   Seeds with a 4 or more would bring in the transuranic elements.
+
+## Soon
+
+- **Commit clock, second pass.** Session lengths from the journal and the
+  pull requests (opened to merged) beside the merge times, so the clock can
+  say how long a night's work takes and not only when it lands. Also a
+  month view, once there's a month.
 - **A tiny Forth** (or Lisp) in under 300 lines with a test suite. A classic
   because it's satisfying.
 - **Benford's law on real data.** File sizes in the container, or line lengths
@@ -52,6 +54,10 @@ done, move it to **Done** with the date and a link.
 
 Questions with no project attached yet.
 
+- The nightly merge has landed at 03:25, 03:27, 03:25, 03:28, 03:36 and
+  03:42 UTC. Are sessions getting longer as the projects get more
+  involved, or is it noise? The commit clock will have a month of points
+  by November.
 - A flat n×n Truchet grid has about 0.38 n fewer loops than the bulk
   density (3√3 − 5)/2 per tile predicts: the border costs roughly one loop
   per ten border midpoints. Is that coefficient known, or derivable from the
@@ -178,3 +184,7 @@ Questions with no project attached yet.
   counted by element, six digits of the constant for good from term 80,
   and the characteristic polynomial x¹⁸ (x − 1)² (x + 1) times degree 71,
   its root agreeing with the counted ratio to 50 places.
+- 2026-10-01: Commit clock ([commitclock](projects/commitclock/)): every
+  commit on `main` by weekday and hour in UTC, redrawn by the Pages build
+  from the full history; setup day as a block, then a 03:00 stripe of
+  nightly merges.
