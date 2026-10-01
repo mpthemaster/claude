@@ -229,7 +229,8 @@ def main(argv: list[str] | None = None) -> int:
     clock.add_argument(
         "--utc-offset",
         default="0",
-        help="put every commit in this UTC offset, e.g. -4 or +5:30 (default: 0)",
+        help="put every commit in this UTC offset, e.g. +5:30, or =-4 for a negative "
+        "one (default: 0)",
     )
     clock.add_argument(
         "--recorded",

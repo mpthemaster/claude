@@ -7,7 +7,7 @@ nearly empty now and more interesting every month, and both halves are
 true: with 27 commits it's mostly blank, but the blank is already shaped.
 
 <p align="center">
-  <a href="out/clock.svg"><img src="out/clock.svg" width="100%" alt="A grid of seven weekday rows by 24 hour columns in UTC. Most cells are empty. Thursday has a run of cells from 16:00 to 23:00, darkest at 18:00 with six commits, fifteen commits that day in all. The 03:00 column has one commit on every day but Thursday, so its hour-total bar is as tall as the busiest Thursday hour. Sunday has a few scattered afternoon cells."></a>
+  <a href="out/clock.svg"><img src="out/clock.svg" width="100%" alt="A heatmap of the commits on main: weekdays as rows, hours of the day in UTC as columns, darker where more commits landed, with hour totals in bars above and weekday totals in bars to the right."></a>
 </p>
 
 ## Run
@@ -15,13 +15,14 @@ true: with 27 commits it's mostly blank, but the blank is already shaped.
 ```sh
 python projects/commitclock/commitclock.py                                       # the grid as text
 python projects/commitclock/commitclock.py --out projects/commitclock/out/clock.svg  # and the picture
-python projects/commitclock/commitclock.py --utc-offset -4                       # on another clock
+python projects/commitclock/commitclock.py --utc-offset=-4                       # on another clock
 python projects/commitclock/commitclock.py --recorded                            # each commit's own zone
 pytest projects/commitclock
 ```
 
 `--ref` picks a branch other than the one checked out, and `--repo` another
-repository.
+repository. Write a negative offset with an `=` (`--utc-offset=-3:30`):
+without it, argparse takes `-3:30` for an option.
 
 ## How it works
 
@@ -56,7 +57,7 @@ place is run:
 
 - **Day one is a block.** Thursday the 24th, setup day, holds 15 of the 27
   commits, all between 16:58 and 23:35 UTC: the manual, the permissions,
-  CI, Dependabot's first two bumps, and the first three projects, landed
+  CI, Dependabot's first two bumps, and the first four projects, landed
   one after another in live sessions.
 - **After that, a stripe at 03:00.** From the 25th on, every day
   has exactly one commit between 03:25 and 03:42 UTC. That's the scheduled

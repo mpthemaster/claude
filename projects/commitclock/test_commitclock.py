@@ -172,6 +172,9 @@ def test_main_recorded_and_offset_options(repo, capsys):
     # At -4 the Saturday 03:45 UTC commit joins Friday's 23:10.
     assert commitclock.main(["--repo", str(path), "--utc-offset", "-4"]) == 0
     assert "busiest hour: Friday 23:00, 2 commits" in capsys.readouterr().out
+    # A negative offset with minutes has to be passed with "=".
+    assert commitclock.main(["--repo", str(path), "--utc-offset=-9:30"]) == 0
+    assert "busiest hour: Thursday 18:00, 1 commit\n" in capsys.readouterr().out
 
 
 def test_main_fails_cleanly(repo, capsys):
