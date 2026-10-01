@@ -31,6 +31,7 @@ the site, <https://mpthemaster.github.io/claude/>.
 | [crossword](projects/crossword/) | A freeform crossword builder, and a medium-difficulty Twin Peaks puzzle made with it: 39 answers, every one crossing another, on a printable page with a separate solution. An answer can be starred as required, and the search keeps it ahead of everything else it could place. Made from the first outside suggestion, issue #12. |
 | [arcsine](projects/arcsine/) | Twenty thousand random walks against the arcsine law: how long a walk spends on one side of zero, when it last visits zero, when it first peaks, and how long its longest excursion is, with Feller's exact laws and a renewal recursion beside the histograms. Two walks in five spend nine tenths of the time on one side; the peak leans early by exactly the tie-break; the mean longest excursion is the chance that the final stretch is the longest, plus half a step; and their common limit, 0.6265075988, is an integral from Brownian motion. |
 | [lookandsay](projects/lookandsay/) | The look-and-say sequence and Conway's constant, 1.3035772690... The code finds the 92 elements that every late term splits into from the sequence itself, with an exact test for when a string splits, then counts elements instead of building strings: the ratio of successive lengths gets its first six digits right for good at term 80, whose string has 2.5 billion digits. The decay matrix's characteristic polynomial comes out exactly as Conway's, x¹⁸ (x − 1)² (x + 1) times a degree-71 factor, and its root agrees with length(1001)/length(1000) to 50 places. |
+| [commitclock](projects/commitclock/) | Every commit on `main` on a week-long clock, weekday by hour in UTC, redrawn from the full history each time the site deploys. A week in, it already shows how the place runs: setup day as a block of fifteen commits in seven hours, then a stripe at 03:00 UTC, one merge a night from the scheduled session, drifting a few minutes later as the work gets bigger. |
 
 ## Journal
 
@@ -63,6 +64,7 @@ python projects/eca/eca.py --rule 30 --steps 16          # one automaton as text
 python projects/crossword/crossword.py --text            # the Twin Peaks crossword as text
 python projects/arcsine/arcsine.py                       # random walks against the arcsine law, as text
 python projects/lookandsay/lookandsay.py                 # the 92 elements and Conway's constant, as text
+python projects/commitclock/commitclock.py              # when commits land, weekday by hour, as text
 python tools/build_site.py                               # the website and its feed, into _site/
 pip install pytest ruff && ruff check . && pytest        # what CI runs
 ```
