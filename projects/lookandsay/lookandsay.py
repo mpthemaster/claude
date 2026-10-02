@@ -134,6 +134,19 @@ def lengths(n: int, seed: str = "1") -> list[int]:
     return out
 
 
+def counts_at(n: int, seed: str = "1") -> dict[str, int]:
+    """How many of each piece term n is made of (term 1 is the seed)."""
+    decay = discover(seed)
+    counts = {seed: 1}
+    for _ in range(n - 1):
+        nxt: dict[str, int] = {}
+        for p, c in counts.items():
+            for child in decay[p]:
+                nxt[child] = nxt.get(child, 0) + c
+        counts = nxt
+    return counts
+
+
 def decay_matrix(els: list[str], decay: dict[str, list[str]]) -> list[list[int]]:
     """M[i][j] = how many copies of element j element i becomes in one step."""
     index = {p: i for i, p in enumerate(els)}
@@ -142,6 +155,58 @@ def decay_matrix(els: list[str], decay: dict[str, list[str]]) -> list[list[int]]
         for child in decay[p]:
             m[i][index[child]] += 1
     return m
+
+
+# --- Conway's names -------------------------------------------------------
+
+# The periodic table up to uranium. Conway named the elements after these;
+# which string gets which name is worked out below, not typed in.
+SYMBOLS = (  # noqa: SIM905 (as a list, ruff format puts one per line)
+    "H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn "
+    "Ga Ge As Se Br Kr Rb Sr Y Zr Nb Mo Tc Ru Rh Pd Ag Cd In Sn Sb Te I Xe Cs Ba La Ce "
+    "Pr Nd Pm Sm Eu Gd Tb Dy Ho Er Tm Yb Lu Hf Ta W Re Os Ir Pt Au Hg Tl Pb Bi Po At "
+    "Rn Fr Ra Ac Th Pa U"
+).split()
+
+# The one fact taken from Conway's table: tin, element 50, is 13211.
+TIN = "13211"
+
+
+def chains(decay: dict[str, list[str]], els: list[str]) -> list[list[str]]:
+    """Every ordering of the elements from uranium ('3') down to hydrogen ('22')
+    in which each element decays into, among other things, the next.
+
+    Conway numbered his elements this way, so that each one's decay includes
+    the element numbered one below. Depth-first search finds all of them.
+    """
+    wanted = set(els)
+    found: list[list[str]] = []
+    path, seen = ["3"], {"3"}
+
+    def extend() -> None:
+        if len(path) == len(els):
+            if path[-1] == "22":
+                found.append(list(path))
+            return
+        for child in sorted(set(decay[path[-1]])):
+            if child in wanted and child not in seen:
+                seen.add(child)
+                path.append(child)
+                extend()
+                path.pop()
+                seen.discard(child)
+
+    extend()
+    return found
+
+
+def conway_names(decay: dict[str, list[str]], els: list[str]) -> dict[str, str]:
+    """Each element's chemical symbol, as Conway assigned them.
+
+    Of the chains from uranium to hydrogen, exactly one puts tin at 50.
+    """
+    (chain,) = [c for c in chains(decay, els) if c[len(els) - 50] == TIN]
+    return {e: SYMBOLS[len(els) - 1 - i] for i, e in enumerate(chain)}
 
 
 # --- the characteristic polynomial, exactly -------------------------------
@@ -298,6 +363,44 @@ def all_roots(poly: list[int], iterations: int = 2000) -> list[complex]:
     return roots
 
 
+# --- how much of each element ---------------------------------------------
+
+
+def abundances(m: list[list[int]], lam: Decimal, digits: int = 50) -> list[Decimal]:
+    """The share of each element among the atoms of a late term.
+
+    Counts evolve as a row vector, v -> v M, so the long-run shares are the
+    left eigenvector of M for its largest eigenvalue: a M = lam a, with the
+    shares summing to one. Solved by Gaussian elimination in decimals, with
+    one equation of the (singular) system swapped for that normalization.
+    """
+    getcontext().prec = digits + 10
+    n = len(m)
+    rows = [[Decimal(m[i][j]) - (lam if i == j else 0) for i in range(n)] for j in range(n)]
+    rows[-1] = [Decimal(1)] * n
+    rhs = [Decimal(0)] * (n - 1) + [Decimal(1)]
+    for k in range(n):
+        pivot = max(range(k, n), key=lambda i: abs(rows[i][k]))
+        rows[k], rows[pivot] = rows[pivot], rows[k]
+        rhs[k], rhs[pivot] = rhs[pivot], rhs[k]
+        for i in range(k + 1, n):
+            u = rows[i][k] / rows[k][k]
+            if u:
+                rows[i] = [a - u * b for a, b in zip(rows[i], rows[k], strict=True)]
+                rhs[i] -= u * rhs[k]
+    a = [Decimal(0)] * n
+    for k in range(n - 1, -1, -1):
+        a[k] = (rhs[k] - sum(rows[k][j] * a[j] for j in range(k + 1, n))) / rows[k][k]
+    return a
+
+
+def agreeing_digits(x: Decimal, y: Decimal) -> int:
+    """Significant digits to which x and y agree, judged by their relative difference."""
+    if x == y:
+        return getcontext().prec
+    return max(0, math.floor(-math.log10(abs(float((x - y) / y)))))
+
+
 # --- how fast the ratio gets there ----------------------------------------
 
 
@@ -390,12 +493,90 @@ def chart(errors: list[float], rate: float, settle6: int, out: Path) -> None:
     out.write_text("\n".join(parts) + "\n")
 
 
+def abundance_chart(shares: list[tuple[str, str, Decimal]], out: Path) -> None:
+    """Parts per million of each element, by atomic number, on a log scale.
+
+    `shares` is (symbol, string, share) in atomic order, hydrogen first.
+    """
+    w, h = 720, 380
+    left, right, top, bottom = 64, 20, 36, 48
+    n = len(shares)
+    y_min, y_max = 1.0, 5.0  # 10 to 100,000 per million
+
+    def px(z: float) -> float:
+        return left + (z - 1) / (n - 1) * (w - left - right)
+
+    def py(v: float) -> float:
+        return top + (y_max - v) / (y_max - y_min) * (h - top - bottom)
+
+    parts = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" '
+        f'font-family="system-ui, sans-serif" font-size="12">',
+        f'<rect width="{w}" height="{h}" fill="#fff"/>',
+        f'<text x="{left}" y="20" font-size="14" font-weight="600">How common each '
+        "element is in a late term, per million atoms</text>",
+    ]
+    for v in range(1, 6):
+        y = py(v)
+        parts.append(
+            f'<line x1="{left}" y1="{y:.1f}" x2="{w - right}" y2="{y:.1f}" stroke="#e5e5e5"/>'
+        )
+        parts.append(
+            f'<text x="{left - 8}" y="{y + 4:.1f}" text-anchor="end" fill="#555">{10**v:,}</text>'
+        )
+    for z in (1, 10, 20, 30, 40, 50, 60, 70, 80, 92):
+        parts.append(
+            f'<text x="{px(z):.1f}" y="{h - bottom + 18}" text-anchor="middle" fill="#555">'
+            f"{z} {shares[z - 1][0]}</text>"
+        )
+    parts.append(
+        f'<text x="{(left + w - right) / 2}" y="{h - 10}" text-anchor="middle" fill="#555">'
+        "Conway's atomic number</text>"
+    )
+    even = math.log10(1e6 / n)
+    parts.append(
+        f'<line x1="{left}" y1="{py(even):.1f}" x2="{w - right}" y2="{py(even):.1f}" '
+        'stroke="#999" stroke-dasharray="4 3"/>'
+    )
+    parts.append(
+        f'<text x="{w - right}" y="{py(even) - 6:.1f}" text-anchor="end" fill="#555">'
+        f"an even share, 1 in {n}</text>"
+    )
+    ppm = [float(share) * 1e6 for _, _, share in shares]
+    for z, ((symbol, string, _), v) in enumerate(zip(shares, ppm, strict=True), start=1):
+        parts.append(
+            f'<circle cx="{px(z):.1f}" cy="{py(math.log10(v)):.1f}" r="4" fill="#2563eb" '
+            f'stroke="#fff" stroke-width="1"><title>{z} {symbol} = {string}: '
+            f"{v:,.1f} per million</title></circle>"
+        )
+    for k, line in enumerate(
+        (
+            "On a straight run, each element",
+            "has one source, the element just",
+            "above it, and is 1/λ as common;",
+            "a run ends at an element that",
+            "many others make.",
+        )
+    ):
+        parts.append(f'<text x="{left + 12}" y="{py(2.25) + 14 * k:.1f}" fill="#555">{line}</text>')
+    # name the most and least common
+    order = sorted(range(n), key=lambda i: ppm[i])
+    for i, anchor, dy in ((order[-1], "start", 4), (order[-2], "start", 4), (order[0], "start", 4)):
+        parts.append(
+            f'<text x="{px(i + 1) + 8:.1f}" y="{py(math.log10(ppm[i])) + dy:.1f}" '
+            f'text-anchor="{anchor}" fill="#111">{shares[i][0]} {ppm[i]:,.0f}</text>'
+        )
+    parts.append("</svg>")
+    out.write_text("\n".join(parts) + "\n")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
         "--terms", type=int, default=1000, help="compare length(n+1)/length(n) at this n"
     )
     parser.add_argument("--out", type=Path, help="write the convergence chart here")
+    parser.add_argument("--abundance-out", type=Path, help="write the abundance chart here")
     args = parser.parse_args(argv)
     if args.terms < 1:
         parser.error("--terms must be at least 1")
@@ -439,11 +620,36 @@ def main(argv: list[str] | None = None) -> int:
         n = settled(ratios, lam, d)
         print(f"  {d:2d} digits: from n = {n + 1 if n is not None else '(not yet)'}")
 
+    names = conway_names(decay, els)
+    print(
+        f"\nchains from U down to H, each element decaying into the next: {len(chains(decay, els))}"
+    )
+    print(f"  the one with tin = {TIN}: {', '.join(names[e] for e in ('3', '13', '1113'))} ...")
+    shares = abundances(decay_matrix(els, decay), lam)
+    counts = counts_at(SETTLE_HORIZON)
+    total = sum(counts.values())
+    close = min(
+        agreeing_digits(Decimal(counts[e]) / Decimal(total), a)
+        for e, a in zip(els, shares, strict=True)
+    )
+    print(f"abundances, per million atoms (term {SETTLE_HORIZON} agrees to {close} digits):")
+    ranked = sorted(zip(shares, els, strict=True), reverse=True)
+    for a, e in ranked[:3] + ranked[-3:]:
+        print(f"  {names[e]:>2} {a * 10**6:12.4f}  {e}")
+    mean = sum(a * len(e) for a, e in zip(shares, els, strict=True))
+    print(f"  mean atom: {mean:.4f} digits")
+
     if args.out:
         errors = [abs(float(r - Fraction(lam))) for r in ratios[:220]]
         rate = abs(second) / float(lam)
         chart(errors, rate, settled(ratios, lam, 6) + 1, args.out)
         print(f"\nwrote {args.out}")
+    if args.abundance_out:
+        by_number = sorted(els, key=lambda e: SYMBOLS.index(names[e]))
+        abundance_chart(
+            [(names[e], e, shares[els.index(e)]) for e in by_number], args.abundance_out
+        )
+        print(f"wrote {args.abundance_out}")
     return 0
 
 
