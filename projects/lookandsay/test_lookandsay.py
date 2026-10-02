@@ -220,6 +220,12 @@ def test_four_chains_from_uranium_to_hydrogen():
         assert sorted(chain) == sorted(ELEMENTS)
         assert chain[0] == "3" and chain[-1] == "22"
         assert all(lower in DECAY[upper] for upper, lower in zip(chain, chain[1:], strict=False))
+    # where they agree and differ, by Conway's atomic number
+    shared = [z for z in range(1, 93) if len({c[92 - z] for c in found}) == 1]
+    assert shared == [1] + list(range(73, 93))
+    three = [c for c in found if c[92 - 20] == "12"]  # calcium
+    assert len(three) == 3
+    assert [z for z in range(1, 93) if len({c[92 - z] for c in three}) > 1] == list(range(21, 68))
 
 
 def test_conways_names():

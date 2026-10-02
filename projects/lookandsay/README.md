@@ -124,11 +124,13 @@ and 79) before settling at 80.
 - **Which string is which element.** Conway numbered his elements from
   hydrogen (22) to uranium (3) so that each one's decay includes the
   element numbered one below it. The code looks for every ordering with
-  that property, by depth-first search, and there are exactly four. They
-  agree from uranium down to hafnium (72) and from calcium (20) down to
-  hydrogen, and differ in between. One fact from Conway's table, that tin
-  is 13211, picks out his ordering, and the test checks nine more of his
-  entries against it. So the names are "found" only up to that one fact,
+  that property, by depth-first search, and there are exactly four. All
+  four agree from uranium down to tantalum (73). Below that, one goes its
+  own way all the rest of the way to hydrogen, and the other three differ
+  only between holmium (67) and scandium (21). One fact from Conway's
+  table, that tin is 13211, picks out his ordering, and a test checks ten
+  more of his entries against it (eight, really: uranium and hydrogen are
+  where the search starts and ends). So the names are "found" only up to that one fact,
   plus the periodic table's symbols, which are typed in.
 - **Abundances.** A term is a vector of element counts, and one step
   multiplies it by the decay matrix, so in the long run the counts line
