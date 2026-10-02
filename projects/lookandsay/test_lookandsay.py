@@ -194,3 +194,113 @@ def test_short_runs_still_judge_settling_over_the_full_horizon(n, tmp_path, caps
 def test_terms_must_be_positive():
     with pytest.raises(SystemExit):
         las.main(["--terms", "0"])
+
+
+# --- names and abundances -------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def lam(conway):
+    _, _, rest = conway
+    return las.newton_root(rest, 1.3, digits=50)
+
+
+@pytest.fixture(scope="module")
+def shares(lam):
+    return dict(zip(ELEMENTS, las.abundances(las.decay_matrix(ELEMENTS, DECAY), lam), strict=True))
+
+
+NAMES = las.conway_names(DECAY, ELEMENTS)
+
+
+def test_four_chains_from_uranium_to_hydrogen():
+    found = las.chains(DECAY, ELEMENTS)
+    assert len(found) == 4
+    for chain in found:
+        assert sorted(chain) == sorted(ELEMENTS)
+        assert chain[0] == "3" and chain[-1] == "22"
+        assert all(lower in DECAY[upper] for upper, lower in zip(chain, chain[1:], strict=False))
+    # where they agree and differ, by Conway's atomic number
+    shared = [z for z in range(1, 93) if len({c[92 - z] for c in found}) == 1]
+    assert shared == [1] + list(range(73, 93))
+    three = [c for c in found if c[92 - 20] == "12"]  # calcium
+    assert len(three) == 3
+    assert [z for z in range(1, 93) if len({c[92 - z] for c in three}) > 1] == list(range(21, 68))
+
+
+def test_conways_names():
+    assert sorted(NAMES.values()) == sorted(las.SYMBOLS)
+    assert len(las.SYMBOLS) == 92
+    # entries of Conway's table beyond the one (tin) used to pick the chain
+    known = {
+        "H": "22",
+        "He": "13112221133211322112211213322112",
+        "Li": "312211322212221121123222112",
+        "Ca": "12",
+        "Fe": "13122112",
+        "Zn": "312",
+        "Hf": "11132",
+        "Th": "1113",
+        "Pa": "13",
+        "U": "3",
+    }
+    for symbol, string in known.items():
+        assert NAMES[string] == symbol
+
+
+def test_counts_at_agrees_with_lengths():
+    ls = las.lengths(30)
+    for n in (1, 2, 8, 30):
+        assert sum(c * len(p) for p, c in las.counts_at(n).items()) == ls[n - 1]
+    assert las.counts_at(8) == {"11132": 1, "13211": 1}
+
+
+def test_abundances_are_the_perron_vector(lam, shares):
+    assert abs(sum(shares.values()) - 1) < Decimal(10) ** -45
+    assert all(a > 0 for a in shares.values())
+    m = las.decay_matrix(ELEMENTS, DECAY)
+    a = [shares[e] for e in ELEMENTS]
+    for j in range(len(ELEMENTS)):
+        flowing_in = sum(a[i] * m[i][j] for i in range(len(ELEMENTS)))
+        assert abs(flowing_in - lam * a[j]) < Decimal(10) ** -45
+
+
+def test_abundances_match_conways_table(shares):
+    # Conway's published abundances, in atoms per million
+    assert f"{shares['22'] * 10**6:.3f}" == "91790.383"
+    assert f"{shares['11131221131211322113322112'] * 10**6:.4f}" == "27.2462"
+
+
+def test_abundances_match_counts_at_term_1000(shares):
+    counts = las.counts_at(1000)
+    total = sum(counts.values())
+    assert set(counts) == set(ELEMENTS)
+    for e, a in shares.items():
+        assert las.agreeing_digits(Decimal(counts[e]) / Decimal(total), a) >= 45
+
+
+def test_an_element_with_one_source_is_one_lambda_as_common(lam, shares):
+    single = 0
+    for e in ELEMENTS:
+        sources = [(p, DECAY[p].count(e)) for p in ELEMENTS if e in DECAY[p]]
+        if len(sources) == 1 and sources[0][1] == 1:
+            single += 1
+            assert abs(lam * shares[e] - shares[sources[0][0]]) < Decimal(10) ** -45
+    assert single == 75
+
+
+def test_agreeing_digits():
+    assert las.agreeing_digits(Decimal("1.2345"), Decimal("1.2346")) == 4
+    assert las.agreeing_digits(Decimal(2), Decimal(1)) == 0
+
+
+def test_main_writes_the_abundance_chart(tmp_path, capsys):
+    out = tmp_path / "a.svg"
+    assert las.main(["--abundance-out", str(out)]) == 0
+    root = ET.parse(out).getroot()
+    dots = root.findall("{http://www.w3.org/2000/svg}circle")
+    assert len(dots) == 92
+    assert dots[0].find("{http://www.w3.org/2000/svg}title").text.startswith("1 H = 22: 91,790")
+    text = capsys.readouterr().out
+    assert "chains from U down to H, each element decaying into the next: 4" in text
+    assert "term 1000 agrees to" in text
