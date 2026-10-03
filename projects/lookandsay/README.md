@@ -12,6 +12,10 @@ digits), so the project goes the way Conway did: it splits the terms into
 the elements from the sequence itself rather than from a table, and they
 come out as Conway's 92.
 
+A second pass puts Conway's names on them and asks how common each one is
+in a late term: the long-run share of hydrogen, of uranium, and of
+everything in between.
+
 <p align="center">
   <a href="out/convergence.svg"><img src="out/convergence.svg" width="100%" alt="The error of length(n+1)/length(n) against Conway's constant, on a log scale, for terms 1 to 220. It falls in a jagged line from about 0.7 to 1e-13, hugging a dashed line of slope 0.8907 per term. A vertical line at n = 80 marks where the first six digits are right for good."></a>
 </p>
@@ -21,10 +25,11 @@ come out as Conway's 92.
 ```sh
 python projects/lookandsay/lookandsay.py                                          # elements, polynomial, constant, and the digits table
 python projects/lookandsay/lookandsay.py --out projects/lookandsay/out/convergence.svg  # and the chart
+python projects/lookandsay/lookandsay.py --abundance-out projects/lookandsay/out/abundance.svg  # the abundance chart
 pytest projects/lookandsay
 ```
 
-The whole run takes about half a second.
+The whole run takes about six-tenths of a second.
 
 ## How it works
 
@@ -110,13 +115,68 @@ term 66, loses them at once, gets them back at 70, keeps them through 72,
 loses them at 73, and flickers (right at 74, 77 and 78, wrong at 75, 76
 and 79) before settling at 80.
 
+## Names and abundances
+
+<p align="center">
+  <a href="out/abundance.svg"><img src="out/abundance.svg" width="100%" alt="Each of the 92 elements' share of the atoms in a late term, in parts per million on a log scale, against Conway's atomic number. Hydrogen is highest at 91,790 and arsenic lowest at 27. The dots climb in straight runs, each step up a factor of 1.3036, broken where an element is made by several others."></a>
+</p>
+
+- **Which string is which element.** Conway numbered his elements from
+  hydrogen (22) to uranium (3) so that each one's decay includes the
+  element numbered one below it. The code looks for every ordering with
+  that property, by depth-first search, and there are exactly four. All
+  four agree from uranium down to tantalum (73). Below that, one goes its
+  own way all the rest of the way to hydrogen, and the other three differ
+  only between holmium (67) and scandium (21). One fact from Conway's
+  table, that tin is 13211, picks out his ordering, and a test checks ten
+  more of his entries against it (eight, really: uranium and hydrogen are
+  where the search starts and ends). So the names are "found" only up to that one fact,
+  plus the periodic table's symbols, which are typed in.
+- **Abundances.** A term is a vector of element counts, and one step
+  multiplies it by the decay matrix, so in the long run the counts line
+  up with the matrix's left eigenvector for λ, its Perron vector. The code
+  solves for it directly, by Gaussian elimination in 60-digit decimals,
+  and separately counts the atoms in term 1,000 exactly. The two agree to
+  49 significant digits for every element, as the second eigenvalue says
+  they should (0.8907¹⁰⁰⁰ is about 10⁻⁵⁰). Hydrogen comes out at
+  91,790.383 atoms per million and arsenic at 27.246, Conway's figures.
+
+```
+ most common        per million     least common     per million
+ H  22               91,790.383      Br 3113112211322112        46.300
+ Ca 12               56,072.543      Se 13211321222113222112    35.518
+ Ho 1321132          47,987.529      As 1113122113121132...     27.246
+```
+
+The average atom is 7.674 digits long, so a late term of length L is
+made of about L / 7.674 atoms.
+
+## What the abundance chart shows
+
+The dots don't scatter; they climb in straight lines. The reason is short.
+In the long run, λ times an element's share is the sum of the shares of
+whatever decays into it. Seventy-five of the 92 elements have exactly one
+source, which makes them once, and for 74 of those the source is the
+element one above in Conway's numbering. For those, λ·a(e) = a(parent):
+each is exactly 1/λ as common as the element above it, a straight line of
+slope log λ on a log scale. A run ends at one of the 17 elements that
+several others make, and the line jumps there. Calcium (12) has thirteen
+sources and hydrogen seven (one of them hydrogen itself), which is why
+they're the most common. The longest run is seventeen elements, ruthenium
+(44) up to neodymium (60), each 1.3036 times the last. Arsenic is the
+bottom of a run of ten that starts from technetium, which has only two
+sources and isn't common itself. The one exception to the rule is
+uranium: its only source is yttrium, element 39, so it sits apart from
+its neighbours, 96 times rarer than the protactinium it decays into.
+
 ## Notes
 
 - The first-digit argument is the only piece of Conway's theory the code
   needs, and it is small enough to prove in a paragraph (above). His
   Cosmological Theorem, that every string eventually splits into these
   elements (plus two "transuranic" ones for each digit above 3, which
-  never appear from "1"), is not reproduced; starting from "1" it isn't needed.
+  never appear from "1"), is not reproduced yet; starting from "1" it
+  isn't needed. A brute-force test of it is the next item in the backlog.
 - The polynomial's roots other than λ come from the Durand-Kerner
   iteration in floating point, and the test checks each one's residual.
   The second root's modulus is quoted to five places, which is what that
