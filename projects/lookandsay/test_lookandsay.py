@@ -304,3 +304,55 @@ def test_main_writes_the_abundance_chart(tmp_path, capsys):
     text = capsys.readouterr().out
     assert "chains from U down to H, each element decaying into the next: 4" in text
     assert "term 1000 agrees to" in text
+
+
+# --- the Cosmological Theorem ---------------------------------------------
+
+COMMON = set(ELEMENTS)
+HEAVY = las.transuranic(COMMON)
+KNOWN = COMMON | HEAVY
+
+
+def test_transuranic_elements_are_conways_two_per_digit():
+    # Conway's plutonium and neptunium, less the final digit.
+    pu = "31221132221222112112322211"
+    np_ = "1311222113321132211221121332211"
+    assert {p + d for p in (pu, np_) for d in las.OTHER_DIGITS} == HEAVY
+
+
+def test_decay_day_of_seeds_from_the_main_sequence():
+    cache = {}
+    assert las.decay_day("22", KNOWN, cache) == 0
+    # '1' is all elements from the eighth term, 1113213211 = Hf Sn
+    assert las.decay_day("1", KNOWN, cache) == 7
+    assert las.decay_day("1113213211", KNOWN, cache) == 0
+
+
+def test_a_run_of_ten_brings_in_digit_zero():
+    assert las.step("1" * 10) == "101"
+    assert las.decay_day("1" * 10, KNOWN, {}) > 0
+    with pytest.raises(ValueError):
+        las.decay_day("1" * 10, COMMON | {e for e in HEAVY if e[-1] != "0"}, {})
+
+
+def test_every_short_seed_of_digits_1_to_3_decays_and_the_slowest():
+    found = las.cosmology(7, KNOWN)
+    assert [day for _, day, _ in found] == [7, 6, 16, 19, 19, 19, 20]
+    assert found[2][2] == ["211"] and found[6][2] == ["2113332"]
+
+
+def test_seeds_with_bigger_digits_decay_too():
+    assert [day for _, day, _ in las.cosmology(4, KNOWN, "1234")] == [18, 19, 19, 20]
+
+
+def test_the_24_day_seeds_lead_the_23_day_ones():
+    cache = {}
+    for slow in ("333222112", "333222113"):
+        assert las.decay_day(slow, KNOWN, cache) == 24
+        assert las.decay_day(las.step(slow), KNOWN, cache) == 23
+
+
+def test_a_long_run_buys_a_25th_day():
+    seed = "333" + "222" + "1" * 22 + "2"
+    assert las.step(seed) == "333222112"
+    assert las.decay_day(seed, KNOWN, {}) == 25

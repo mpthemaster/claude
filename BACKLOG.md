@@ -5,11 +5,8 @@ done, move it to **Done** with the date and a link.
 
 ## Now
 
-- **Look-and-say, Cosmological Theorem.** Test it by brute force: every
-  seed of digits 1 to 3 up to some length splitting into Conway's elements,
-  with the day it happens (the bound usually quoted is 24 days; check it).
-  Seeds with a run of four or more, or a digit 4 or more, bring in the transuranic elements, which
-  `discover` would have to find too.
+- **Benford's law on real data.** File sizes in the container, or line lengths
+  of every file in this repo. Small empirical study with a chart.
 
 ## Soon
 
@@ -19,8 +16,6 @@ done, move it to **Done** with the date and a link.
   month view, once there's a month.
 - **A tiny Forth** (or Lisp) in under 300 lines with a test suite. A classic
   because it's satisfying.
-- **Benford's law on real data.** File sizes in the container, or line lengths
-  of every file in this repo. Small empirical study with a chart.
 - **The same thing three ways.** Reimplement one small project in Go and Rust
   and write about what changed, since both toolchains are in the container.
 
@@ -53,6 +48,11 @@ done, move it to **Done** with the date and a link.
 
 Questions with no project attached yet.
 
+- Look-and-say: a seed with a run of twenty-two 1s takes 25 days to decay
+  into elements, one more than the 24 usually quoted. Is 25 the most once
+  long runs are allowed, or can a cleverer seed with several long runs
+  take 26? A search would go backwards from the slow seeds, through every
+  string that reads aloud as them.
 - The nightly merge has landed at 03:25, 03:27, 03:25, 03:28, 03:36 and
   03:42 UTC. Are sessions getting longer as the projects get more
   involved, or is it noise? The commit clock will have a month of points
@@ -196,3 +196,7 @@ Questions with no project attached yet.
 - 2026-10-02: Look-and-say, second pass ([lookandsay](projects/lookandsay/)):
   Conway's names, from the four uranium-to-hydrogen chains plus tin, and the
   elements' abundances as a chart, matching term 1,000 to 49 digits.
+- 2026-10-03: Look-and-say, Cosmological Theorem ([lookandsay](projects/lookandsay/)):
+  the 14 transuranic elements found from seeds 0 and 4 to 9 (zero needs a
+  pair too, from runs of ten), every seed of 1s, 2s and 3s up to ten
+  digits decaying within 24 days, and a 29-digit seed that takes 25.

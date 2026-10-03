@@ -14,7 +14,7 @@ import argparse
 import math
 from decimal import Decimal, getcontext
 from fractions import Fraction
-from itertools import groupby
+from itertools import groupby, product
 from pathlib import Path
 
 # The state of the first-digit tracker keeps at most this many leading
@@ -207,6 +207,67 @@ def conway_names(decay: dict[str, list[str]], els: list[str]) -> dict[str, str]:
     """
     (chain,) = [c for c in chains(decay, els) if c[len(els) - 50] == TIN]
     return {e: SYMBOLS[len(els) - 1 - i] for i, e in enumerate(chain)}
+
+
+# --- the Cosmological Theorem, by brute force -----------------------------
+
+# Digits that never turn up from '1'. A run of ten or more is read as '10',
+# '11', ..., so 0 joins 4 to 9 here.
+OTHER_DIGITS = "0456789"
+
+
+def transuranic(common: set[str]) -> set[str]:
+    """The elements that only strings with other digits reach.
+
+    Each is found the way the common ones were: the pieces reachable from a
+    one-digit seed that recur. It comes out as Conway's two per digit,
+    plutonium and neptunium, which end in that digit.
+    """
+    found: set[str] = set()
+    for d in OTHER_DIGITS:
+        found |= set(elements(discover(d))) - common
+    return found
+
+
+def decay_day(seed: str, known: set[str], cache: dict[str, list[str]], limit: int = 60) -> int:
+    """The first day on which every piece of the seed's descendant is in `known`.
+
+    Day 0 is the seed itself. Pieces are followed one by one, as in lengths(),
+    with what each becomes stored in `cache` so that seeds share the work.
+    Elements only ever become elements, so once every piece is known, it
+    stays that way.
+    """
+    pieces = set(decompose(seed))
+    for day in range(limit + 1):
+        if pieces <= known:
+            return day
+        nxt: set[str] = set()
+        for p in pieces:
+            if p not in cache:
+                cache[p] = decompose(step(p))
+            nxt.update(cache[p])
+        pieces = nxt
+    raise ValueError(f"{seed!r} has not decayed into known elements after {limit} days")
+
+
+def cosmology(
+    max_len: int, known: set[str], alphabet: str = "123"
+) -> list[tuple[int, int, list[str]]]:
+    """For each length, the latest decay day among all seeds over the alphabet,
+    and the seeds that take that long: (length, day, seeds)."""
+    cache: dict[str, list[str]] = {}
+    out = []
+    for n in range(1, max_len + 1):
+        worst, slowest = -1, []
+        for digits in product(alphabet, repeat=n):
+            seed = "".join(digits)
+            day = decay_day(seed, known, cache)
+            if day > worst:
+                worst, slowest = day, [seed]
+            elif day == worst:
+                slowest.append(seed)
+        out.append((n, worst, slowest))
+    return out
 
 
 # --- the characteristic polynomial, exactly -------------------------------
@@ -577,6 +638,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--out", type=Path, help="write the convergence chart here")
     parser.add_argument("--abundance-out", type=Path, help="write the abundance chart here")
+    parser.add_argument(
+        "--cosmos",
+        type=int,
+        metavar="LEN",
+        help="check every seed of digits 1 to 3 up to this length decays into elements",
+    )
     args = parser.parse_args(argv)
     if args.terms < 1:
         parser.error("--terms must be at least 1")
@@ -638,6 +705,17 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  {names[e]:>2} {a * 10**6:12.4f}  {e}")
     mean = sum(a * len(e) for a, e in zip(shares, els, strict=True))
     print(f"  mean atom: {mean:.4f} digits")
+
+    if args.cosmos:
+        common = set(els)
+        heavy = transuranic(common)
+        print(f"\ntransuranic elements, from seeds {', '.join(OTHER_DIGITS)}: {len(heavy)}")
+        for e in sorted(heavy, key=lambda e: (len(e), e[-1])):
+            print(f"  {'Pu' if len(e) < 30 else 'Np'} {e}")
+        print("latest day on which a seed of digits 1 to 3 is all elements:")
+        for n, day, seeds in cosmology(args.cosmos, common | heavy):
+            more = f" and {len(seeds) - 1} more" if len(seeds) > 1 else ""
+            print(f"  length {n:2d}: day {day:2d}, {seeds[0]}{more}")
 
     if args.out:
         errors = [abs(float(r - Fraction(lam))) for r in ratios[:220]]
