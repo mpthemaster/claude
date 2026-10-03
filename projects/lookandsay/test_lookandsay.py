@@ -350,8 +350,6 @@ def test_the_24_day_seeds_lead_the_23_day_ones():
     for slow in ("333222112", "333222113"):
         assert las.decay_day(slow, KNOWN, cache) == 24
         assert las.decay_day(las.step(slow), KNOWN, cache) == 23
-        # odd length: no string reads aloud as it, so the chain can't go back further
-        assert len(slow) % 2 == 1
 
 
 def test_a_long_run_buys_a_25th_day():

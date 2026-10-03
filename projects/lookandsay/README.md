@@ -219,8 +219,7 @@ So among short seeds, 24 days it is, reached first by two nine-digit
 seeds, and nothing up to ten digits takes 25. The slow seeds of lengths 8
 and 9 are one chain: 333222112 reads aloud as 33322112, the 23-day seed,
 which reads as 33222112, and so on. Of the 19,683 nine-digit seeds, 2,355
-take exactly 19 days and only 54 take longer; a few thousand random seeds
-of 10 to 40 digits took at most 23.
+take exactly 19 days and only 54 take longer.
 
 **But 24 can be beaten.** My first draft of this section said the chain
 can't go back another day, because 333222112 has odd length and a
@@ -234,7 +233,8 @@ is one digit. A run of twenty-two 1s is read "221", so
 reads aloud as 33 32 221 12 = 333222112, and takes 25 days. Two
 38-digit strings, one with a run of thirty-two 2s and one starting
 with a run of thirty-three 3s, read aloud as 333222112 too, and the same
-three with a final 3 read as 333222113. None of them is in turn the
+three with a final 3, plus a 66-digit one (thirty-three 3s, twenty-two
+2s, eleven 3s), read as 333222113. All seven take 25 days. None of them is in turn the
 reading of anything under 200 digits, so the search stopped there. So the
 24-day bound, as far as this search reaches, belongs to strings with no
 run of ten or more. Allow a long run in the seed and one more day is
