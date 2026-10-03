@@ -14,7 +14,10 @@ come out as Conway's 92.
 
 A second pass puts Conway's names on them and asks how common each one is
 in a late term: the long-run share of hydrogen, of uranium, and of
-everything in between.
+everything in between. A third checks Conway's Cosmological Theorem by
+brute force: every seed, not just "1", ends up made of these elements, and
+the slowest short seed takes 24 days, though a longer one with a run of
+twenty-two 1s takes 25.
 
 <p align="center">
   <a href="out/convergence.svg"><img src="out/convergence.svg" width="100%" alt="The error of length(n+1)/length(n) against Conway's constant, on a log scale, for terms 1 to 220. It falls in a jagged line from about 0.7 to 1e-13, hugging a dashed line of slope 0.8907 per term. A vertical line at n = 80 marks where the first six digits are right for good."></a>
@@ -26,10 +29,12 @@ everything in between.
 python projects/lookandsay/lookandsay.py                                          # elements, polynomial, constant, and the digits table
 python projects/lookandsay/lookandsay.py --out projects/lookandsay/out/convergence.svg  # and the chart
 python projects/lookandsay/lookandsay.py --abundance-out projects/lookandsay/out/abundance.svg  # the abundance chart
+python projects/lookandsay/lookandsay.py --cosmos 9                               # every seed of 1s, 2s and 3s up to 9 digits
 pytest projects/lookandsay
 ```
 
-The whole run takes about six-tenths of a second.
+The whole run takes about six-tenths of a second; `--cosmos 9` adds
+twenty seconds and `--cosmos 10` a minute.
 
 ## How it works
 
@@ -169,14 +174,83 @@ sources and isn't common itself. The one exception to the rule is
 uranium: its only source is yttrium, element 39, so it sits apart from
 its neighbours, 96 times rarer than the protactinium it decays into.
 
+## The Cosmological Theorem
+
+Conway's theorem says that any string at all, not only "1", eventually
+splits into his 92 common elements plus a few "transuranic" ones that
+need digits bigger than 3. The usual statement adds a bound: 24 days.
+This pass tests both by brute force.
+
+- **The transuranic elements, found.** The same search that found the 92
+  from "1", run from the seeds 4, 5, ..., 9, finds two more elements per
+  digit and no others: Conway's plutonium,
+  `31221132221222112112322211n`, and neptunium,
+  `1311222113321132211221121332211n`, where n is the digit. A test
+  checks all of them against his strings.
+- **And a seventh pair.** Digit 0 needs them too. A run of ten or more
+  is read aloud as "10", "11", and so on, so `1111111111` becomes `101`
+  and a zero appears from a seed of 1s. The search from seed 0 finds
+  plutonium and neptunium ending in 0, and without them `1111111111`
+  never finishes decaying. Statements of the theorem I've seen talk about
+  digits 4 and up; zero behaves the same way.
+- **The day.** For each seed, follow its pieces day by day (exactly, as
+  the lengths were counted) until every piece is an element. Elements
+  only ever make elements, so from then on it stays decayed. Every seed
+  of 1s, 2s and 3s up to ten digits does, all 88,572 of them, and so does
+  every seed of digits 0 to 9 up to four digits.
+
+The slowest seed of each length, and how many days it takes:
+
+```
+ length   day   slowest seed
+    1       7   1               (the seven terms before 1113213211)
+    2       6   11, 31
+    3      16   211
+    4      19   1111, 2222, 3333
+    5      19   13 seeds
+    6      19   51 seeds
+    7      20   2113332
+    8      23   33322112, 33322113
+    9      24   333222112, 333222113
+   10      24   1333222112 and 3 more
+```
+
+So among short seeds, 24 days it is, reached first by two nine-digit
+seeds, and nothing up to ten digits takes 25. The slow seeds of lengths 8
+and 9 are one chain: 333222112 reads aloud as 33322112, the 23-day seed,
+which reads as 33222112, and so on. Of the 19,683 nine-digit seeds, 2,355
+take exactly 19 days and only 54 take longer; a few thousand random seeds
+of 10 to 40 digits took at most 23.
+
+**But 24 can be beaten.** My first draft of this section said the chain
+can't go back another day, because 333222112 has odd length and a
+reading aloud always has even length. That's only true while every count
+is one digit. A run of twenty-two 1s is read "221", so
+
+```
+333 222 1111111111111111111111 2   (29 digits)
+```
+
+reads aloud as 33 32 221 12 = 333222112, and takes 25 days. Two
+38-digit strings, one with a run of thirty-two 2s and one starting
+with a run of thirty-three 3s, read aloud as 333222112 too, and the same
+three with a final 3 read as 333222113. None of them is in turn the
+reading of anything under 200 digits, so the search stopped there. So the
+24-day bound, as far as this search reaches, belongs to strings with no
+run of ten or more. Allow a long run in the seed and one more day is
+possible. I'd guess the usual statement of the theorem assumes this
+without saying so, but I haven't seen Conway's paper to check.
+
+None of this is a proof. Brute force over short seeds can't rule out a
+long seed that takes 26 days; the theorem's proofs handle every length at
+once, which is a different kind of argument. What it shows is that 24 is
+reached, by a seed of only nine digits, and that it isn't the last word
+once runs of ten are allowed.
+
 ## Notes
 
 - The first-digit argument is the only piece of Conway's theory the code
-  needs, and it is small enough to prove in a paragraph (above). His
-  Cosmological Theorem, that every string eventually splits into these
-  elements (plus two "transuranic" ones for each digit above 3, which
-  never appear from "1"), is not reproduced yet; starting from "1" it
-  isn't needed. A brute-force test of it is the next item in the backlog.
+  needs, and it is small enough to prove in a paragraph (above).
 - The polynomial's roots other than λ come from the Durand-Kerner
   iteration in floating point, and the test checks each one's residual.
   The second root's modulus is quoted to five places, which is what that
