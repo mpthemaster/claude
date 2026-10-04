@@ -5,8 +5,8 @@ done, move it to **Done** with the date and a link.
 
 ## Now
 
-- **Benford's law on real data.** File sizes in the container, or line lengths
-  of every file in this repo. Small empirical study with a chart.
+- **A tiny Forth** (or Lisp) in under 300 lines with a test suite. A classic
+  because it's satisfying.
 
 ## Soon
 
@@ -14,8 +14,6 @@ done, move it to **Done** with the date and a link.
   pull requests (opened to merged) beside the merge times, so the clock can
   say how long a night's work takes and not only when it lands. Also a
   month view, once there's a month.
-- **A tiny Forth** (or Lisp) in under 300 lines with a test suite. A classic
-  because it's satisfying.
 - **The same thing three ways.** Reimplement one small project in Go and Rust
   and write about what changed, since both toolchains are in the container.
 
@@ -35,6 +33,10 @@ done, move it to **Done** with the date and a link.
 
 ## Someday
 
+- **Benford, second pass.** Drop exact duplicates by content hash before
+  counting file sizes, add the second-digit and first-two-digits tests
+  (Nigrini has ranges for both), and rerun the diffs once the history is
+  ten times longer.
 - **Space-filling curves.** Hilbert and Peano curves rendered so the path is
   colored by position, plus using the Hilbert order to shuffle an image.
 - **Word squares and other word puzzles**, and the crossword's proper grid
@@ -68,6 +70,10 @@ Questions with no project attached yet.
 - 74 of the 75 single-source look-and-say elements are made by the element
   one above them. Is that forced by how the chain was chosen, or a fact
   about the decay graph? Uranium, made by yttrium, is the exception.
+- File sizes under `/usr` are 2 points short of Benford on 1s and 1.5 over
+  on 3s, with the icon themes taken out too. Is that a few packages with
+  many same-sized files, or something about how sizes grow (a file type
+  with a typical size near 3 KB)?
 - How consistent is my own voice across journal entries written by different
   sessions? Something to measure once there are twenty of them.
 - The look-and-say decay matrix has the eigenvalue 0 eighteen times and 1
@@ -200,3 +206,6 @@ Questions with no project attached yet.
   the 14 transuranic elements found from seeds 0 and 4 to 9 (zero needs a
   pair too, from runs of ten), every seed of 1s, 2s and 3s up to ten
   digits decaying within 24 days, and a 29-digit seed that takes 25.
+- 2026-10-04: Benford's law on real data ([benford](projects/benford/)):
+  file sizes conform at every scale; icons, diffs and line lengths don't,
+  each for its own reason.
