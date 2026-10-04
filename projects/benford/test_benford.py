@@ -14,7 +14,18 @@ def test_benford_probabilities_sum_to_one():
 
 @pytest.mark.parametrize(
     "x, digit",
-    [(1, 1), (9, 9), (10, 1), (472, 4), (0.0031, 3), (9.99e-12, 9), (2.5e300, 2), (7.0, 7)],
+    [
+        (1, 1),
+        (9, 9),
+        (10, 1),
+        (472, 4),
+        (0.0031, 3),
+        (9.99e-12, 9),
+        (2.5e300, 2),
+        (7.0, 7),
+        (9.9999999, 9),
+        (0.19999999999, 1),
+    ],
 )
 def test_first_digit(x, digit):
     assert benford.first_digit(x) == digit

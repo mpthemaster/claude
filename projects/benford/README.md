@@ -31,15 +31,17 @@ another machine the numbers will differ, but not by much, I expect.
 ## How it works
 
 - **The first digit.** Integers use their decimal string. Floats use
-  scientific notation, `f"{x:e}"`, whose first character is the leading
-  digit at any scale. Zero has no first digit and is skipped.
+  scientific notation with seventeen digits, `f"{x:.17e}"`, whose first
+  character is the leading digit at any scale. Plain `{x:e}` rounds to
+  seven digits and reads 9.9999999 as 1.000000e+01. Zero has no first digit and is skipped.
 - **Distance from the law.** The headline number is the mean absolute
   deviation (MAD): the gap between each digit's observed share and
   Benford's, averaged over the nine digits. Mark Nigrini's forensic
   accounting work gives ranges for it: up to 0.006 is close conformity,
   0.012 acceptable, 0.015 marginal, and above that nonconformity. The
-  script also computes Pearson's chi-square, but with seventy thousand file
-  sizes it rejects everything. With enough data no real collection is
+  module also has Pearson's chi-square, `chi_square`, which the table
+  leaves out because with seventy thousand file sizes it rejects
+  everything: 522 for `/usr`, where 26.1 already means p < 0.001. With enough data no real collection is
   exactly Benford, and the useful question is how far off it is.
 - **Noise.** A sample drawn from Benford's law itself still has a MAD
   above zero. Each digit's share is off by roughly a normal error with
@@ -83,7 +85,7 @@ they fit at all of them.
 **Icon sizes have a spike at 5: 22.9%, against Benford's 7.9%.** The spike
 is two icon themes, `ubuntu-mono-light` and `ubuntu-mono-dark`. Each holds
 hundreds of small SVG icons drawn from the same template, so their sizes
-pile up between 500 and 515 bytes (379 files are exactly 507 bytes), and
+pile up between 500 and 515 bytes (375 files are exactly 507 bytes), and
 every icon appears twice, once per theme. The law assumes the numbers come
 from many independent processes of different sizes. A few hundred
 near-copies of one file break that assumption. The icons are part of `/usr`

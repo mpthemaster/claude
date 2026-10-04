@@ -88,7 +88,7 @@
 </g>
 <g transform='translate(10 280)'>
 <text x='44' y='22' font-size='13' font-weight='600' fill='#111'>lines changed per file per commit</text>
-<text x='44' y='38' font-size='11' fill='#555'>n = 291, MAD 0.0238, nonconformity</text>
+<text x='44' y='38' font-size='11' fill='#555'>n = 300, MAD 0.0234, nonconformity</text>
 <line x1='44' x2='344' y1='194.0' y2='194.0' stroke='#e5e5e5'/>
 <text x='38' y='198.0' font-size='10' fill='#555' text-anchor='end'>0%</text>
 <line x1='44' x2='344' y1='159.0' y2='159.0' stroke='#e5e5e5'/>
@@ -99,23 +99,23 @@
 <text x='38' y='93.0' font-size='10' fill='#555' text-anchor='end'>30%</text>
 <line x1='44' x2='344' y1='54.0' y2='54.0' stroke='#e5e5e5'/>
 <text x='38' y='58.0' font-size='10' fill='#555' text-anchor='end'>40%</text>
-<path d='M48.0,194 V69.3 Q48.0,65.3 52.0,65.3 H69.3 Q73.3,65.3 73.3,69.3 V194Z' fill='#2a78d6'><title>1: 107 values, 36.8% (Benford 30.1%)</title></path>
+<path d='M48.0,194 V68.5 Q48.0,64.5 52.0,64.5 H69.3 Q73.3,64.5 73.3,68.5 V194Z' fill='#2a78d6'><title>1: 111 values, 37.0% (Benford 30.1%)</title></path>
 <text x='60.7' y='208' font-size='11' fill='#555' text-anchor='middle'>1</text>
-<path d='M81.3,194 V139.1 Q81.3,135.1 85.3,135.1 H102.7 Q106.7,135.1 106.7,139.1 V194Z' fill='#2a78d6'><title>2: 49 values, 16.8% (Benford 17.6%)</title></path>
+<path d='M81.3,194 V138.5 Q81.3,134.5 85.3,134.5 H102.7 Q106.7,134.5 106.7,138.5 V194Z' fill='#2a78d6'><title>2: 51 values, 17.0% (Benford 17.6%)</title></path>
 <text x='94.0' y='208' font-size='11' fill='#555' text-anchor='middle'>2</text>
-<path d='M114.7,194 V169.1 Q114.7,165.1 118.7,165.1 H136.0 Q140.0,165.1 140.0,169.1 V194Z' fill='#2a78d6'><title>3: 24 values, 8.2% (Benford 12.5%)</title></path>
+<path d='M114.7,194 V170.0 Q114.7,166.0 118.7,166.0 H136.0 Q140.0,166.0 140.0,170.0 V194Z' fill='#2a78d6'><title>3: 24 values, 8.0% (Benford 12.5%)</title></path>
 <text x='127.3' y='208' font-size='11' fill='#555' text-anchor='middle'>3</text>
-<path d='M148.0,194 V169.1 Q148.0,165.1 152.0,165.1 H169.3 Q173.3,165.1 173.3,169.1 V194Z' fill='#2a78d6'><title>4: 24 values, 8.2% (Benford 9.7%)</title></path>
+<path d='M148.0,194 V167.7 Q148.0,163.7 152.0,163.7 H169.3 Q173.3,163.7 173.3,167.7 V194Z' fill='#2a78d6'><title>4: 26 values, 8.7% (Benford 9.7%)</title></path>
 <text x='160.7' y='208' font-size='11' fill='#555' text-anchor='middle'>4</text>
-<path d='M181.3,194 V173.9 Q181.3,169.9 185.3,169.9 H202.7 Q206.7,169.9 206.7,173.9 V194Z' fill='#2a78d6'><title>5: 20 values, 6.9% (Benford 7.9%)</title></path>
+<path d='M181.3,194 V174.7 Q181.3,170.7 185.3,170.7 H202.7 Q206.7,170.7 206.7,174.7 V194Z' fill='#2a78d6'><title>5: 20 values, 6.7% (Benford 7.9%)</title></path>
 <text x='194.0' y='208' font-size='11' fill='#555' text-anchor='middle'>5</text>
-<path d='M214.7,194 V178.8 Q214.7,174.8 218.7,174.8 H236.0 Q240.0,174.8 240.0,178.8 V194Z' fill='#2a78d6'><title>6: 16 values, 5.5% (Benford 6.7%)</title></path>
+<path d='M214.7,194 V178.2 Q214.7,174.2 218.7,174.2 H236.0 Q240.0,174.2 240.0,178.2 V194Z' fill='#2a78d6'><title>6: 17 values, 5.7% (Benford 6.7%)</title></path>
 <text x='227.3' y='208' font-size='11' fill='#555' text-anchor='middle'>6</text>
-<path d='M248.0,194 V184.8 Q248.0,180.8 252.0,180.8 H269.3 Q273.3,180.8 273.3,184.8 V194Z' fill='#2a78d6'><title>7: 11 values, 3.8% (Benford 5.8%)</title></path>
+<path d='M248.0,194 V185.2 Q248.0,181.2 252.0,181.2 H269.3 Q273.3,181.2 273.3,185.2 V194Z' fill='#2a78d6'><title>7: 11 values, 3.7% (Benford 5.8%)</title></path>
 <text x='260.7' y='208' font-size='11' fill='#555' text-anchor='middle'>7</text>
-<path d='M281.3,194 V170.3 Q281.3,166.3 285.3,166.3 H302.7 Q306.7,166.3 306.7,170.3 V194Z' fill='#2a78d6'><title>8: 23 values, 7.9% (Benford 5.1%)</title></path>
+<path d='M281.3,194 V171.2 Q281.3,167.2 285.3,167.2 H302.7 Q306.7,167.2 306.7,171.2 V194Z' fill='#2a78d6'><title>8: 23 values, 7.7% (Benford 5.1%)</title></path>
 <text x='294.0' y='208' font-size='11' fill='#555' text-anchor='middle'>8</text>
-<path d='M314.7,194 V177.6 Q314.7,173.6 318.7,173.6 H336.0 Q340.0,173.6 340.0,177.6 V194Z' fill='#2a78d6'><title>9: 17 values, 5.8% (Benford 4.6%)</title></path>
+<path d='M314.7,194 V178.2 Q314.7,174.2 318.7,174.2 H336.0 Q340.0,174.2 340.0,178.2 V194Z' fill='#2a78d6'><title>9: 17 values, 5.7% (Benford 4.6%)</title></path>
 <text x='327.3' y='208' font-size='11' fill='#555' text-anchor='middle'>9</text>
 <polyline points='60.7,88.6 94.0,132.4 127.3,150.3 160.7,160.1 194.0,166.3 227.3,170.6 260.7,173.7 294.0,176.1 327.3,178.0' fill='none' stroke='#111' stroke-width='1.5'/>
 <circle cx='60.7' cy='88.6' r='4' fill='#111' stroke='#fff' stroke-width='2'><title>Benford 1: 30.1%</title></circle>
@@ -130,7 +130,7 @@
 </g>
 <g transform='translate(370 280)'>
 <text x='44' y='22' font-size='13' font-weight='600' fill='#111'>line lengths in this repo</text>
-<text x='44' y='38' font-size='11' fill='#555'>n = 13,329, MAD 0.0531, nonconformity</text>
+<text x='44' y='38' font-size='11' fill='#555'>n = 14,381, MAD 0.0506, nonconformity</text>
 <line x1='44' x2='344' y1='194.0' y2='194.0' stroke='#e5e5e5'/>
 <text x='38' y='198.0' font-size='10' fill='#555' text-anchor='end'>0%</text>
 <line x1='44' x2='344' y1='159.0' y2='159.0' stroke='#e5e5e5'/>
@@ -141,23 +141,23 @@
 <text x='38' y='93.0' font-size='10' fill='#555' text-anchor='end'>30%</text>
 <line x1='44' x2='344' y1='54.0' y2='54.0' stroke='#e5e5e5'/>
 <text x='38' y='58.0' font-size='10' fill='#555' text-anchor='end'>40%</text>
-<path d='M48.0,194 V143.2 Q48.0,139.2 52.0,139.2 H69.3 Q73.3,139.2 73.3,143.2 V194Z' fill='#2a78d6'><title>1: 2,086 values, 15.7% (Benford 30.1%)</title></path>
+<path d='M48.0,194 V138.7 Q48.0,134.7 52.0,134.7 H69.3 Q73.3,134.7 73.3,138.7 V194Z' fill='#2a78d6'><title>1: 2,437 values, 16.9% (Benford 30.1%)</title></path>
 <text x='60.7' y='208' font-size='11' fill='#555' text-anchor='middle'>1</text>
-<path d='M81.3,194 V161.7 Q81.3,157.7 85.3,157.7 H102.7 Q106.7,157.7 106.7,161.7 V194Z' fill='#2a78d6'><title>2: 1,383 values, 10.4% (Benford 17.6%)</title></path>
+<path d='M81.3,194 V162.3 Q81.3,158.3 85.3,158.3 H102.7 Q106.7,158.3 106.7,162.3 V194Z' fill='#2a78d6'><title>2: 1,465 values, 10.2% (Benford 17.6%)</title></path>
 <text x='94.0' y='208' font-size='11' fill='#555' text-anchor='middle'>2</text>
-<path d='M114.7,194 V159.6 Q114.7,155.6 118.7,155.6 H136.0 Q140.0,155.6 140.0,159.6 V194Z' fill='#2a78d6'><title>3: 1,464 values, 11.0% (Benford 12.5%)</title></path>
+<path d='M114.7,194 V160.2 Q114.7,156.2 118.7,156.2 H136.0 Q140.0,156.2 140.0,160.2 V194Z' fill='#2a78d6'><title>3: 1,552 values, 10.8% (Benford 12.5%)</title></path>
 <text x='127.3' y='208' font-size='11' fill='#555' text-anchor='middle'>3</text>
-<path d='M148.0,194 V162.1 Q148.0,158.1 152.0,158.1 H169.3 Q173.3,158.1 173.3,162.1 V194Z' fill='#2a78d6'><title>4: 1,368 values, 10.3% (Benford 9.7%)</title></path>
+<path d='M148.0,194 V163.0 Q148.0,159.0 152.0,159.0 H169.3 Q173.3,159.0 173.3,163.0 V194Z' fill='#2a78d6'><title>4: 1,438 values, 10.0% (Benford 9.7%)</title></path>
 <text x='160.7' y='208' font-size='11' fill='#555' text-anchor='middle'>4</text>
-<path d='M181.3,194 V167.5 Q181.3,163.5 185.3,163.5 H202.7 Q206.7,163.5 206.7,167.5 V194Z' fill='#2a78d6'><title>5: 1,161 values, 8.7% (Benford 7.9%)</title></path>
+<path d='M181.3,194 V168.2 Q181.3,164.2 185.3,164.2 H202.7 Q206.7,164.2 206.7,168.2 V194Z' fill='#2a78d6'><title>5: 1,224 values, 8.5% (Benford 7.9%)</title></path>
 <text x='194.0' y='208' font-size='11' fill='#555' text-anchor='middle'>5</text>
-<path d='M214.7,194 V161.6 Q214.7,157.6 218.7,157.6 H236.0 Q240.0,157.6 240.0,161.6 V194Z' fill='#2a78d6'><title>6: 1,388 values, 10.4% (Benford 6.7%)</title></path>
+<path d='M214.7,194 V161.6 Q214.7,157.6 218.7,157.6 H236.0 Q240.0,157.6 240.0,161.6 V194Z' fill='#2a78d6'><title>6: 1,495 values, 10.4% (Benford 6.7%)</title></path>
 <text x='227.3' y='208' font-size='11' fill='#555' text-anchor='middle'>6</text>
-<path d='M248.0,194 V118.2 Q248.0,114.2 252.0,114.2 H269.3 Q273.3,114.2 273.3,118.2 V194Z' fill='#2a78d6'><title>7: 3,040 values, 22.8% (Benford 5.8%)</title></path>
+<path d='M248.0,194 V119.8 Q248.0,115.8 252.0,115.8 H269.3 Q273.3,115.8 273.3,119.8 V194Z' fill='#2a78d6'><title>7: 3,214 values, 22.3% (Benford 5.8%)</title></path>
 <text x='260.7' y='208' font-size='11' fill='#555' text-anchor='middle'>7</text>
-<path d='M281.3,194 V182.6 Q281.3,178.6 285.3,178.6 H302.7 Q306.7,178.6 306.7,182.6 V194Z' fill='#2a78d6'><title>8: 586 values, 4.4% (Benford 5.1%)</title></path>
+<path d='M281.3,194 V181.8 Q281.3,177.8 285.3,177.8 H302.7 Q306.7,177.8 306.7,181.8 V194Z' fill='#2a78d6'><title>8: 666 values, 4.6% (Benford 5.1%)</title></path>
 <text x='294.0' y='208' font-size='11' fill='#555' text-anchor='middle'>8</text>
-<path d='M314.7,194 V175.6 Q314.7,171.6 318.7,171.6 H336.0 Q340.0,171.6 340.0,175.6 V194Z' fill='#2a78d6'><title>9: 853 values, 6.4% (Benford 4.6%)</title></path>
+<path d='M314.7,194 V176.3 Q314.7,172.3 318.7,172.3 H336.0 Q340.0,172.3 340.0,176.3 V194Z' fill='#2a78d6'><title>9: 890 values, 6.2% (Benford 4.6%)</title></path>
 <text x='327.3' y='208' font-size='11' fill='#555' text-anchor='middle'>9</text>
 <polyline points='60.7,88.6 94.0,132.4 127.3,150.3 160.7,160.1 194.0,166.3 227.3,170.6 260.7,173.7 294.0,176.1 327.3,178.0' fill='none' stroke='#111' stroke-width='1.5'/>
 <circle cx='60.7' cy='88.6' r='4' fill='#111' stroke='#fff' stroke-width='2'><title>Benford 1: 30.1%</title></circle>

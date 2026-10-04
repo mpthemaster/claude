@@ -51,7 +51,9 @@ def first_digit(x: float) -> int:
     if isinstance(x, int):
         return int(str(x)[0])
     # Scientific notation puts the leading digit first, whatever the scale.
-    return int(f"{x:e}"[0])
+    # Seventeen digits, enough to show any double exactly, so a value just
+    # under a power of ten isn't rounded up into the next digit.
+    return int(f"{x:.17e}"[0])
 
 
 def digit_counts(values: Iterable[float]) -> list[int]:
