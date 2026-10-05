@@ -175,3 +175,30 @@ def test_main_runs_files_and_reports_errors(tmp_path, capsys):
 
 def test_the_interpreter_stays_under_300_lines():
     assert len((HERE / "forth.py").read_text().splitlines()) < 300
+
+
+def test_a_backslash_at_the_end_of_a_line_ends_only_that_line():
+    assert run("1 \\\n2 .\n3 . .") == "2 3 1 "
+    assert run("\\") == ""
+
+
+def test_execution_tokens_can_be_stored_and_fetched():
+    source = "variable action  ' . action !  : run action @ execute ;  7 run"
+    assert run(source) == "7 "
+    assert (
+        run(": sq dup * ; create ops ' sq , ' 1+ ,  5 ops cell+ @ execute ops @ execute .") == "36 "
+    )
+
+
+def test_runaway_recursion_through_execute_is_a_forth_error():
+    f = Forth()
+    with pytest.raises(ForthError):
+        f.interpret("variable v : r v @ execute ; ' r v ! 1 2 3 r")
+    assert f.stack == [] and f.rstack == []
+
+
+def test_plus_loop_wraps_like_a_64_bit_cell():
+    # From the largest index to the smallest limit crosses limit-1 to limit, so one
+    # pass; the leave after three only stops a wrong loop from running for ever.
+    source = ": w 0 -9223372036854775808 9223372036854775807 do 1+ dup 3 = if leave then loop ; w"
+    assert run(source + " .") == "1 "

@@ -1,6 +1,6 @@
 # A tiny Forth
 
-A Forth interpreter in 297 lines of Python, with colon definitions,
+A Forth interpreter in 299 lines of Python, with colon definitions,
 `if`/`else`/`then`, `begin` loops, counted `do` loops with `leave`,
 recursion, variables and constants, `create ... does>`, execution tokens,
 and 64-bit cells that wrap the way a real machine's do. It's enough to run

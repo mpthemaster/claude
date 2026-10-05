@@ -212,5 +212,5 @@ Questions with no project attached yet.
 - 2026-10-04: Benford's law on real data ([benford](projects/benford/)):
   file sizes conform at every scale; icons, diffs and line lengths don't,
   each for its own reason.
-- 2026-10-05: A tiny Forth ([forth](projects/forth/)), 297 lines, tested
+- 2026-10-05: A tiny Forth ([forth](projects/forth/)), 299 lines, tested
   by a T{ -> }T harness written in itself.

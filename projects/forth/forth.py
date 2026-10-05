@@ -18,7 +18,9 @@ TOKEN = re.compile(r"\s*(\S*)")
 
 
 def cell(n):
-    """Wrap an integer to a signed 64-bit cell."""
+    """Wrap an integer to a signed 64-bit cell; an execution token passes through."""
+    if isinstance(n, Word):
+        return n
     n &= MASK
     return n - (1 << 64) if n >> 63 else n
 
@@ -37,8 +39,7 @@ class Forth:
     def __init__(self):
         self.stack, self.rstack, self.mem, self.out = [], [], [], []
         self.words: dict[str, Word] = {}
-        self.text, self.pos = "", 0
-        self.compiling, self.current, self.latest = False, None, None
+        self.text, self.pos, self.compiling, self.current, self.latest = "", 0, False, None, None
         for table, immediate in ((PRIMITIVES, False), (IMMEDIATES, True)):
             self.words.update({name: Word(name, fn, immediate) for name, fn in table.items()})
         self.interpret(PRELUDE)
@@ -63,7 +64,8 @@ class Forth:
             match = TOKEN.match(self.text, self.pos)
             self.pos = match.end()
             return match.group(1)
-        start = self.pos + 1  # past the one space after the word that is parsing
+        # past the one space after the parsing word, unless it ends the text at once
+        start = self.pos + (self.text[self.pos : self.pos + 1] != delimiter)
         end = self.text.find(delimiter, start)
         end = len(self.text) if end < 0 else end
         self.pos = end + 1
@@ -97,7 +99,7 @@ class Forth:
                     self.comma(CALL, word)
                 else:
                     self.execute(word)
-        except (ForthError, AttributeError, IndexError, TypeError, ValueError) as error:
+        except Exception as error:  # a Python error inside a word is a Forth error too
             del self.stack[:], self.rstack[:]
             self.compiling, self.current = False, None
             forth_error = isinstance(error, ForthError)
@@ -156,9 +158,9 @@ class Forth:
                 else:
                     rs.extend((arg[0], limit, index))
             elif op == LOOP:  # +loop: stop on crossing from limit-1 to limit
-                before = rs[-1] - rs[-2]
+                before = (rs[-1] - rs[-2]) & MASK  # index - limit, as an unsigned cell
                 rs[-1] = cell(rs[-1] + (step := pop()))
-                if (before < 0) == (before + step < 0):
+                if 0 <= before + step <= MASK:
                     ip = arg
                 else:
                     del rs[-3:]
