@@ -113,13 +113,10 @@ class Forth:
         self.current.code.append((op, arg))
         return len(self.current.code) - 1
 
-    def here(self):
-        return len(self.current.code)
-
     def resolve(self, at, target=None):
         """Fill in the jump target of the instruction at `at` (default: here)."""
         op, _ = self.current.code[at]
-        self.current.code[at] = (op, self.here() if target is None else target)
+        self.current.code[at] = (op, len(self.current.code) if target is None else target)
 
     # -- the inner interpreter -----------------------------------------------
     def execute(self, word):
@@ -136,6 +133,8 @@ class Forth:
             op, arg = code[ip]
             ip += 1
             if op == CALL:
+                if arg.prim is PRIMITIVES["execute"]:  # call the token here, not by recursing
+                    arg = pop()
                 if arg.prim is not None:
                     arg.prim(self)
                     continue
@@ -207,7 +206,7 @@ class Forth:
 
     def plus_loop(self):
         self.comma(LOOP, (do := self.pop()) + 1)
-        self.resolve(do, (self.here(), self.current.code[do][1][1]))
+        self.resolve(do, (len(self.current.code), self.current.code[do][1][1]))
 
 
 def binary(fn):
@@ -225,9 +224,9 @@ PRIMITIVES = {
     "*": binary(lambda a, b: a * b), "/mod": Forth.divmod,
     "and": binary(lambda a, b: a & b), "or": binary(lambda a, b: a | b),
     "xor": binary(lambda a, b: a ^ b), "invert": lambda f: f.push(~f.pop()),
-    "lshift": binary(lambda a, b: a << b), "rshift": binary(lambda a, b: (a & MASK) >> b),
+    "lshift": binary(lambda a, b: a << b if b < 64 else 0),
+    "rshift": binary(lambda a, b: (a & MASK) >> b), "u<": binary(lambda a, b: a & MASK < b & MASK),
     "=": binary(lambda a, b: a == b), "<": binary(lambda a, b: a < b),
-    "u<": binary(lambda a, b: a & MASK < b & MASK),
     "dup": shuffle(1, (0, 0)), "drop": shuffle(1, ()), "swap": shuffle(2, (1, 0)),
     "over": shuffle(2, (0, 1, 0)), "rot": shuffle(3, (1, 2, 0)),
     "pick": lambda f: f.push(f.stack[-1 - f.pop()]), "depth": lambda f: f.push(len(f.stack)),
@@ -248,7 +247,7 @@ PRIMITIVES = {
     ":": Forth.colon, "]": lambda f: setattr(f, "compiling", True),
     "immediate": lambda f: setattr(f.latest, "immediate", True),
     # the compiler words that if, else, then, begin, while and the rest are made of
-    "mark": lambda f: f.push(f.here()), "resolve": lambda f: f.resolve(f.pop()),
+    "mark": lambda f: f.push(len(f.current.code)), "resolve": lambda f: f.resolve(f.pop()),
     "branch,": lambda f: f.push(f.comma(BRANCH, f.pop())),
     "0branch,": lambda f: f.push(f.comma(ZBRANCH, f.pop())),
 }
@@ -259,7 +258,7 @@ IMMEDIATES = {  # these run even while a definition is being compiled
     "[']": lambda f: f.comma(LIT, f.find(f.parse())),
     "[char]": lambda f: f.comma(LIT, ord(f.parse()[0])),
     "recurse": lambda f: f.comma(CALL, f.current), "exit": lambda f: f.comma(EXIT),
-    "does>": lambda f: f.comma(DOES, f.here() + 1),
+    "does>": lambda f: f.comma(DOES, len(f.current.code) + 1),
     "do": lambda f: f.push(f.comma(DO, (None, False))),
     "?do": lambda f: f.push(f.comma(DO, (None, True))),
     "+loop": Forth.plus_loop, "loop": lambda f: (f.comma(LIT, 1), f.plus_loop()),
@@ -284,15 +283,16 @@ PRELUDE = r"""
 
 
 def main(argv: list[str] | None = None) -> int:
-    forth, paths = Forth(), sys.argv[1:] if argv is None else argv
+    forth, paths, failed = Forth(), sys.argv[1:] if argv is None else argv, False
     for source in [Path(path).read_text() for path in paths] if paths else sys.stdin:
         try:
             print(forth.interpret(source), end="" if paths else " ok\n")
         except ForthError as error:
             print(error, file=sys.stderr)
-            if paths:
-                return 1
-    return 0
+            failed = True
+    if forth.compiling:
+        print(f"{forth.current.name}: unfinished definition", file=sys.stderr)
+    return int(failed or forth.compiling)
 
 
 if __name__ == "__main__":

@@ -1,3 +1,4 @@
+import io
 from pathlib import Path
 
 import forth
@@ -202,3 +203,27 @@ def test_plus_loop_wraps_like_a_64_bit_cell():
     # pass; the leave after three only stops a wrong loop from running for ever.
     source = ": w 0 -9223372036854775808 9223372036854775807 do 1+ dup 3 = if leave then loop ; w"
     assert run(source + " .") == "1 "
+
+
+def test_recursion_through_execute_uses_the_frame_list_too():
+    source = "variable xt : deep dup 0> if 1- xt @ execute then ; ' deep xt ! 5000 deep ."
+    assert run(source) == "0 "
+
+
+def test_a_huge_shift_is_zero_without_building_a_huge_number():
+    assert run("1 1000000000000 lshift . 1 64 lshift . 1 63 lshift 0< .") == "0 0 -1 "
+
+
+def test_main_fails_on_errors_in_piped_input_and_unfinished_definitions(
+    tmp_path, capsys, monkeypatch
+):
+    monkeypatch.setattr("sys.stdin", io.StringIO("1 .\ndrop\n2 .\n"))
+    assert forth.main([]) == 1
+    assert capsys.readouterr().out == "1  ok\n2  ok\n"
+    unfinished = tmp_path / "unfinished.fs"
+    unfinished.write_text(": half 2 /")
+    assert forth.main([str(unfinished)]) == 1
+    assert "half: unfinished definition" in capsys.readouterr().err
+    # A definition may still span lines at the prompt.
+    monkeypatch.setattr("sys.stdin", io.StringIO(": sq\ndup * ;\n4 sq .\n"))
+    assert forth.main([]) == 0
