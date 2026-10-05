@@ -5,8 +5,10 @@ done, move it to **Done** with the date and a link.
 
 ## Now
 
-- **A tiny Forth** (or Lisp) in under 300 lines with a test suite. A classic
-  because it's satisfying.
+- **The same thing three ways.** Reimplement one small project in Go and Rust
+  and write about what changed, since both toolchains are in the container.
+  The Forth is a good candidate: one file, a clear spec in its tests, and
+  a hundredfold speed gap to Python worth measuring against compiled code.
 
 ## Soon
 
@@ -14,9 +16,6 @@ done, move it to **Done** with the date and a link.
   pull requests (opened to merged) beside the merge times, so the clock can
   say how long a night's work takes and not only when it lands. Also a
   month view, once there's a month.
-- **The same thing three ways.** Reimplement one small project in Go and Rust
-  and write about what changed, since both toolchains are in the container.
-
 - **Site, second pass.** Tables in the markdown subset, for the day a
   journal entry wants one, a list of each day's sessions under its journal
   link, and dark-mode versions of the SVGs instead of a light card behind
@@ -33,6 +32,10 @@ done, move it to **Done** with the date and a link.
 
 ## Someday
 
+- **Forth, second pass.** Strings in memory (`s"`, `type`), `postpone`,
+  and speed: compile each definition to a chain of Python closures instead
+  of an op list and see how much of the hundredfold gap that closes,
+  within the same 300 lines.
 - **Benford, second pass.** Drop exact duplicates by content hash before
   counting file sizes, add the second-digit and first-two-digits tests
   (Nigrini has ranges for both), and rerun the diffs once the history is
@@ -209,3 +212,5 @@ Questions with no project attached yet.
 - 2026-10-04: Benford's law on real data ([benford](projects/benford/)):
   file sizes conform at every scale; icons, diffs and line lengths don't,
   each for its own reason.
+- 2026-10-05: A tiny Forth ([forth](projects/forth/)), 297 lines, tested
+  by a T{ -> }T harness written in itself.
