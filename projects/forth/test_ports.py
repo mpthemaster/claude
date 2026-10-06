@@ -1,0 +1,144 @@
+"""The Go port is checked against the Python Forth: the same programs, run
+through both, must print the same output, the same errors and the same exit
+code. The Python interpreter is the specification; test_forth.py tests it.
+"""
+
+import io
+import os
+import shutil
+import subprocess
+import sys
+from contextlib import redirect_stderr, redirect_stdout
+from pathlib import Path
+from unittest import mock
+
+import bench
+import forth
+import pytest
+from test_forth import CORE, TESTER
+
+HERE = Path(__file__).parent
+EXAMPLES = sorted((HERE / "examples").glob("*.fs"))
+
+# In CI a missing toolchain is a failure, not a skip.
+if shutil.which("go") is None and not os.environ.get("CI"):
+    pytest.skip("go is not installed", allow_module_level=True)
+
+
+@pytest.fixture(scope="module")
+def go_forth(tmp_path_factory):
+    binary = tmp_path_factory.mktemp("go") / "forth"
+    subprocess.run(["go", "build", "-o", str(binary), "."], cwd=HERE / "go", check=True)
+    return binary
+
+
+def python_forth(args, stdin):
+    out, err = io.StringIO(), io.StringIO()
+    with mock.patch("sys.stdin", io.StringIO(stdin)), redirect_stdout(out), redirect_stderr(err):
+        code = forth.main(args)
+    return out.getvalue(), err.getvalue(), code
+
+
+def both(go_forth, args=(), stdin=""):
+    go = subprocess.run([go_forth, *args], input=stdin, capture_output=True, text=True, timeout=30)
+    return python_forth(list(args), stdin), (go.stdout, go.stderr, go.returncode)
+
+
+# Each runs at the prompt, one line at a time, so output and errors interleave.
+PROGRAMS = [
+    TESTER + CORE,
+    '1 . -2 . cr\n." hello" 32 emit .( world)\n: greet ." hi, " ." you" ; greet\n',
+    "42 5 .r 7 0 .r 3 spaces\n1 2 3 .s\n",
+    ": Sq dup * ; 3 SQ .\n: a 1 ; : b a ; : a 2 ; b . a .\n: c 10 ; : c c 1+ ; c .\n",
+    ": counter create 0 , does> 1 over +! @ ; counter tick tick . tick . tick .\n",
+    ": fib dup 2 < if exit then dup 1- recurse swap 2 - recurse + ; 20 fib .\n",
+    ": deep dup 0> if 1- recurse then ; 5000 deep .\n",
+    "variable xt : deep dup 0> if 1- xt @ execute then ; ' deep xt ! 5000 deep .\n",
+    "variable action  ' . action !  : run action @ execute ;  7 run\n",
+    ": sq dup * ; create ops ' sq , ' 1+ ,  5 ops cell+ @ execute ops @ execute .\n",
+    "1 1000000000000 lshift . 1 64 lshift . 1 63 lshift 0< .\n",
+    ": w 0 -9223372036854775808 9223372036854775807 do 1+ dup 3 = if leave then loop ; w .\n",
+    "1 \\\n2 .\n3 . .\n",
+    "-7 2 /mod . . 7 -2 /mod . . -9223372036854775808 -1 / .\n",
+    "123456789012345678901234567890 . -0x8000000000000001 . 0xFFFFFFFFFFFFFFFF .\n",
+    "words\n",
+    ": sq\ndup * ;\n4 sq .\n",
+    # errors, each followed by a line showing the interpreter recovered
+    "frobnicate\n1 .\ndrop\n1 2 0 / .\n99 @\n: x if ;\nif\n:\n2 .\n",
+    ": forever recurse ; forever\n1 2 3 .s\n",
+    "1 2 3\n: broken 1 2 nosuchword ;\n.s broken\n",
+    "1 .\n: half 2 /",
+    # where Python's own behaviour leaks through, and the port copies it
+    "0x-5 .\n0x+5 .\n1_000 .\n0x_ff .\n1__0 .\n1" + "0" * 5000 + " .\n2 .\n",
+    "1 2 3 -1 pick . -3 pick .\n1 2 3 -4 pick\n9 pick\n2 .\n",
+    "65 emit -1 emit\n1114112 emit\n5 -3 .r 1 .\n1 -1 lshift\n1 -1 rshift\nchar\n2 .\n",
+    "1\x1c2 . .\n",
+    # names are case-insensitive the way Python's str.lower is
+    "i\nr@\nr>\nj\nunloop 2 .\n",
+    ": ΟΣ 7 ; ος . οσ\n: İ 1 ; i\u0307 . i\n: AΣ.B 2 ; aσ.b . aς.b\n: ẞ 3 ; ß .\n",
+]
+
+
+@pytest.mark.parametrize("stdin", PROGRAMS, ids=range(len(PROGRAMS)))
+def test_the_go_port_matches_at_the_prompt(go_forth, stdin):
+    python, go = both(go_forth, stdin=stdin)
+    assert go == python
+
+
+@pytest.mark.parametrize("path", EXAMPLES, ids=[p.stem for p in EXAMPLES])
+def test_the_go_port_runs_the_examples(go_forth, path):
+    python, go = both(go_forth, args=[str(path)])
+    assert go == python
+    assert go[2] == 0
+
+
+@pytest.mark.parametrize(
+    "stdin",
+    [
+        "r>\n",
+        "5 execute\n",
+        "variable v : r v @ ['] execute execute ; ' r v ! r\n",
+        "1 40 lshift allot\n",
+        "5 1000000000000 .r\n",
+    ],
+)
+def test_the_go_port_reports_errors_from_inside_a_word(go_forth, stdin):
+    # The messages differ (each wraps its own language's error, or runs out of
+    # something different), but both name the word and recover.
+    (_, py_err, py_code), (_, go_err, go_code) = both(go_forth, stdin=stdin)
+    word = stdin.split()[-1]
+    assert word in py_err and word in go_err
+    assert py_code == go_code == 1
+    # and both carry on afterwards
+    python, go = both(go_forth, stdin=stdin + "2 .\n")
+    assert python[0].endswith("2  ok\n") and go[0].endswith("2  ok\n")
+
+
+@pytest.mark.parametrize("name, source", bench.programs(scale=0).items())
+def test_the_benchmark_programs_agree_at_a_small_size(go_forth, name, source):
+    python, go = both(go_forth, stdin=source + "\n")
+    assert go == python
+    assert go[2] == 0
+
+
+@pytest.mark.parametrize(
+    "case", ["a surrogate", "invalid UTF-8", "a full disk", "unreadable input"]
+)
+def test_both_fail_where_input_or_output_does(go_forth, tmp_path, case):
+    # Python stops with a traceback in each case. The port has to fail too,
+    # rather than print a replacement character, exit 0, or spin.
+    source = tmp_path / "source.fs"
+    source.write_bytes(b".( caf\xe9)" if case == "invalid UTF-8" else b"1 2 + .")
+    with open(os.devnull, "rb") as devnull, open("/dev/full", "wb") as full:
+        run = {"args": [str(source)], "stdin": devnull, "stdout": subprocess.PIPE}
+        if case == "a surrogate":
+            run = {"args": [], "input": b"55296 emit\n", "stdout": subprocess.PIPE}
+        elif case == "a full disk":
+            run["stdout"] = full
+        elif case == "unreadable input":
+            run = {"args": [], "stdin": os.open(tmp_path, os.O_RDONLY), "stdout": subprocess.PIPE}
+        args = run.pop("args")
+        for command in ([sys.executable, str(HERE / "forth.py")], [str(go_forth)]):
+            done = subprocess.run([*command, *args], stderr=subprocess.PIPE, timeout=30, **run)
+            assert done.returncode != 0, (command, case)
+            assert done.stderr, (command, case)
