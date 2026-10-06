@@ -220,5 +220,5 @@ Questions with no project attached yet.
 - 2026-10-06: The same Forth in Go ([forth](projects/forth/)): a port
   checked against the Python one by running the same programs through
   both and comparing stdout, stderr and exit codes, and `bench.py` to time
-  them. 40 to 60 times faster once a profile found the first port
+  them. 40 to 55 times faster once a profile found the first port
   allocating on every word. Rust is the next item.

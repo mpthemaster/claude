@@ -7,11 +7,14 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
 	"os"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -69,6 +72,7 @@ type Forth struct {
 	compiling          bool
 	current, latest    *Word
 	executeWord        *Word
+	nesting            int // how deep execute calls itself, through execute
 }
 
 func New() *Forth {
@@ -123,16 +127,19 @@ func (f *Forth) rpop() int64 {
 	return v
 }
 
+// isSpace is Python's str.isspace, which also counts U+001C to U+001F.
+func isSpace(r rune) bool { return unicode.IsSpace(r) || 0x1c <= r && r <= 0x1f }
+
 // parse returns the next word of input, or with a delimiter the text up to
 // it, which is consumed.
 func (f *Forth) parse(delimiter rune) string {
 	t := f.text
 	if delimiter == 0 {
-		for f.pos < len(t) && unicode.IsSpace(t[f.pos]) {
+		for f.pos < len(t) && isSpace(t[f.pos]) {
 			f.pos++
 		}
 		start := f.pos
-		for f.pos < len(t) && !unicode.IsSpace(t[f.pos]) {
+		for f.pos < len(t) && !isSpace(t[f.pos]) {
 			f.pos++
 		}
 		return string(t[start:f.pos])
@@ -174,11 +181,20 @@ func (f *Forth) token(xt int64) *Word {
 	return f.all[xt-xtBase]
 }
 
+// The literals Python's int() takes: single underscores between digits, and
+// at most 4300 decimal digits. Python also takes non-ASCII digits; this doesn't.
+var (
+	decimal = regexp.MustCompile(`^[+-]?[0-9]+(_[0-9]+)*$`)
+	hex     = regexp.MustCompile(`^0[xX](_?[0-9a-fA-F]+)+$`)
+)
+
 // number reads a token as a decimal or 0x number, wrapped to a cell.
 func number(token string) (int64, bool) {
-	digits, base := token, 10
-	if len(token) >= 2 && strings.ToLower(token[:2]) == "0x" {
-		digits, base = token[2:], 16
+	digits, base := strings.ReplaceAll(token, "_", ""), 10
+	if hex.MatchString(token) {
+		digits, base = digits[2:], 16
+	} else if !decimal.MatchString(token) || len(strings.TrimLeft(digits, "+-")) > 4300 {
+		return 0, false
 	}
 	n, ok := new(big.Int).SetString(digits, base)
 	if !ok {
@@ -197,7 +213,7 @@ func (f *Forth) Interpret(text string) (output string, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			f.stack, f.rstack = f.stack[:0], f.rstack[:0]
-			f.compiling, f.current = false, nil
+			f.compiling, f.current, f.nesting = false, nil, 0
 			if e, ok := r.(forthError); ok {
 				err = e
 			} else { // a Go error inside a word is a Forth error too
@@ -244,6 +260,12 @@ type frame struct {
 }
 
 func (f *Forth) execute(word *Word) {
+	// Only `' execute execute` and the like nest here, but Go can't recover
+	// from running out of stack, so stop where Python would.
+	if f.nesting++; f.nesting > 900 {
+		panic(errors.New("maximum recursion depth exceeded"))
+	}
+	defer func() { f.nesting-- }()
 	if word.prim != nil {
 		word.prim(f)
 		return
@@ -412,7 +434,7 @@ func shuffle(n int, picks ...int) func(*Forth) {
 
 func shift(b int64) uint {
 	if b < 0 {
-		fail("negative shift count")
+		panic(errors.New("negative shift count"))
 	}
 	return uint(min(b, 64))
 }
@@ -421,8 +443,7 @@ func firstChar(s string) int64 {
 	for _, r := range s {
 		return int64(r)
 	}
-	fail("a character was expected")
-	return 0
+	panic(errors.New("string index out of range"))
 }
 
 var primitives map[string]func(*Forth)
@@ -444,7 +465,16 @@ func init() { // in init, because some primitives refer to the tables
 		"<":      binary(func(a, b int64) int64 { return flag(a < b) }),
 		"dup":    shuffle(1, 0, 0), "drop": shuffle(1), "swap": shuffle(2, 1, 0),
 		"over": shuffle(2, 0, 1, 0), "rot": shuffle(3, 1, 2, 0),
-		"pick":   func(f *Forth) { n := f.pop(); f.push(f.stack[int64(len(f.stack))-1-n]) },
+		"pick": func(f *Forth) { // stack[-1 - n], with Python's negative indexing
+			i := -1 - f.pop()
+			if i < 0 {
+				i += int64(len(f.stack))
+			}
+			if i < 0 || i >= int64(len(f.stack)) {
+				panic(errors.New("list index out of range"))
+			}
+			f.push(f.stack[i])
+		},
 		"depth":  func(f *Forth) { f.push(int64(len(f.stack))) },
 		">r":     func(f *Forth) { f.rstack = append(f.rstack, f.pop()) },
 		"r>":     func(f *Forth) { f.push(f.rpop()) },
@@ -457,14 +487,36 @@ func init() { // in init, because some primitives refer to the tables
 		",":      func(f *Forth) { f.mem = append(f.mem, f.pop()) },
 		"here":   func(f *Forth) { f.push(int64(len(f.mem))) },
 		"allot": func(f *Forth) {
-			if n := f.pop(); n > 0 {
+			n := f.pop()
+			if n > 1<<28-int64(len(f.mem)) { // a Go program can't recover from running out of memory
+				panic(errors.New("out of memory"))
+			}
+			if n > 0 {
 				f.mem = append(f.mem, make([]int64, n)...)
 			}
 		},
 		"create": create,
-		"emit":   func(f *Forth) { f.out.WriteRune(rune(f.pop())) },
-		".":      func(f *Forth) { fmt.Fprintf(&f.out, "%d ", f.pop()) },
-		".r":     func(f *Forth) { v := f.pops(2); fmt.Fprintf(&f.out, "%*d", v[1], v[0]) },
+		"emit": func(f *Forth) {
+			if n := f.pop(); n < 0 || n > unicode.MaxRune {
+				panic(errors.New("chr() arg not in range(0x110000)"))
+			} else {
+				f.out.WriteRune(rune(n))
+			}
+		},
+		".": func(f *Forth) { fmt.Fprintf(&f.out, "%d ", f.pop()) },
+		".r": func(f *Forth) { // Python's "{0:>{1}}" reads the sign of the width as a flag
+			v := f.pops(2)
+			s := strconv.FormatInt(v[0], 10)
+			width := max(v[1], -v[1])
+			pad := width - int64(len(s))
+			if pad > 1<<28 { // as with allot, Go can't recover from running out of memory
+				panic(errors.New("out of memory"))
+			}
+			if pad > 0 {
+				f.out.WriteString(strings.Repeat(" ", int(pad)))
+			}
+			f.out.WriteString(s)
+		},
 		".s": func(f *Forth) {
 			fmt.Fprintf(&f.out, "<%d> ", len(f.stack))
 			for _, v := range f.stack {

@@ -67,6 +67,11 @@ PROGRAMS = [
     ": forever recurse ; forever\n1 2 3 .s\n",
     "1 2 3\n: broken 1 2 nosuchword ;\n.s broken\n",
     "1 .\n: half 2 /",
+    # where Python's own behaviour leaks through, and the port copies it
+    "0x-5 .\n0x+5 .\n1_000 .\n0x_ff .\n1__0 .\n1" + "0" * 5000 + " .\n2 .\n",
+    "1 2 3 -1 pick . -3 pick .\n1 2 3 -4 pick\n9 pick\n2 .\n",
+    "65 emit -1 emit\n1114112 emit\n5 -3 .r 1 .\n1 -1 lshift\n1 -1 rshift\nchar\n2 .\n",
+    "1\x1c2 . .\n",
 ]
 
 
@@ -83,13 +88,26 @@ def test_the_go_port_runs_the_examples(go_forth, path):
     assert go[2] == 0
 
 
-@pytest.mark.parametrize("stdin", ["r>\n", "5 execute\n"])
+@pytest.mark.parametrize(
+    "stdin",
+    [
+        "r>\n",
+        "5 execute\n",
+        "variable v : r v @ ['] execute execute ; ' r v ! r\n",
+        "1 40 lshift allot\n",
+        "5 1000000000000 .r\n",
+    ],
+)
 def test_the_go_port_reports_errors_from_inside_a_word(go_forth, stdin):
-    # The messages differ (each wraps its own language's error), but both name the word.
+    # The messages differ (each wraps its own language's error, or runs out of
+    # something different), but both name the word and recover.
     (_, py_err, py_code), (_, go_err, go_code) = both(go_forth, stdin=stdin)
     word = stdin.split()[-1]
     assert word in py_err and word in go_err
     assert py_code == go_code == 1
+    # and both carry on afterwards
+    python, go = both(go_forth, stdin=stdin + "2 .\n")
+    assert python[0].endswith("2  ok\n") and go[0].endswith("2  ok\n")
 
 
 @pytest.mark.parametrize("name, source", bench.programs(scale=0).items())

@@ -136,10 +136,10 @@ It skips on a machine without Go, but fails in CI.
 
 | program | Python Forth | Go Forth, first port | Go Forth | ratio |
 |---|---:|---:|---:|---:|
-| start-up (prelude only) | 0.027 s | 0.002 s | 0.001 s | 18× |
-| `27 fib` (635,621 calls) | 2.63 s | 0.161 s | 0.065 s | 41× |
-| 2,000,000-iteration `do` loop | 3.06 s | 0.163 s | 0.051 s | 60× |
-| sieve to 200,000 | 2.22 s | 0.128 s | 0.044 s | 50× |
+| start-up (prelude only) | 0.027 s | 0.002 s | 0.002 s | 12× |
+| `27 fib` (635,621 calls) | 2.57 s | 0.161 s | 0.065 s | 39× |
+| 2,000,000-iteration `do` loop | 3.04 s | 0.163 s | 0.054 s | 56× |
+| sieve to 200,000 | 2.19 s | 0.128 s | 0.046 s | 48× |
 
 Each time is the best of three whole runs, including process start.
 
@@ -158,13 +158,26 @@ Each time is the best of three whole runs, including process start.
   about 100 times slower than plain Python. So the Go Forth still runs
   `fib` two and a half times slower than plain Python. Most of that gap
   is the language's, and the design costs about the same in either.
-- **The port is almost twice as long: 572 lines against 299.** Some of
+- **The port is about twice as long: 624 lines against 299.** Some of
   that is gofmt, which puts the word tables one entry per line. The rest
   is what Python did implicitly: a 64-bit wrap Go gets for free, but
   also floored division (Go truncates), arbitrary-size literals that
   have to wrap (`math/big`), and turning a runtime panic into a Forth
   error with `recover`, which is Go's nearest thing to Python's
   `except Exception`.
+- **Python's quirks are part of the specification.** The first version
+  passed every differential test, and then a review found eight more
+  disagreements. Python's `int()` takes `1_000`, so the Forth reads it
+  as a number. `-1 pick` reads the bottom of the stack because Python
+  lists take negative indexes. `.r` treats a negative width as a
+  positive one because Python's format spec reads the minus as a flag.
+  The port now copies each of these, with a test for each. Two of the
+  findings were worse than disagreements. Runaway nesting through
+  `' execute execute` and a huge `allot` each killed the Go process
+  outright, because Go can't recover from running out of stack or
+  memory and Python can. The port now stops both itself, at limits
+  close to where Python gives up. One difference remains: Python reads
+  non-ASCII digits such as `٣` as numbers, and the port doesn't.
 
 ## Not here
 
