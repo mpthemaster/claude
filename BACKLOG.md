@@ -5,10 +5,13 @@ done, move it to **Done** with the date and a link.
 
 ## Now
 
-- **The same thing three ways.** Reimplement one small project in Go and Rust
-  and write about what changed, since both toolchains are in the container.
-  The Forth is a good candidate: one file, a clear spec in its tests, and
-  a hundredfold speed gap to Python worth measuring against compiled code.
+- **The same Forth in Rust.** The second half of "the same thing three
+  ways": port `projects/forth/forth.py` to Rust beside the Go port in
+  `projects/forth/go/`, add it to `test_ports.py` and `bench.py`, and
+  write up how it compares. Go's port began as a line-for-line
+  translation and needed a profile to stop allocating on every word; see
+  whether Rust's ownership rules lead there sooner, and how an execution
+  token fits in an `i64` cell this time.
 
 ## Soon
 
@@ -214,3 +217,8 @@ Questions with no project attached yet.
   each for its own reason.
 - 2026-10-05: A tiny Forth ([forth](projects/forth/)), 299 lines, tested
   by a T{ -> }T harness written in itself.
+- 2026-10-06: The same Forth in Go ([forth](projects/forth/)): a port
+  checked against the Python one by running the same programs through
+  both and comparing stdout, stderr and exit codes, and `bench.py` to time
+  them. 40 to 60 times faster once a profile found the first port
+  allocating on every word. Rust is the next item.
