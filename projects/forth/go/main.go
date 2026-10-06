@@ -13,10 +13,12 @@ import (
 	"math/big"
 	"os"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 const (
@@ -122,9 +124,53 @@ func (f *Forth) pops(n int) []int64 {
 }
 
 func (f *Forth) rpop() int64 {
+	if len(f.rstack) == 0 {
+		panic(errors.New("pop from empty list"))
+	}
 	v := f.rstack[len(f.rstack)-1]
 	f.rstack = f.rstack[:len(f.rstack)-1]
 	return v
+}
+
+// lower is Python's str.lower. strings.ToLower differs from it on two
+// characters: İ, which Python lowers to i and a combining dot, and Σ, which
+// Python lowers to final ς at the end of a word. (Go's Unicode tables are
+// also a version newer, which matters only for characters new in that one.)
+func lower(s string) string {
+	s = strings.ReplaceAll(s, "İ", "i\u0307")
+	if !strings.ContainsRune(s, 'Σ') {
+		return strings.ToLower(s)
+	}
+	runes := []rune(s)
+	lowered := []rune(strings.ToLower(s)) // rune for rune, once İ is gone
+	for i, r := range runes {
+		if r == 'Σ' && casedNext(runes, i, -1) && !casedNext(runes, i, 1) {
+			lowered[i] = 'ς'
+		}
+	}
+	return string(lowered)
+}
+
+// casedNext says whether the first character from i in direction step that
+// isn't case-ignorable is cased, Unicode's test for a final sigma.
+func casedNext(runes []rune, i, step int) bool {
+	for i += step; 0 <= i && i < len(runes); i += step {
+		r := runes[i]
+		if !caseIgnorable(r) {
+			return unicode.In(r, unicode.Lu, unicode.Ll, unicode.Lt,
+				unicode.Other_Lowercase, unicode.Other_Uppercase)
+		}
+	}
+	return false
+}
+
+func caseIgnorable(r rune) bool {
+	switch r {
+	case '\'', '.', ':', '^', '`', 0xB7, 0x387, 0x55F, 0x5F4, 0x2018, 0x2019,
+		0x2024, 0x2027, 0xFE13, 0xFE52, 0xFE55, 0xFF07, 0xFF0E, 0xFF1A:
+		return true
+	}
+	return unicode.In(r, unicode.Mn, unicode.Me, unicode.Cf, unicode.Lm, unicode.Sk)
 }
 
 // isSpace is Python's str.isspace, which also counts U+001C to U+001F.
@@ -159,7 +205,7 @@ func (f *Forth) parse(delimiter rune) string {
 }
 
 func (f *Forth) name() string {
-	name := strings.ToLower(f.parse(0))
+	name := lower(f.parse(0))
 	if name == "" {
 		fail("a name was expected")
 	}
@@ -167,7 +213,7 @@ func (f *Forth) name() string {
 }
 
 func (f *Forth) find(name string) *Word {
-	w, ok := f.words[strings.ToLower(name)]
+	w, ok := f.words[lower(name)]
 	if !ok {
 		fail("%s ?", name)
 	}
@@ -217,12 +263,15 @@ func (f *Forth) Interpret(text string) (output string, err error) {
 			if e, ok := r.(forthError); ok {
 				err = e
 			} else { // a Go error inside a word is a Forth error too
+				if e, ok := r.(runtime.Error); ok && strings.Contains(e.Error(), "index out of range") {
+					r = "list index out of range" // as Python says it, for i or r@ outside a loop
+				}
 				err = forthError(fmt.Sprintf("%s: %v", token, r))
 			}
 		}
 	}()
 	for token = f.parse(0); token != ""; token = f.parse(0) {
-		word, ok := f.words[strings.ToLower(token)]
+		word, ok := f.words[lower(token)]
 		switch {
 		case !ok:
 			n, isNumber := number(token)
@@ -499,6 +548,8 @@ func init() { // in init, because some primitives refer to the tables
 		"emit": func(f *Forth) {
 			if n := f.pop(); n < 0 || n > unicode.MaxRune {
 				panic(errors.New("chr() arg not in range(0x110000)"))
+			} else if 0xD800 <= n && n <= 0xDFFF { // Python can't print these either
+				panic(errors.New("surrogates not allowed"))
 			} else {
 				f.out.WriteRune(rune(n))
 			}
@@ -579,46 +630,58 @@ const prelude = `
 func main() {
 	f, paths, failed := New(), os.Args[1:], false
 	out := bufio.NewWriter(os.Stdout)
-	defer out.Flush()
-	run := func(source, after string) {
-		text, err := f.Interpret(source)
-		if err != nil {
-			out.Flush()
+	report := func(err error) {
+		fmt.Fprintln(os.Stderr, err)
+		failed = true
+	}
+	flush := func() {
+		if err := out.Flush(); err != nil { // the output is lost, so stop
 			fmt.Fprintln(os.Stderr, err)
-			failed = true
+			os.Exit(1)
+		}
+	}
+	run := func(source []byte, after string) {
+		if !utf8.Valid(source) {
+			report(errors.New("the input is not valid UTF-8"))
+			return
+		}
+		text, err := f.Interpret(string(source))
+		if err != nil {
+			flush()
+			report(err)
 			return
 		}
 		out.WriteString(text + after)
 	}
 	if len(paths) > 0 {
 		for _, path := range paths {
-			source, err := os.ReadFile(path)
-			if err != nil {
-				fmt.Fprintln(os.Stderr, err)
-				failed = true
-				continue
+			if source, err := os.ReadFile(path); err != nil {
+				report(err)
+			} else {
+				run(source, "")
 			}
-			run(string(source), "")
 		}
 	} else {
 		in := bufio.NewReader(os.Stdin)
 		for {
-			line, err := in.ReadString('\n')
-			if line != "" {
+			line, err := in.ReadBytes('\n')
+			if len(line) > 0 {
 				run(line, " ok\n")
-				out.Flush()
+				flush()
 			}
-			if err == io.EOF {
+			if err != nil {
+				if err != io.EOF {
+					report(err)
+				}
 				break
 			}
 		}
 	}
+	flush()
 	if f.compiling {
-		out.Flush()
 		fmt.Fprintf(os.Stderr, "%s: unfinished definition\n", f.current.name)
 	}
 	if failed || f.compiling {
-		out.Flush()
 		os.Exit(1)
 	}
 }

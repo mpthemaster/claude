@@ -158,7 +158,7 @@ Each time is the best of three whole runs, including process start.
   about 100 times slower than plain Python. So the Go Forth still runs
   `fib` two and a half times slower than plain Python. Most of that gap
   is the language's, and the design costs about the same in either.
-- **The port is about twice as long: 624 lines against 299.** Some of
+- **The port is about twice as long: 687 lines against 299.** Some of
   that is gofmt, which puts the word tables one entry per line. The rest
   is what Python did implicitly: a 64-bit wrap Go gets for free, but
   also floored division (Go truncates), arbitrary-size literals that
@@ -176,8 +176,20 @@ Each time is the best of three whole runs, including process start.
   `' execute execute` and a huge `allot` each killed the Go process
   outright, because Go can't recover from running out of stack or
   memory and Python can. The port now stops both itself, at limits
-  close to where Python gives up. One difference remains: Python reads
-  non-ASCII digits such as `٣` as numbers, and the port doesn't.
+  close to where Python gives up. A second review, by the Codex bot on
+  the pull request, found five more. One was in Unicode: names are
+  case-insensitive through Python's `str.lower`, which lowers `ΟΣ` to
+  `ος` with a final sigma, while Go's `strings.ToLower` gives `οσ`.
+  Checking every code point showed that this context rule and `İ` are
+  the only differences, so the port handles just those two. The other
+  four are input and output failures: invalid UTF-8, an unprintable
+  surrogate, a full disk and unreadable stdin. Python stops with a
+  traceback in each case. The port had carried on, so it now fails too.
+
+  Two differences remain. Python reads non-ASCII digits such as `٣` as
+  numbers, and the port doesn't. And Go's Unicode tables are one version
+  newer than Python 3.11's, which matters only for characters added in
+  that version.
 
 ## Not here
 

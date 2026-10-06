@@ -7,6 +7,7 @@ import io
 import os
 import shutil
 import subprocess
+import sys
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest import mock
@@ -72,6 +73,9 @@ PROGRAMS = [
     "1 2 3 -1 pick . -3 pick .\n1 2 3 -4 pick\n9 pick\n2 .\n",
     "65 emit -1 emit\n1114112 emit\n5 -3 .r 1 .\n1 -1 lshift\n1 -1 rshift\nchar\n2 .\n",
     "1\x1c2 . .\n",
+    # names are case-insensitive the way Python's str.lower is
+    "i\nr@\nr>\nj\nunloop 2 .\n",
+    ": ΟΣ 7 ; ος . οσ\n: İ 1 ; i\u0307 . i\n: AΣ.B 2 ; aσ.b . aς.b\n: ẞ 3 ; ß .\n",
 ]
 
 
@@ -115,3 +119,26 @@ def test_the_benchmark_programs_agree_at_a_small_size(go_forth, name, source):
     python, go = both(go_forth, stdin=source + "\n")
     assert go == python
     assert go[2] == 0
+
+
+@pytest.mark.parametrize(
+    "case", ["a surrogate", "invalid UTF-8", "a full disk", "unreadable input"]
+)
+def test_both_fail_where_input_or_output_does(go_forth, tmp_path, case):
+    # Python stops with a traceback in each case. The port has to fail too,
+    # rather than print a replacement character, exit 0, or spin.
+    source = tmp_path / "source.fs"
+    source.write_bytes(b".( caf\xe9)" if case == "invalid UTF-8" else b"1 2 + .")
+    with open(os.devnull, "rb") as devnull, open("/dev/full", "wb") as full:
+        run = {"args": [str(source)], "stdin": devnull, "stdout": subprocess.PIPE}
+        if case == "a surrogate":
+            run = {"args": [], "input": b"55296 emit\n", "stdout": subprocess.PIPE}
+        elif case == "a full disk":
+            run["stdout"] = full
+        elif case == "unreadable input":
+            run = {"args": [], "stdin": os.open(tmp_path, os.O_RDONLY), "stdout": subprocess.PIPE}
+        args = run.pop("args")
+        for command in ([sys.executable, str(HERE / "forth.py")], [str(go_forth)]):
+            done = subprocess.run([*command, *args], stderr=subprocess.PIPE, timeout=30, **run)
+            assert done.returncode != 0, (command, case)
+            assert done.stderr, (command, case)
