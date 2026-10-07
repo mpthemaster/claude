@@ -23,20 +23,26 @@ enum Op {
     Leave,
     Does,
     Str,
+    // what `resolve` leaves of a call, a do or a string: in forth.py it
+    // overwrites their argument with a number, which fails when they run
+    IntCall,
+    IntDo,
+    IntStr,
 }
 
 /// One instruction. `n` is the literal, the jump target, the word called,
 /// the string printed (an index into `Forth::strings`) or where a loop ends;
-/// `q` says a DO is ?do.
+/// `q` says a DO is ?do, and `resolved` that `resolve` has set `n`.
 #[derive(Clone, Copy)]
 struct Instr {
     op: Op,
     n: i64,
     q: bool,
+    resolved: bool,
 }
 
 fn instr(op: Op, n: i64) -> Instr {
-    Instr { op, n, q: false }
+    Instr { op, n, q: false, resolved: false }
 }
 
 /// A Forth error prints as it is; a Python one (here, the message Python's
@@ -87,7 +93,9 @@ struct Forth {
     current: Option<usize>,
     latest: usize,
     execute_word: usize,
-    nesting: usize, // how deep execute calls itself, through execute
+    nesting: usize,    // how deep execute calls itself, through execute
+    printed_int: bool, // an IntStr ran, so forth.py's "".join(self.out) will fail
+    crashed: bool,     // ... and it did, which ends forth.py with a traceback
 }
 
 impl Forth {
@@ -108,6 +116,8 @@ impl Forth {
             latest: 0,
             execute_word: 0,
             nesting: 0,
+            printed_int: false,
+            crashed: false,
         };
         for (table, immediate) in [(PRIMITIVES, false), (IMMEDIATES, true)] {
             for &(name, prim) in table {
@@ -234,6 +244,7 @@ impl Forth {
         self.text = text.chars().collect();
         self.pos = 0;
         self.out.clear();
+        self.printed_int = false;
         let mut token = String::new();
         let result = (|| -> R {
             loop {
@@ -260,6 +271,10 @@ impl Forth {
             }
         })();
         match result {
+            Ok(()) if self.printed_int => {
+                self.crashed = true;
+                Err("TypeError: sequence item: expected str instance, int found".to_string())
+            }
             Ok(()) => Ok(std::mem::take(&mut self.out)),
             Err(error) => {
                 self.stack.clear();
@@ -290,10 +305,18 @@ impl Forth {
     fn resolve(&mut self, at: i64, target: i64) -> R {
         let block = self.all[self.current()?].code;
         let code = &mut self.codes[block];
-        match py_index(code.len(), at) {
-            Some(i) => Ok(code[i].n = target),
-            None => python("list index out of range"),
-        }
+        let Some(i) = py_index(code.len(), at) else {
+            return python("list index out of range");
+        };
+        let ins = &mut code[i];
+        (ins.n, ins.resolved) = (target, true);
+        ins.op = match ins.op {
+            Op::Call => Op::IntCall,
+            Op::Do => Op::IntDo,
+            Op::Str => Op::IntStr,
+            op => op,
+        };
+        Ok(())
     }
 
     // -- the inner interpreter ----------------------------------------------
@@ -315,20 +338,30 @@ impl Forth {
             return prim(self);
         }
         let entry = [instr(Op::Call, word as i64)];
-        let mut frames: Vec<(usize, usize)> = Vec::new();
-        // `code` is None for the one-instruction entry, else a code block
-        let (mut code, mut ip): (Option<usize>, usize) = (None, 0);
+        let mut frames: Vec<(usize, i64)> = Vec::new();
+        // `code` is None for the one-instruction entry, else a code block.
+        // ip is signed: a jump can go to a negative index, which Python
+        // counts from the end.
+        let (mut code, mut ip): (Option<usize>, i64) = (None, 0);
         loop {
             let block: &[Instr] = match code {
                 None => &entry,
                 Some(c) => &self.codes[c],
             };
-            let Some(&ins) = block.get(ip) else {
+            if ip >= block.len() as i64 {
                 match frames.pop() {
                     None => return Ok(()),
                     Some((c, i)) => (code, ip) = (Some(c), i),
                 }
                 continue;
+            }
+            let ins = if ip >= 0 {
+                block[ip as usize]
+            } else {
+                match py_index(block.len(), ip) {
+                    Some(i) => block[i],
+                    None => return python("list index out of range"),
+                }
             };
             ip += 1;
             match ins.op {
@@ -352,21 +385,21 @@ impl Forth {
                         return fail("return stack overflow");
                     }
                     frames.push((code.unwrap_or(0), ip));
-                    (code, ip) = (Some(next), start);
+                    (code, ip) = (Some(next), start as i64);
                 }
                 Op::Lit => self.push(ins.n),
-                Op::Branch => ip = ins.n as usize,
+                Op::Branch => ip = ins.n,
                 Op::ZBranch => {
                     if self.pop()? == 0 {
-                        ip = ins.n as usize;
+                        ip = ins.n;
                     }
                 }
-                Op::Exit => ip = usize::MAX,
+                Op::Exit => ip = i64::MAX,
                 Op::Do => {
                     let index = self.pop()?;
                     let limit = self.pop()?;
                     if ins.q && index == limit {
-                        ip = ins.n as usize;
+                        ip = ins.n;
                     } else {
                         self.rstack.extend([ins.n, limit, index]);
                     }
@@ -385,23 +418,30 @@ impl Forth {
                     if crossed {
                         self.rdrop3();
                     } else {
-                        ip = ins.n as usize;
+                        ip = ins.n;
                     }
                 }
                 Op::Leave => {
-                    ip = self.rget(3)? as usize;
+                    ip = self.rget(3)?;
                     self.rdrop3();
                 }
                 Op::Does => {
                     // the word create just made runs the code after does>
                     let latest = &mut self.all[self.latest];
                     (latest.code, latest.start) = (code.unwrap_or(0), ins.n as usize);
-                    ip = usize::MAX;
+                    ip = i64::MAX;
                 }
                 Op::Str => {
                     let s = &self.strings[ins.n as usize];
                     self.out.push_str(s);
                 }
+                Op::IntCall => return python("'int' object has no attribute 'prim'"),
+                Op::IntDo => {
+                    self.pop()?;
+                    self.pop()?;
+                    return python("'int' object is not subscriptable");
+                }
+                Op::IntStr => self.printed_int = true,
             }
         }
     }
@@ -610,7 +650,7 @@ fn dot_quote(f: &mut Forth) -> R {
 }
 
 fn do_loop(f: &mut Forth, q: bool) -> R {
-    let at = f.comma(Instr { op: Op::Do, n: 0, q })?;
+    let at = f.comma(Instr { op: Op::Do, n: 0, q, resolved: false })?;
     f.push(at);
     Ok(())
 }
@@ -622,15 +662,26 @@ fn plus_loop(f: &mut Forth) -> R {
     let Some(i) = py_index(code.len(), at) else {
         return python("list index out of range");
     };
-    // forth.py reads `code[at][1][1]`, which only a DO's argument has
-    match code[i].op {
+    // forth.py reads `code[at][1][1]`: the ?do flag of a DO's argument, or
+    // the second character of a string, and anything else is an error
+    let ins = code[i];
+    match ins.op {
+        _ if ins.resolved => return python("'int' object is not subscriptable"),
         Op::Do => {}
+        Op::Str if f.strings[ins.n as usize].chars().count() < 2 => {
+            return python("string index out of range");
+        }
+        Op::Str => {} // compiles, and then can't print: the resolve below spoils it
         Op::Exit | Op::Leave => return python("'NoneType' object is not subscriptable"),
         Op::Call => return python("'Word' object is not subscriptable"),
-        Op::Str => return python("a string where a loop was expected"),
         _ => return python("'int' object is not subscriptable"),
     }
     let end = code.len() as i64;
+    if ins.op == Op::Do {
+        let block = f.all[f.current()?].code;
+        f.codes[block][i].n = end; // where the loop ends, not a jump
+        return Ok(());
+    }
     f.resolve(at, end)
 }
 
@@ -725,9 +776,10 @@ fn main() -> ExitCode {
     let mut f = Forth::new();
     let paths: Vec<String> = std::env::args().skip(1).collect();
     let mut out = io::BufWriter::new(io::stdout().lock());
-    let mut failed = false;
+    let (mut failed, mut bad_input) = (false, false);
     // Like forth.py, stop on what Python would stop on with a traceback: a
-    // file that can't be read or isn't UTF-8, and output that can't be written.
+    // file that can't be read or isn't UTF-8, output that can't be written,
+    // and a string that resolve spoiled.
     let stop = |error: &dyn std::fmt::Display| -> ExitCode {
         eprintln!("{error}");
         ExitCode::FAILURE
@@ -736,6 +788,7 @@ fn main() -> ExitCode {
         |f: &mut Forth, source: &str, after: &str, out: &mut dyn Write| -> io::Result<()> {
             match f.interpret(source) {
                 Ok(text) => out.write_all((text + after).as_bytes()),
+                Err(error) if f.crashed => Err(io::Error::other(error)),
                 Err(error) => {
                     out.flush()?;
                     eprintln!("{error}");
@@ -769,7 +822,12 @@ fn main() -> ExitCode {
                 Err(error) => return stop(&error),
             }
             let Ok(text) = std::str::from_utf8(&line) else {
-                return stop(&"the input is not valid UTF-8");
+                // Python's stdin would read the bytes with surrogateescape; this
+                // reports the line, as the Go does, and carries on
+                let _ = out.flush();
+                eprintln!("the input is not valid UTF-8");
+                bad_input = true;
+                continue;
             };
             if let Err(error) = run(&mut f, text, " ok\n", &mut out).and_then(|_| out.flush()) {
                 return stop(&error);
@@ -784,7 +842,7 @@ fn main() -> ExitCode {
         (true, None) => return stop(&"'NoneType' object has no attribute 'name'"), // after ]
         _ => {}
     }
-    if failed || f.compiling {
+    if failed || bad_input || f.compiling {
         ExitCode::FAILURE
     } else {
         ExitCode::SUCCESS

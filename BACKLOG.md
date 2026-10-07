@@ -9,8 +9,11 @@ done, move it to **Done** with the date and a link.
   time in `push`, which is variadic and appends with a `memmove` on every
   word; the Rust port, with a one-cell push, is twice as fast. Give Go a
   one-cell `push` (and `push2` for `swap` and `over`) and see how much of
-  the gap closes. While there: read every file before running any, as
-  `forth.py` does, the last difference the fuzzer can't reach.
+  the gap closes. While there, port the Rust's handling of odd jumps
+  (`then` resolved onto a call, a `do` or a string, and negative jump
+  targets; the `ODD_JUMPS` tests in `test_ports.py` are marked as expected
+  failures for Go until then), and read every file before running any, as
+  `forth.py` does.
 
 ## Soon
 
@@ -56,7 +59,7 @@ done, move it to **Done** with the date and a link.
 Questions with no project attached yet.
 
 - Every interpreter here is 50 to 100 times slower than its host language,
-  and the faster the host, the smaller the factor (Rust 50, Go 65, Python
+  and the faster the host, the smaller the factor (Rust 55, Go 65, Python
   about 95). Is that a rule for this kind of op-list interpreter, and what
   would a threaded or closure-compiled design do to the factor in each?
 
@@ -229,6 +232,7 @@ Questions with no project attached yet.
   allocating on every word. Rust is the next item.
 - 2026-10-07: The same Forth in Rust ([forth](projects/forth/)): a
   standard-library port checked by the same differential tests, 85 to 100
-  times faster than the Python as first written. A random-program fuzzer,
+  times faster than the Python as first written and 75 to 85 once it
+  copied Python's jumps exactly. A random-program fuzzer,
   now a seeded test, found bugs in both ports that the hand-written
   programs had missed, and the tests' own `text=True` blind spot.

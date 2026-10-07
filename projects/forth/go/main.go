@@ -472,14 +472,18 @@ func plusLoop(f *Forth) {
 	f.comma(instr{op: LOOP, n: do + 1})
 	code := f.current.code
 	do = pyIndex(len(code), do)
-	switch code[do].op { // forth.py reads code[do][1][1], which only a DO's argument has
+	// forth.py reads code[do][1][1]: the ?do flag of a DO's argument, or the
+	// second character of a string, and anything else is an error
+	switch code[do].op {
 	case DO:
 	case EXIT, LEAVE:
 		panic(errors.New("'NoneType' object is not subscriptable"))
 	case CALL:
 		panic(errors.New("'Word' object is not subscriptable"))
 	case STR:
-		panic(errors.New("a string where a loop was expected"))
+		if utf8.RuneCountInString(code[do].s) < 2 {
+			panic(errors.New("string index out of range"))
+		}
 	default:
 		panic(errors.New("'int' object is not subscriptable"))
 	}

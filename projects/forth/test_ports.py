@@ -86,11 +86,34 @@ PROGRAMS = [
     ";\n] 5\n] mark\nrecurse\n] recurse\n5 execute\n2 .\n",
     "true : x leave loop\n: y [ 0 ] 1 loop ;\n: z exit [ 0 ] +loop ;\n-9 : w loop\n2 .\n",
     ": w 5 [ -1 ] then ; w .\n-5 : v then\n2 .\n",
+    ': x ." h" [ 0 ] +loop ;\n: y ." hi" [ 0 ] +loop ;\n2 .\n',
 ]
+
+# Jumps resolved onto things that aren't jumps, and jumps to negative
+# indexes, which Python counts from the end. The Rust port copies these;
+# the Go port doesn't yet (BACKLOG.md, "Go Forth, speed pass").
+ODD_JUMPS = [
+    ": x dup [ 0 ] then ; 5 x\n2 .\n",
+    ": x 3 0 do i . loop [ 2 ] then ; x\n2 .\n",
+    ": b -3 branch, drop ; immediate\n: x 1 . 2 . b ; x\n2 .\n",
+    ": x -2 >r 0 >r 0 >r leave 7 . ; x\n2 .\n",
+]
+
+
+def go_lacks(request, port):
+    if port.name == "forth-go":
+        request.applymarker(pytest.mark.xfail(strict=True, reason="not in the Go port yet"))
 
 
 @pytest.mark.parametrize("stdin", PROGRAMS, ids=range(len(PROGRAMS)))
 def test_the_port_matches_at_the_prompt(port, stdin):
+    python, ported = both(port, stdin=stdin)
+    assert ported == python
+
+
+@pytest.mark.parametrize("stdin", ODD_JUMPS, ids=range(len(ODD_JUMPS)))
+def test_the_port_matches_on_odd_jumps(request, port, stdin):
+    go_lacks(request, port)
     python, ported = both(port, stdin=stdin)
     assert ported == python
 
@@ -167,9 +190,17 @@ def test_the_benchmark_programs_agree_at_a_small_size(port, name, source):
 
 
 @pytest.mark.parametrize(
-    "case", ["a surrogate", "invalid UTF-8", "a full disk", "unreadable input", "a stray ]"]
+    "case",
+    [
+        "a surrogate",
+        "invalid UTF-8",
+        "a full disk",
+        "unreadable input",
+        "a stray ]",
+        "a spoiled string",
+    ],
 )
-def test_both_fail_where_input_or_output_does(port, tmp_path, case):
+def test_both_fail_where_input_or_output_does(request, port, tmp_path, case):
     # Python stops with a traceback in each case. The port has to fail too,
     # rather than print a replacement character, exit 0, or spin.
     source = tmp_path / "source.fs"
@@ -178,6 +209,9 @@ def test_both_fail_where_input_or_output_does(port, tmp_path, case):
         run = {"args": [str(source)], "stdin": devnull, "stdout": subprocess.PIPE}
         if case == "a surrogate":
             run = {"args": [], "input": b"55296 emit\n", "stdout": subprocess.PIPE}
+        elif case == "a spoiled string":  # resolve made it a number, which "".join refuses
+            go_lacks(request, port)
+            run = {"args": [], "input": b': x ." a" [ 0 ] then ; x\n', "stdout": subprocess.PIPE}
         elif case == "a stray ]":  # compiling at the end, with no definition to name
             run = {"args": [], "input": b"]\n", "stdout": subprocess.PIPE}
         elif case == "a full disk":
