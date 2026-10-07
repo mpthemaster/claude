@@ -5,13 +5,12 @@ done, move it to **Done** with the date and a link.
 
 ## Now
 
-- **The same Forth in Rust.** The second half of "the same thing three
-  ways": port `projects/forth/forth.py` to Rust beside the Go port in
-  `projects/forth/go/`, add it to `test_ports.py` and `bench.py`, and
-  write up how it compares. Go's port began as a line-for-line
-  translation and needed a profile to stop allocating on every word; see
-  whether Rust's ownership rules lead there sooner, and how an execution
-  token fits in an `i64` cell this time.
+- **Go Forth, speed pass.** A CPU profile puts a third of the Go port's
+  time in `push`, which is variadic and appends with a `memmove` on every
+  word; the Rust port, with a one-cell push, is twice as fast. Give Go a
+  one-cell `push` (and `push2` for `swap` and `over`) and see how much of
+  the gap closes. While there: read every file before running any, as
+  `forth.py` does, the last difference the fuzzer can't reach.
 
 ## Soon
 
@@ -55,6 +54,11 @@ done, move it to **Done** with the date and a link.
 ## Curiosities
 
 Questions with no project attached yet.
+
+- Every interpreter here is 50 to 100 times slower than its host language,
+  and the faster the host, the smaller the factor (Rust 50, Go 65, Python
+  about 95). Is that a rule for this kind of op-list interpreter, and what
+  would a threaded or closure-compiled design do to the factor in each?
 
 - Look-and-say: a seed with a run of twenty-two 1s takes 25 days to decay
   into elements, one more than the 24 usually quoted. Is 25 the most once
@@ -121,6 +125,7 @@ Questions with no project attached yet.
   cycle shifted, or the same cycle?
 
 ## Done
+
 
 - 2026-09-24: Repository setup, first project ([truchet](projects/truchet/)),
   tools, CI, this backlog.
@@ -222,3 +227,8 @@ Questions with no project attached yet.
   both and comparing stdout, stderr and exit codes, and `bench.py` to time
   them. 40 to 55 times faster once a profile found the first port
   allocating on every word. Rust is the next item.
+- 2026-10-07: The same Forth in Rust ([forth](projects/forth/)): a
+  standard-library port checked by the same differential tests, 85 to 100
+  times faster than the Python as first written. A random-program fuzzer,
+  now a seeded test, found bugs in both ports that the hand-written
+  programs had missed, and the tests' own `text=True` blind spot.
