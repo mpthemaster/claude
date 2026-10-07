@@ -127,12 +127,14 @@ python projects/forth/bench.py      # builds the Go port and times both
 ```
 
 The Python interpreter is the specification.
-[`test_ports.py`](test_ports.py) feeds the same programs to both,
-line by line as at the prompt: the whole `T{ }T` suite, the examples,
-the benchmark programs at a small size, and a run of errors that each
-need the interpreter to recover. It then checks that stdout, stderr and
-the exit code match exactly. The test builds the Go port with `go build`.
-It skips on a machine without Go, but fails in CI.
+[`test_ports.py`](test_ports.py) feeds the same programs to the Python
+and to each port, line by line as at the prompt: the whole `T{ }T` suite,
+the examples, the benchmark programs at a small size, and a run of errors
+that each need the interpreter to recover. It then checks that stdout,
+stderr and the exit code match exactly. The test builds the Go port with
+`go build`. It skips on a machine without Go, but fails in CI.
+
+Measured on the day of the port:
 
 | program | Python Forth | Go Forth, first port | Go Forth | ratio |
 |---|---:|---:|---:|---:|
@@ -190,6 +192,133 @@ Each time is the best of three whole runs, including process start.
   numbers, and the port doesn't. And Go's Unicode tables are one version
   newer than Python 3.11's, which matters only for characters added in
   that version.
+
+## The same Forth in Rust
+
+[`rust/src/main.rs`](rust/src/main.rs) is the third version, and the
+second port. It's written against the Python, like the Go, and checked
+by the same tests: `test_ports.py` runs every program through both ports,
+building this one with `cargo build --release`. It uses only the standard
+library.
+
+```sh
+cd projects/forth/rust && cargo run --release ../examples/sieve.fs
+python projects/forth/bench.py      # builds both ports and times all three
+```
+
+| program | Python Forth | Go Forth | Rust Forth, first port | Rust Forth | Python/Go | Python/Rust |
+|---|---:|---:|---:|---:|---:|---:|
+| start-up (prelude only) | 0.019 s | 0.001 s | 0.001 s | 0.001 s | 14× | 16× |
+| `27 fib` (635,621 calls) | 1.78 s | 0.045 s | 0.021 s | 0.023 s | 40× | 79× |
+| 2,000,000-iteration `do` loop | 2.09 s | 0.037 s | 0.021 s | 0.025 s | 56× | 84× |
+| sieve to 200,000 | 1.51 s | 0.030 s | 0.018 s | 0.021 s | 52× | 74× |
+
+These were measured on a different machine from the Go table above, the
+same day as each other, with Python 3.11.
+
+- **Rust didn't need a profile.** The first version that passed the
+  tests was 85 to 100 times faster than the Python, and twice as fast as
+  the Go after the Go's fix. (The current version gives up about 15% of
+  that to copy Python's jumps exactly; see below.) Go's slow first port
+  came from `pops` copying cells into a new slice. The Rust equivalent,
+  returning a slice of the stack and then pushing onto the stack, doesn't
+  compile, because the slice borrows the stack. So `pop2` returns the two
+  cells as a tuple, a copy in registers that costs nothing. Go's
+  fix was the same view of the stack, with a comment saying it's valid
+  only until the next push. In Rust the compiler enforces that rule, so
+  the cheap version was also the obvious one.
+- **Why it's faster than the Go.** A CPU profile of the Go port puts
+  a third of its time in `push`, which takes `...int64` and appends with
+  a `memmove` on every word. Rust's `Vec::push` writes one cell. The size
+  of an instruction isn't the reason: padding Rust's 16-byte `Instr` out to
+  Go's 48 bytes changed nothing measurable.
+- **The Rust Forth runs `fib` about as fast as plain Python.** Plain Rust
+  computes fib(27) in 0.4 ms, so the Rust Forth is about 55 times slower
+  than its host language. The Go Forth is about 65 times slower than
+  plain Go, and the Python Forth about 90 to 100 times slower than plain
+  Python. The interpreter's design costs a similar factor in each, and
+  the faster the host, the smaller that factor.
+- **Words and code live in arenas.** In Python and Go, a word that
+  `does>` made shares its defining word's code list by reference. Here
+  every word is an index into one `Vec<Word>`, and every compiled
+  definition an index into one `Vec<Vec<Instr>>`, so an instruction holds
+  plain numbers and is `Copy`. The inner loop copies each instruction out
+  and then borrows the interpreter mutably, with no reference counting.
+  An execution token is the word's index offset by 2⁴⁰, as in Go.
+- **The Unicode came free.** Go needed 40 lines to copy Python's
+  `str.lower`. Rust's `to_lowercase` already lowers `İ` to `i̇` and
+  applies the final-sigma rule. Checking every code point against Python
+  3.11 found 307 that differ, either alone or beside a Σ. Of those, 305
+  are characters added after Python 3.11's Unicode 14, since Rust 1.97 is
+  on Unicode 17. The other two are old characters whose properties
+  changed in the meantime: `ʕ` stopped being a cased letter, and an Ahom
+  consonant sign became case-ignorable. Whitespace agrees everywhere once
+  U+001C to U+001F are added, as in Go.
+- **It's 846 lines, the longest of the three.** rustfmt leaves the word
+  tables alone, so they keep a word to a line, as in the Python. The length is in the error paths.
+  Every word returns a `Result`, and 41 lines mention Python, most of
+  them to give the message Python would.
+
+### What a random program found
+
+The Go port's review found eight differences, then the bot found five
+more, all in programs nobody had thought to write. So this time I also
+fed all three interpreters random lines drawn from the dictionary, with
+a few numbers and names mixed in, and compared the results. That took a
+throwaway script and a few minutes. Within 400 programs it had found:
+
+- **An unterminated `."`, `.(` or `(` at the end of a line.** Python's
+  parser leaves its position one past the end of the text, and Python's
+  `re` treats that as the end. The Rust port panicked on the slice, and
+  the Go port turned its panic into a bogus error. This one would have
+  shown up at a real prompt the first time someone forgot a closing
+  quote.
+- **`;` with no definition open, and `]` followed by any word.** Python
+  says `'NoneType' object has no attribute 'depth'` (or `'code'`). The
+  Go port said `invalid memory address or nil pointer dereference`, and
+  after a stray `]` it crashed at exit.
+- **`loop` with no `do`**, taking whatever was on the stack as the `do`'s
+  address. Python fails when it reads the `do`'s argument; Go checked
+  nothing and compiled the loop anyway, and treated a negative address
+  as out of range where Python counts from the end.
+
+All of these are fixed in both ports, with a case for each in
+`test_ports.py`, which now also runs 300 seeded random programs through
+each port on every push. Also fixed in Go: Python reads files with universal
+newlines, and `5 execute` now gives Python's message. 20,000 more random
+programs then found nothing else, apart from one known difference: a
+Python execution token is a `Word` object, so `' dup 1+` is a
+`TypeError` there and a number in the ports. Writing the fuzzer also
+showed that the tests had a blind spot of their own. They captured the
+ports' output with `text=True`, which turns `\r\n` into `\n` before
+comparing it, so the newline difference in files couldn't fail them.
+They compare bytes now.
+
+Then the reviewer agent, working by hand, found what the fuzzer's
+vocabulary couldn't reach. `then` will resolve anything, not only a
+jump, and in Python that replaces the argument of a call, a `do` or a
+string with a number. The call then fails with `'int' object has no
+attribute 'prim'`, and the string makes `"".join` fail with a traceback
+once the line is done. The Rust port had panicked or called whichever
+word had that number. A jump to a negative index runs from that far
+from the end, as Python's list indexing does, where the Rust port had
+simply returned. The Rust port now copies all of these. That took a
+signed instruction pointer, which costs about 15% on the benchmarks.
+I kept it, since the point of the port is to be exact. The Go port
+doesn't copy these yet. Its tests are marked as expected failures, and
+the work is in the backlog.
+
+Differences left:
+
+- non-ASCII digits, in both ports;
+- Unicode versions;
+- a second file that can't be read, where Python reads every file before
+  running any and Go runs the first one anyway;
+- how deep `execute` can nest through itself, since Python's limit
+  depends on how deep its own stack already is (about 495 from the
+  prompt, fewer under pytest), and the ports stop at 900;
+- invalid UTF-8 on stdin. Python reads it with surrogateescape, which
+  depends on the locale, and the ports report the line and carry on.
 
 ## Not here
 

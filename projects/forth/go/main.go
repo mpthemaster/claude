@@ -7,9 +7,11 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"math/big"
 	"os"
 	"regexp"
@@ -33,6 +35,14 @@ const (
 	DOES
 	STR
 )
+
+// noEnd is where a do whose loop was never closed ends: Python's None, which
+// fails as a jump target.
+const noEnd = math.MinInt64
+
+func failNoEnd() {
+	panic(errors.New("'>=' not supported between instances of 'NoneType' and 'int'"))
+}
 
 // An execution token is a word's index in Forth.all, offset so that a small
 // number on the stack is not mistaken for one.
@@ -180,6 +190,7 @@ func isSpace(r rune) bool { return unicode.IsSpace(r) || 0x1c <= r && r <= 0x1f 
 // it, which is consumed.
 func (f *Forth) parse(delimiter rune) string {
 	t := f.text
+	f.pos = min(f.pos, len(t)) // a delimiter not found leaves pos one past the end
 	if delimiter == 0 {
 		for f.pos < len(t) && isSpace(t[f.pos]) {
 			f.pos++
@@ -222,7 +233,7 @@ func (f *Forth) find(name string) *Word {
 
 func (f *Forth) token(xt int64) *Word {
 	if xt < xtBase || xt-xtBase >= int64(len(f.all)) {
-		fail("execute: %d is not an execution token", xt)
+		panic(errors.New("'int' object has no attribute 'prim'")) // as Python's says it
 	}
 	return f.all[xt-xtBase]
 }
@@ -265,6 +276,8 @@ func (f *Forth) Interpret(text string) (output string, err error) {
 			} else { // a Go error inside a word is a Forth error too
 				if e, ok := r.(runtime.Error); ok && strings.Contains(e.Error(), "index out of range") {
 					r = "list index out of range" // as Python says it, for i or r@ outside a loop
+				} else if ok && strings.Contains(e.Error(), "nil pointer") {
+					r = "'NoneType' object has no attribute 'code'" // f.current, after ]
 				}
 				err = forthError(fmt.Sprintf("%s: %v", token, r))
 			}
@@ -364,6 +377,9 @@ func (f *Forth) execute(word *Word) {
 		case DO:
 			index, limit := f.pop(), f.pop()
 			if in.q && index == limit {
+				if in.n == noEnd {
+					failNoEnd()
+				}
 				ip = int(in.n)
 			} else {
 				f.rstack = append(f.rstack, in.n, limit, index)
@@ -387,6 +403,9 @@ func (f *Forth) execute(word *Word) {
 		case LEAVE:
 			ip = int(f.rstack[len(f.rstack)-3])
 			f.rstack = f.rstack[:len(f.rstack)-3]
+			if ip == noEnd {
+				failNoEnd()
+			}
 		case DOES: // the word create just made runs the code after does>
 			f.latest.code, f.latest.start = code, int(in.n)
 			ip = len(code)
@@ -432,6 +451,9 @@ func colon(f *Forth) {
 }
 
 func semicolon(f *Forth) {
+	if f.current == nil {
+		panic(errors.New("'NoneType' object has no attribute 'depth'"))
+	}
 	if len(f.stack) != f.current.depth {
 		fail("unbalanced control structure in %s", f.current.name)
 	}
@@ -449,14 +471,42 @@ func dotQuote(f *Forth) {
 	}
 }
 
+// pyIndex is Python's index i into a list of n, where -1 is the last.
+func pyIndex(n int, i int64) int64 {
+	if i < 0 {
+		i += int64(n)
+	}
+	if i < 0 || i >= int64(n) {
+		panic(errors.New("list index out of range"))
+	}
+	return i
+}
+
 func plusLoop(f *Forth) {
 	do := f.pop()
 	f.comma(instr{op: LOOP, n: do + 1})
-	f.current.code[do].n = int64(len(f.current.code))
+	code := f.current.code
+	do = pyIndex(len(code), do)
+	// forth.py reads code[do][1][1]: the ?do flag of a DO's argument, or the
+	// second character of a string, and anything else is an error
+	switch code[do].op {
+	case DO:
+	case EXIT, LEAVE:
+		panic(errors.New("'NoneType' object is not subscriptable"))
+	case CALL:
+		panic(errors.New("'Word' object is not subscriptable"))
+	case STR:
+		if utf8.RuneCountInString(code[do].s) < 2 {
+			panic(errors.New("string index out of range"))
+		}
+	default:
+		panic(errors.New("'int' object is not subscriptable"))
+	}
+	code[do].n = int64(len(code))
 }
 
 func doLoop(q bool) func(*Forth) {
-	return func(f *Forth) { f.push(f.comma(instr{op: DO, q: q})) }
+	return func(f *Forth) { f.push(f.comma(instr{op: DO, n: noEnd, q: q})) }
 }
 
 func flag(b bool) int64 {
@@ -589,8 +639,11 @@ func init() { // in init, because some primitives refer to the tables
 		"]":         func(f *Forth) { f.compiling = true },
 		"immediate": func(f *Forth) { f.latest.immediate = true },
 		// the compiler words that if, else, then, begin, while and the rest are made of
-		"mark":     func(f *Forth) { f.push(int64(len(f.current.code))) },
-		"resolve":  func(f *Forth) { f.current.code[f.pop()].n = int64(len(f.current.code)) },
+		"mark": func(f *Forth) { f.push(int64(len(f.current.code))) },
+		"resolve": func(f *Forth) {
+			at := f.pop()
+			f.current.code[pyIndex(len(f.current.code), at)].n = int64(len(f.current.code))
+		},
 		"branch,":  func(f *Forth) { f.push(f.comma(instr{op: BRANCH, n: f.pop()})) },
 		"0branch,": func(f *Forth) { f.push(f.comma(instr{op: ZBRANCH, n: f.pop()})) },
 	}
@@ -657,8 +710,9 @@ func main() {
 		for _, path := range paths {
 			if source, err := os.ReadFile(path); err != nil {
 				report(err)
-			} else {
-				run(source, "")
+			} else { // Python reads a file with universal newlines
+				source = bytes.ReplaceAll(source, []byte("\r\n"), []byte("\n"))
+				run(bytes.ReplaceAll(source, []byte("\r"), []byte("\n")), "")
 			}
 		}
 	} else {
@@ -678,6 +732,10 @@ func main() {
 		}
 	}
 	flush()
+	if f.compiling && f.current == nil { // after ], where Python stops with a traceback
+		fmt.Fprintln(os.Stderr, "'NoneType' object has no attribute 'name'")
+		os.Exit(1)
+	}
 	if f.compiling {
 		fmt.Fprintf(os.Stderr, "%s: unfinished definition\n", f.current.name)
 	}
