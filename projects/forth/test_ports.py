@@ -87,6 +87,8 @@ PROGRAMS = [
     "true : x leave loop\n: y [ 0 ] 1 loop ;\n: z exit [ 0 ] +loop ;\n-9 : w loop\n2 .\n",
     ": w 5 [ -1 ] then ; w .\n-5 : v then\n2 .\n",
     ': x ." h" [ 0 ] +loop ;\n: y ." hi" [ 0 ] +loop ;\n2 .\n',
+    # a do never closed: Python's loop end is None, and jumping there fails
+    ": x 3 0 do [ drop ] leave ; x\n: y 0 0 ?do [ drop ] ; y\n2 .\n",
 ]
 
 # Jumps resolved onto things that aren't jumps, and jumps to negative

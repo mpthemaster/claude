@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"math/big"
 	"os"
 	"regexp"
@@ -34,6 +35,14 @@ const (
 	DOES
 	STR
 )
+
+// noEnd is where a do whose loop was never closed ends: Python's None, which
+// fails as a jump target.
+const noEnd = math.MinInt64
+
+func failNoEnd() {
+	panic(errors.New("'>=' not supported between instances of 'NoneType' and 'int'"))
+}
 
 // An execution token is a word's index in Forth.all, offset so that a small
 // number on the stack is not mistaken for one.
@@ -368,6 +377,9 @@ func (f *Forth) execute(word *Word) {
 		case DO:
 			index, limit := f.pop(), f.pop()
 			if in.q && index == limit {
+				if in.n == noEnd {
+					failNoEnd()
+				}
 				ip = int(in.n)
 			} else {
 				f.rstack = append(f.rstack, in.n, limit, index)
@@ -391,6 +403,9 @@ func (f *Forth) execute(word *Word) {
 		case LEAVE:
 			ip = int(f.rstack[len(f.rstack)-3])
 			f.rstack = f.rstack[:len(f.rstack)-3]
+			if ip == noEnd {
+				failNoEnd()
+			}
 		case DOES: // the word create just made runs the code after does>
 			f.latest.code, f.latest.start = code, int(in.n)
 			ip = len(code)
@@ -491,7 +506,7 @@ func plusLoop(f *Forth) {
 }
 
 func doLoop(q bool) func(*Forth) {
-	return func(f *Forth) { f.push(f.comma(instr{op: DO, q: q})) }
+	return func(f *Forth) { f.push(f.comma(instr{op: DO, n: noEnd, q: q})) }
 }
 
 func flag(b bool) int64 {

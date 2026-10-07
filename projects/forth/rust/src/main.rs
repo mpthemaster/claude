@@ -64,6 +64,15 @@ fn python<T>(message: &str) -> R<T> {
     Err(Error::Python(message.to_string()))
 }
 
+/// Where a `do` whose loop was never closed ends: Python's None, which
+/// fails as a jump target. (A cell that happens to hold this value fails
+/// the same way, where Python would say "list index out of range".)
+const NO_END: i64 = i64::MIN;
+
+fn no_end<T>() -> R<T> {
+    python("'>=' not supported between instances of 'NoneType' and 'int'")
+}
+
 /// An execution token is a word's index in `Forth::all`, offset so that a
 /// small number on the stack is not mistaken for one.
 const XT_BASE: i64 = 1 << 40;
@@ -399,6 +408,9 @@ impl Forth {
                     let index = self.pop()?;
                     let limit = self.pop()?;
                     if ins.q && index == limit {
+                        if ins.n == NO_END {
+                            return no_end();
+                        }
                         ip = ins.n;
                     } else {
                         self.rstack.extend([ins.n, limit, index]);
@@ -424,6 +436,9 @@ impl Forth {
                 Op::Leave => {
                     ip = self.rget(3)?;
                     self.rdrop3();
+                    if ip == NO_END {
+                        return no_end();
+                    }
                 }
                 Op::Does => {
                     // the word create just made runs the code after does>
@@ -650,7 +665,7 @@ fn dot_quote(f: &mut Forth) -> R {
 }
 
 fn do_loop(f: &mut Forth, q: bool) -> R {
-    let at = f.comma(Instr { op: Op::Do, n: 0, q, resolved: false })?;
+    let at = f.comma(Instr { op: Op::Do, n: NO_END, q, resolved: false })?;
     f.push(at);
     Ok(())
 }
