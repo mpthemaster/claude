@@ -34,6 +34,11 @@ const (
 	LEAVE
 	DOES
 	STR
+	// what resolve leaves of a call, a do or a string: in forth.py it
+	// overwrites their argument with a number, which fails when they run
+	INTCALL
+	INTDO
+	INTSTR
 )
 
 // noEnd is where a do whose loop was never closed ends: Python's None, which
@@ -54,13 +59,15 @@ func (e forthError) Error() string { return string(e) }
 
 func fail(format string, args ...any) { panic(forthError(fmt.Sprintf(format, args...))) }
 
-// One instruction. A DO keeps where its loop ends in n and whether it is ?do in q.
+// One instruction. A DO keeps where its loop ends in n and whether it is ?do
+// in q; resolved says that resolve has set n.
 type instr struct {
-	op int
-	n  int64
-	w  *Word
-	s  string
-	q  bool
+	op       int
+	n        int64
+	w        *Word
+	s        string
+	q        bool
+	resolved bool
 }
 
 type Word struct {
@@ -84,8 +91,14 @@ type Forth struct {
 	compiling          bool
 	current, latest    *Word
 	executeWord        *Word
-	nesting            int // how deep execute calls itself, through execute
+	nesting            int  // how deep execute calls itself, through execute
+	printedInt         bool // an INTSTR ran, so forth.py's "".join(self.out) will fail
 }
+
+// crash is what Python stops on with a traceback rather than a Forth error.
+type crash string
+
+func (e crash) Error() string { return string(e) }
 
 func New() *Forth {
 	f := &Forth{words: map[string]*Word{}}
@@ -110,7 +123,11 @@ func (f *Forth) newWord(name string, prim func(*Forth), immediate bool) *Word {
 
 // -- stacks and input ------------------------------------------------------
 
-func (f *Forth) push(values ...int64) { f.stack = append(f.stack, values...) }
+// push takes one cell: a variadic push was a third of the run time, since
+// every call built a slice and appended it with a memmove.
+func (f *Forth) push(v int64) { f.stack = append(f.stack, v) }
+
+func (f *Forth) push2(a, b int64) { f.stack = append(f.stack, a, b) }
 
 func (f *Forth) pop() int64 {
 	if len(f.stack) == 0 {
@@ -121,16 +138,17 @@ func (f *Forth) pop() int64 {
 	return v
 }
 
-// pops returns the top n cells, which stay valid only until the next push.
-// Copying them instead allocated on every arithmetic word, and that was most
-// of the run time.
-func (f *Forth) pops(n int) []int64 {
-	if len(f.stack) < n {
+// pop2 returns the top two cells, the top one second. Returning a slice of
+// the stack instead was valid only until the next push, and copying the
+// cells into a new slice allocated on every arithmetic word.
+func (f *Forth) pop2() (int64, int64) {
+	n := len(f.stack)
+	if n < 2 {
 		fail("stack underflow")
 	}
-	values := f.stack[len(f.stack)-n:]
-	f.stack = f.stack[:len(f.stack)-n]
-	return values
+	a, b := f.stack[n-2], f.stack[n-1]
+	f.stack = f.stack[:n-2]
+	return a, b
 }
 
 func (f *Forth) rpop() int64 {
@@ -266,6 +284,7 @@ func number(token string) (int64, bool) {
 func (f *Forth) Interpret(text string) (output string, err error) {
 	f.text, f.pos = []rune(text), 0
 	f.out.Reset()
+	f.printedInt = false
 	token := ""
 	defer func() {
 		if r := recover(); r != nil {
@@ -302,6 +321,9 @@ func (f *Forth) Interpret(text string) (output string, err error) {
 			f.execute(word)
 		}
 	}
+	if f.printedInt {
+		return "", crash("TypeError: sequence item: expected str instance, int found")
+	}
 	return f.out.String(), nil
 }
 
@@ -312,6 +334,20 @@ func (f *Forth) comma(in instr) int64 {
 	}
 	f.current.code = append(f.current.code, in)
 	return int64(len(f.current.code) - 1)
+}
+
+// resolve points the jump at `at` (a Python index, so -1 is the last) to target.
+func (f *Forth) resolve(at, target int64) {
+	in := &f.current.code[pyIndex(len(f.current.code), at)]
+	in.n, in.resolved = target, true
+	switch in.op {
+	case CALL:
+		in.op = INTCALL
+	case DO:
+		in.op = INTDO
+	case STR:
+		in.op = INTSTR
+	}
 }
 
 // -- the inner interpreter -------------------------------------------------
@@ -335,7 +371,10 @@ func (f *Forth) execute(word *Word) {
 	var frames []frame
 	code, ip := []instr{{op: CALL, w: word}}, 0
 	for {
-		if ip >= len(code) {
+		var in *instr
+		if uint(ip) < uint(len(code)) { // one comparison for both ends
+			in = &code[ip]
+		} else if ip >= len(code) {
 			if len(frames) == 0 {
 				return
 			}
@@ -343,8 +382,9 @@ func (f *Forth) execute(word *Word) {
 			frames = frames[:len(frames)-1]
 			code, ip = top.code, top.ip
 			continue
+		} else { // a jump to a negative index, which Python counts from the end
+			in = &code[pyIndex(len(code), int64(ip))]
 		}
-		in := &code[ip]
 		ip++
 		switch in.op {
 		case CALL:
@@ -411,6 +451,14 @@ func (f *Forth) execute(word *Word) {
 			ip = len(code)
 		case STR:
 			f.out.WriteString(in.s)
+		case INTCALL:
+			panic(errors.New("'int' object has no attribute 'prim'"))
+		case INTDO:
+			f.pop()
+			f.pop()
+			panic(errors.New("'int' object is not subscriptable"))
+		case INTSTR:
+			f.printedInt = true
 		}
 	}
 }
@@ -418,8 +466,7 @@ func (f *Forth) execute(word *Word) {
 // -- primitives that need more than a line ---------------------------------
 
 func divmod(f *Forth) {
-	ab := f.pops(2)
-	a, b := ab[0], ab[1]
+	a, b := f.pop2()
 	if b == 0 {
 		fail("division by zero")
 	}
@@ -427,7 +474,7 @@ func divmod(f *Forth) {
 	if r != 0 && (r < 0) != (b < 0) { // floored, like Forth-2012's FM/MOD
 		q, r = q-1, r+b
 	}
-	f.push(r, q)
+	f.push2(r, q)
 }
 
 func (f *Forth) address() int64 {
@@ -489,6 +536,9 @@ func plusLoop(f *Forth) {
 	do = pyIndex(len(code), do)
 	// forth.py reads code[do][1][1]: the ?do flag of a DO's argument, or the
 	// second character of a string, and anything else is an error
+	if code[do].resolved {
+		panic(errors.New("'int' object is not subscriptable"))
+	}
 	switch code[do].op {
 	case DO:
 	case EXIT, LEAVE:
@@ -499,10 +549,16 @@ func plusLoop(f *Forth) {
 		if utf8.RuneCountInString(code[do].s) < 2 {
 			panic(errors.New("string index out of range"))
 		}
+	case INTSTR: // a string an earlier +loop spoiled, with a tuple, not an int
 	default:
 		panic(errors.New("'int' object is not subscriptable"))
 	}
+	// where the loop ends, not a jump; a string then can't print, but unlike
+	// one resolve spoiled, a later +loop can still read it
 	code[do].n = int64(len(code))
+	if code[do].op == STR {
+		code[do].op = INTSTR
+	}
 }
 
 func doLoop(q bool) func(*Forth) {
@@ -514,21 +570,6 @@ func flag(b bool) int64 {
 		return -1
 	}
 	return 0
-}
-
-// binary makes a word taking two cells.
-func binary(fn func(a, b int64) int64) func(*Forth) {
-	return func(f *Forth) { ab := f.pops(2); f.push(fn(ab[0], ab[1])) }
-}
-
-func shuffle(n int, picks ...int) func(*Forth) {
-	return func(f *Forth) {
-		var v [3]int64 // a copy, since pushing overwrites what pops returned
-		copy(v[:], f.pops(n))
-		for _, p := range picks {
-			f.push(v[p])
-		}
-	}
 }
 
 func shift(b int64) uint {
@@ -550,20 +591,23 @@ var immediates map[string]func(*Forth)
 
 func init() { // in init, because some primitives refer to the tables
 	primitives = map[string]func(*Forth){
-		"+": binary(func(a, b int64) int64 { return a + b }),
-		"-": binary(func(a, b int64) int64 { return a - b }),
-		"*": binary(func(a, b int64) int64 { return a * b }), "/mod": divmod,
-		"and":    binary(func(a, b int64) int64 { return a & b }),
-		"or":     binary(func(a, b int64) int64 { return a | b }),
-		"xor":    binary(func(a, b int64) int64 { return a ^ b }),
+		"+": func(f *Forth) { a, b := f.pop2(); f.push(a + b) },
+		"-": func(f *Forth) { a, b := f.pop2(); f.push(a - b) },
+		"*": func(f *Forth) { a, b := f.pop2(); f.push(a * b) }, "/mod": divmod,
+		"and":    func(f *Forth) { a, b := f.pop2(); f.push(a & b) },
+		"or":     func(f *Forth) { a, b := f.pop2(); f.push(a | b) },
+		"xor":    func(f *Forth) { a, b := f.pop2(); f.push(a ^ b) },
 		"invert": func(f *Forth) { f.push(^f.pop()) },
-		"lshift": binary(func(a, b int64) int64 { return a << shift(b) }),
-		"rshift": binary(func(a, b int64) int64 { return int64(uint64(a) >> shift(b)) }),
-		"u<":     binary(func(a, b int64) int64 { return flag(uint64(a) < uint64(b)) }),
-		"=":      binary(func(a, b int64) int64 { return flag(a == b) }),
-		"<":      binary(func(a, b int64) int64 { return flag(a < b) }),
-		"dup":    shuffle(1, 0, 0), "drop": shuffle(1), "swap": shuffle(2, 1, 0),
-		"over": shuffle(2, 0, 1, 0), "rot": shuffle(3, 1, 2, 0),
+		"lshift": func(f *Forth) { a, b := f.pop2(); f.push(a << shift(b)) },
+		"rshift": func(f *Forth) { a, b := f.pop2(); f.push(int64(uint64(a) >> shift(b))) },
+		"u<":     func(f *Forth) { a, b := f.pop2(); f.push(flag(uint64(a) < uint64(b))) },
+		"=":      func(f *Forth) { a, b := f.pop2(); f.push(flag(a == b)) },
+		"<":      func(f *Forth) { a, b := f.pop2(); f.push(flag(a < b)) },
+		"dup":    func(f *Forth) { a := f.pop(); f.push2(a, a) },
+		"drop":   func(f *Forth) { f.pop() },
+		"swap":   func(f *Forth) { a, b := f.pop2(); f.push2(b, a) },
+		"over":   func(f *Forth) { a, b := f.pop2(); f.push2(a, b); f.push(a) },
+		"rot":    func(f *Forth) { b, c := f.pop2(); a := f.pop(); f.push2(b, c); f.push(a) },
 		"pick": func(f *Forth) { // stack[-1 - n], with Python's negative indexing
 			i := -1 - f.pop()
 			if i < 0 {
@@ -606,9 +650,9 @@ func init() { // in init, because some primitives refer to the tables
 		},
 		".": func(f *Forth) { fmt.Fprintf(&f.out, "%d ", f.pop()) },
 		".r": func(f *Forth) { // Python's "{0:>{1}}" reads the sign of the width as a flag
-			v := f.pops(2)
-			s := strconv.FormatInt(v[0], 10)
-			width := max(v[1], -v[1])
+			n, width := f.pop2()
+			s := strconv.FormatInt(n, 10)
+			width = max(width, -width)
 			pad := width - int64(len(s))
 			if pad > 1<<28 { // as with allot, Go can't recover from running out of memory
 				panic(errors.New("out of memory"))
@@ -639,11 +683,8 @@ func init() { // in init, because some primitives refer to the tables
 		"]":         func(f *Forth) { f.compiling = true },
 		"immediate": func(f *Forth) { f.latest.immediate = true },
 		// the compiler words that if, else, then, begin, while and the rest are made of
-		"mark": func(f *Forth) { f.push(int64(len(f.current.code))) },
-		"resolve": func(f *Forth) {
-			at := f.pop()
-			f.current.code[pyIndex(len(f.current.code), at)].n = int64(len(f.current.code))
-		},
+		"mark":     func(f *Forth) { f.push(int64(len(f.current.code))) },
+		"resolve":  func(f *Forth) { f.resolve(f.pop(), int64(len(f.current.code))) },
 		"branch,":  func(f *Forth) { f.push(f.comma(instr{op: BRANCH, n: f.pop()})) },
 		"0branch,": func(f *Forth) { f.push(f.comma(instr{op: ZBRANCH, n: f.pop()})) },
 	}
@@ -687,10 +728,16 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		failed = true
 	}
+	// Like forth.py, stop on what Python would stop on with a traceback: a
+	// file that can't be read or isn't UTF-8, output that can't be written,
+	// and a string that resolve spoiled.
+	stop := func(err error) {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 	flush := func() {
-		if err := out.Flush(); err != nil { // the output is lost, so stop
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
+		if err := out.Flush(); err != nil { // the output is lost
+			stop(err)
 		}
 	}
 	run := func(source []byte, after string) {
@@ -699,7 +746,10 @@ func main() {
 			return
 		}
 		text, err := f.Interpret(string(source))
-		if err != nil {
+		if _, crashed := err.(crash); crashed {
+			flush()
+			stop(err)
+		} else if err != nil {
 			flush()
 			report(err)
 			return
@@ -707,13 +757,19 @@ func main() {
 		out.WriteString(text + after)
 	}
 	if len(paths) > 0 {
+		var sources [][]byte // forth.py reads every file before running any
 		for _, path := range paths {
-			if source, err := os.ReadFile(path); err != nil {
-				report(err)
-			} else { // Python reads a file with universal newlines
-				source = bytes.ReplaceAll(source, []byte("\r\n"), []byte("\n"))
-				run(bytes.ReplaceAll(source, []byte("\r"), []byte("\n")), "")
-			}
+			source, err := os.ReadFile(path)
+			if err != nil {
+				stop(err)
+			} else if !utf8.Valid(source) {
+				stop(fmt.Errorf("%s: the input is not valid UTF-8", path))
+			} // Python reads a file with universal newlines
+			source = bytes.ReplaceAll(source, []byte("\r\n"), []byte("\n"))
+			sources = append(sources, bytes.ReplaceAll(source, []byte("\r"), []byte("\n")))
+		}
+		for _, source := range sources {
+			run(source, "")
 		}
 	} else {
 		in := bufio.NewReader(os.Stdin)

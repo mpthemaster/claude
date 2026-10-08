@@ -160,7 +160,7 @@ Each time is the best of three whole runs, including process start.
   about 100 times slower than plain Python. So the Go Forth still runs
   `fib` two and a half times slower than plain Python. Most of that gap
   is the language's, and the design costs about the same in either.
-- **The port is about twice as long: 687 lines against 299.** Some of
+- **The port was about twice as long: 687 lines against 299.** Some of
   that is gofmt, which puts the word tables one entry per line. The rest
   is what Python did implicitly: a 64-bit wrap Go gets for free, but
   also floored division (Go truncates), arbitrary-size literals that
@@ -227,15 +227,16 @@ same day as each other, with Python 3.11.
   fix was the same view of the stack, with a comment saying it's valid
   only until the next push. In Rust the compiler enforces that rule, so
   the cheap version was also the obvious one.
-- **Why it's faster than the Go.** A CPU profile of the Go port puts
-  a third of its time in `push`, which takes `...int64` and appends with
-  a `memmove` on every word. Rust's `Vec::push` writes one cell. The size
+- **Why it was faster than the Go.** A CPU profile of the Go port put
+  a third of its time in `push`, which took `...int64` and appended with
+  a `memmove` on every word. Rust's `Vec::push` writes one cell. The
+  next section closes most of that gap. The size
   of an instruction isn't the reason: padding Rust's 16-byte `Instr` out to
   Go's 48 bytes changed nothing measurable.
 - **The Rust Forth runs `fib` about as fast as plain Python.** Plain Rust
   computes fib(27) in 0.4 ms, so the Rust Forth is about 55 times slower
-  than its host language. The Go Forth is about 65 times slower than
-  plain Go, and the Python Forth about 90 to 100 times slower than plain
+  than its host language. The Go Forth was then about 65 times slower than
+  plain Go (about 37 after the second pass below), and the Python Forth about 90 to 100 times slower than plain
   Python. The interpreter's design costs a similar factor in each, and
   the faster the host, the smaller that factor.
 - **Words and code live in arenas.** In Python and Go, a word that
@@ -305,20 +306,68 @@ from the end, as Python's list indexing does, where the Rust port had
 simply returned. The Rust port now copies all of these. That took a
 signed instruction pointer, which costs about 15% on the benchmarks.
 I kept it, since the point of the port is to be exact. The Go port
-doesn't copy these yet. Its tests are marked as expected failures, and
-the work is in the backlog.
+copies them too now; see below.
 
 Differences left:
 
 - non-ASCII digits, in both ports;
 - Unicode versions;
-- a second file that can't be read, where Python reads every file before
-  running any and Go runs the first one anyway;
 - how deep `execute` can nest through itself, since Python's limit
   depends on how deep its own stack already is (about 495 from the
   prompt, fewer under pytest), and the ports stop at 900;
 - invalid UTF-8 on stdin. Python reads it with surrogateescape, which
   depends on the locale, and the ports report the line and carry on.
+
+## Go, second pass
+
+The Rust port showed the Go one could be twice as fast, and a profile
+said where to look. Then the Go caught up with what the Rust had learned
+about odd jumps.
+
+| program | Go Forth before | Go Forth | Rust Forth |
+|---|---:|---:|---:|
+| `27 fib` (635,621 calls) | 0.049 s | 0.028 s | 0.024 s |
+| 2,000,000-iteration `do` loop | 0.037 s | 0.031 s | 0.025 s |
+| sieve to 200,000 | 0.030 s | 0.023 s | 0.021 s |
+
+Best of three runs on one machine, the same day, through `bench.py`.
+
+- **Three changes, each found by profiling the last.** `push` now takes
+  one cell. A variadic call builds a slice and `append` copies it with a
+  `memmove`, and that took `fib` from 49 ms to 36. Next in the profile
+  were the stack words. They went through a general `shuffle` that
+  copied cells out with `copy` and pushed them back one at a time.
+  Writing `dup`, `swap`, `over` and `rot` out, with a two-cell `pop2`
+  and `push2`, took it to 30. Last, each arithmetic word was a closure
+  calling another closure (`binary(func(a, b) { return a + b })`), so
+  every `+` was two indirect calls. Writing them out took the `do` loop
+  from 34 ms to 29. The Go is now 10 to 25% slower than the Rust, where
+  it was twice as slow. All three changes made the code more like the Rust's,
+  not more clever: one cell at a time, no helper in the middle.
+- **`pop2` replaced `pops`,** the view of the stack that was only valid
+  until the next push. Two `int64`s now come back by value, so the
+  comment warning about that rule went too. It's the shape the borrow
+  checker had pushed the Rust into.
+- **Now the Go Forth costs less over its host than the Rust does.**
+  Measured today, plain Go computes fib(27) in 0.72 ms and plain Rust in
+  0.37 ms. That puts the Go Forth at about 37 times slower than plain
+  Go, and the Rust Forth at about 60 times slower than plain Rust. So the
+  gap left between the two Forths is smaller than the gap between the
+  two compilers on plain code. The earlier note that "the faster the
+  host, the smaller that factor" no longer holds; the factor depends on
+  how the interpreter was written, which is the duller and more likely
+  explanation.
+- **Negative jumps cost 4% on `fib`.** The Rust port paid 15% for a signed
+  instruction pointer. In Go, one unsigned comparison,
+  `uint(ip) < uint(len(code))`, checks both ends at once, and only the
+  slow path asks whether the jump went past the end or below zero. The
+  Rust could do the same; it's in the backlog.
+- **The rest of the Rust's exactness came over too.** `then` resolved
+  onto a call, a `do` or a string now spoils it the way Python does, and a
+  file that can't be read stops the run before any file has run, as
+  `forth.py` reads them all first. 5,000 random programs found no
+  further differences. The Go is 799 lines now, 54 more, mostly the
+  stack words written out and the three spoiled ops.
 
 ## Not here
 

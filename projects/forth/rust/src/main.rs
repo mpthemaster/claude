@@ -686,18 +686,22 @@ fn plus_loop(f: &mut Forth) -> R {
         Op::Str if f.strings[ins.n as usize].chars().count() < 2 => {
             return python("string index out of range");
         }
-        Op::Str => {} // compiles, and then can't print: the resolve below spoils it
+        Op::Str => {} // compiles, and then can't print: it's spoiled below
+        Op::IntStr => {} // spoiled by an earlier +loop, with a tuple, not an int
         Op::Exit | Op::Leave => return python("'NoneType' object is not subscriptable"),
         Op::Call => return python("'Word' object is not subscriptable"),
         _ => return python("'int' object is not subscriptable"),
     }
+    // where the loop ends, not a jump; a string then can't print, but unlike
+    // one resolve spoiled, a later +loop can still read it
     let end = code.len() as i64;
-    if ins.op == Op::Do {
-        let block = f.all[f.current()?].code;
-        f.codes[block][i].n = end; // where the loop ends, not a jump
-        return Ok(());
+    let block = f.all[f.current()?].code;
+    let ins = &mut f.codes[block][i];
+    ins.n = end;
+    if ins.op == Op::Str {
+        ins.op = Op::IntStr;
     }
-    f.resolve(at, end)
+    Ok(())
 }
 
 fn branch_comma(f: &mut Forth, op: Op) -> R {

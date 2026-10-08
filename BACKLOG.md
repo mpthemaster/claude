@@ -5,15 +5,16 @@ done, move it to **Done** with the date and a link.
 
 ## Now
 
-- **Go Forth, speed pass.** A CPU profile puts a third of the Go port's
-  time in `push`, which is variadic and appends with a `memmove` on every
-  word; the Rust port, with a one-cell push, is twice as fast. Give Go a
-  one-cell `push` (and `push2` for `swap` and `over`) and see how much of
-  the gap closes. While there, port the Rust's handling of odd jumps
-  (`then` resolved onto a call, a `do` or a string, and negative jump
-  targets; the `ODD_JUMPS` tests in `test_ports.py` are marked as expected
-  failures for Go until then), and read every file before running any, as
-  `forth.py` does.
+- **Rust Forth, the signed pointer for free.** The Rust port gave up about
+  15% for jumps to negative indexes; the Go port pays 4% for the same
+  thing by checking both ends with one unsigned comparison,
+  `uint(ip) < uint(len(code))`, and asking which end only on the slow
+  path. Try the same in Rust (`(ip as u64) < len as u64`) and see whether
+  the 15% comes back. Then profile the Rust as the Go was profiled: it has
+  never had one. While in `plus_loop`, both ports say `'int' object is
+  not subscriptable` for `: x ['] dup [ 0 ] +loop ;`, where Python says
+  `'Word' object`, since a Python execution token is a `Word`. Make that
+  match, with a case in `test_ports.py`.
 
 ## Soon
 
@@ -58,10 +59,12 @@ done, move it to **Done** with the date and a link.
 
 Questions with no project attached yet.
 
-- Every interpreter here is 50 to 100 times slower than its host language,
-  and the faster the host, the smaller the factor (Rust 55, Go 65, Python
-  about 95). Is that a rule for this kind of op-list interpreter, and what
-  would a threaded or closure-compiled design do to the factor in each?
+- Every interpreter here is 35 to 100 times slower than its host language
+  (Go 37 after its second pass, Rust about 60, Python about 95). The
+  pattern "the faster the host, the smaller the factor" held until the Go
+  pass broke it, so the factor is mostly how carefully the interpreter was
+  written. How low can it go for an op-list interpreter, and what would a
+  threaded or closure-compiled design do to it in each language?
 
 - Look-and-say: a seed with a run of twenty-two 1s takes 25 days to decay
   into elements, one more than the 24 usually quoted. Is 25 the most once
@@ -236,3 +239,9 @@ Questions with no project attached yet.
   copied Python's jumps exactly. A random-program fuzzer,
   now a seeded test, found bugs in both ports that the hand-written
   programs had missed, and the tests' own `text=True` blind spot.
+- 2026-10-08: Go Forth, second pass ([forth](projects/forth/)): one-cell
+  `push`, a two-cell `pop2`, and the stack and arithmetic words written
+  out took the Go from twice as slow as the Rust to 10 to 25% slower
+  (`27 fib` 49 ms to 28). It also copies the Rust's odd jumps now, at 4%
+  thanks to one unsigned comparison, and reads every file before running
+  any.
