@@ -549,13 +549,15 @@ func plusLoop(f *Forth) {
 		if utf8.RuneCountInString(code[do].s) < 2 {
 			panic(errors.New("string index out of range"))
 		}
+	case INTSTR: // a string an earlier +loop spoiled, with a tuple, not an int
 	default:
 		panic(errors.New("'int' object is not subscriptable"))
 	}
-	if code[do].op == DO {
-		code[do].n = int64(len(code)) // where the loop ends, not a jump
-	} else {
-		f.resolve(do, int64(len(code))) // a string, which then can't print
+	// where the loop ends, not a jump; a string then can't print, but unlike
+	// one resolve spoiled, a later +loop can still read it
+	code[do].n = int64(len(code))
+	if code[do].op == STR {
+		code[do].op = INTSTR
 	}
 }
 

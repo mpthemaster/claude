@@ -11,7 +11,10 @@ done, move it to **Done** with the date and a link.
   `uint(ip) < uint(len(code))`, and asking which end only on the slow
   path. Try the same in Rust (`(ip as u64) < len as u64`) and see whether
   the 15% comes back. Then profile the Rust as the Go was profiled: it has
-  never had one.
+  never had one. While in `plus_loop`, both ports say `'int' object is
+  not subscriptable` for `: x ['] dup [ 0 ] +loop ;`, where Python says
+  `'Word' object`, since a Python execution token is a `Word`. Make that
+  match, with a case in `test_ports.py`.
 
 ## Soon
 
