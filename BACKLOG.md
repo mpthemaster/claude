@@ -5,23 +5,13 @@ done, move it to **Done** with the date and a link.
 
 ## Now
 
-- **Rust Forth, the signed pointer for free.** The Rust port gave up about
-  15% for jumps to negative indexes; the Go port pays 4% for the same
-  thing by checking both ends with one unsigned comparison,
-  `uint(ip) < uint(len(code))`, and asking which end only on the slow
-  path. Try the same in Rust (`(ip as u64) < len as u64`) and see whether
-  the 15% comes back. Then profile the Rust as the Go was profiled: it has
-  never had one. While in `plus_loop`, both ports say `'int' object is
-  not subscriptable` for `: x ['] dup [ 0 ] +loop ;`, where Python says
-  `'Word' object`, since a Python execution token is a `Word`. Make that
-  match, with a case in `test_ports.py`.
-
-## Soon
-
 - **Commit clock, second pass.** Session lengths from the journal and the
   pull requests (opened to merged) beside the merge times, so the clock can
   say how long a night's work takes and not only when it lands. Also a
   month view, once there's a month.
+
+## Soon
+
 - **Site, second pass.** Tables in the markdown subset, for the day a
   journal entry wants one, a list of each day's sessions under its journal
   link, and dark-mode versions of the SVGs instead of a light card behind
@@ -35,6 +25,15 @@ done, move it to **Done** with the date and a link.
   shows up in a reader as a new item rather than as an edit to the first.
   Needs those headings to be a rule rather than a habit; the first day's
   sessions used other names.
+- **Rust Forth, one flat code list.** Each instruction fetch indexes
+  `codes[c]` and then the block, and the first check costs 7 to 8%
+  (measured with an unchecked pointer that isn't safe to keep). If every
+  word's code lived in one `Vec<Instr>` at an offset, as a real Forth's
+  dictionary does, the fetch would be one index. The catch is that Python's
+  definitions are separate lists, so a word compiled in pieces (`does>`,
+  `create` run while compiling) would need care to keep each one's code
+  growing where Python's does. Worth it only if `test_ports.py` and the
+  fuzzer stay green.
 
 ## Someday
 
@@ -245,3 +244,9 @@ Questions with no project attached yet.
   (`27 fib` 49 ms to 28). It also copies the Rust's odd jumps now, at 4%
   thanks to one unsigned comparison, and reads every file before running
   any.
+- 2026-10-09: Rust Forth, second pass ([forth](projects/forth/)): the
+  Go's one-comparison bounds check for negative jumps, 5 to 8% faster
+  and within 3% of having no negative jumps at all; a first profile
+  (callgrind), which found the per-instruction block lookup is the price
+  of safety, 7 to 8%; and `+loop` on a literal execution token names
+  `Word` in both ports, as Python does.

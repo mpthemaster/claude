@@ -357,20 +357,21 @@ impl Forth {
                 None => &entry,
                 Some(c) => &self.codes[c],
             };
-            if ip >= block.len() as i64 {
-                match frames.pop() {
-                    None => return Ok(()),
-                    Some((c, i)) => (code, ip) = (Some(c), i),
+            // A negative ip turns into a huge usize, so one bounds check
+            // covers both ends; only a miss asks which end it was.
+            let ins = match block.get(ip as usize) {
+                Some(&ins) => ins,
+                None if ip >= 0 => {
+                    match frames.pop() {
+                        None => return Ok(()),
+                        Some((c, i)) => (code, ip) = (Some(c), i),
+                    }
+                    continue;
                 }
-                continue;
-            }
-            let ins = if ip >= 0 {
-                block[ip as usize]
-            } else {
-                match py_index(block.len(), ip) {
+                None => match py_index(block.len(), ip) {
                     Some(i) => block[i],
                     None => return python("list index out of range"),
-                }
+                },
             };
             ip += 1;
             match ins.op {
@@ -686,10 +687,12 @@ fn plus_loop(f: &mut Forth) -> R {
         Op::Str if f.strings[ins.n as usize].chars().count() < 2 => {
             return python("string index out of range");
         }
-        Op::Str => {} // compiles, and then can't print: it's spoiled below
+        Op::Str => {}    // compiles, and then can't print: it's spoiled below
         Op::IntStr => {} // spoiled by an earlier +loop, with a tuple, not an int
         Op::Exit | Op::Leave => return python("'NoneType' object is not subscriptable"),
         Op::Call => return python("'Word' object is not subscriptable"),
+        // a literal execution token, which Python holds as the Word itself
+        Op::Lit if f.token(ins.n).is_ok() => return python("'Word' object is not subscriptable"),
         _ => return python("'int' object is not subscriptable"),
     }
     // where the loop ends, not a jump; a string then can't print, but unlike

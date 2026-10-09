@@ -218,8 +218,8 @@ same day as each other, with Python 3.11.
 
 - **Rust didn't need a profile.** The first version that passed the
   tests was 85 to 100 times faster than the Python, and twice as fast as
-  the Go after the Go's fix. (The current version gives up about 15% of
-  that to copy Python's jumps exactly; see below.) Go's slow first port
+  the Go after the Go's fix. (A later version gave up some of that to
+  copy Python's jumps exactly, and the Rust's second pass won it back.) Go's slow first port
   came from `pops` copying cells into a new slice. The Rust equivalent,
   returning a slice of the stack and then pushing onto the stack, doesn't
   compile, because the slice borrows the stack. So `pop2` returns the two
@@ -304,8 +304,8 @@ once the line is done. The Rust port had panicked or called whichever
 word had that number. A jump to a negative index runs from that far
 from the end, as Python's list indexing does, where the Rust port had
 simply returned. The Rust port now copies all of these. That took a
-signed instruction pointer, which costs about 15% on the benchmarks.
-I kept it, since the point of the port is to be exact. The Go port
+signed instruction pointer, which I measured then as costing about 15%
+on the benchmarks (the Rust's second pass below measures it again). I kept it, since the point of the port is to be exact. The Go port
 copies them too now; see below.
 
 Differences left:
@@ -361,13 +361,62 @@ Best of three runs on one machine, the same day, through `bench.py`.
   instruction pointer. In Go, one unsigned comparison,
   `uint(ip) < uint(len(code))`, checks both ends at once, and only the
   slow path asks whether the jump went past the end or below zero. The
-  Rust could do the same; it's in the backlog.
+  Rust does the same now; see the next section.
 - **The rest of the Rust's exactness came over too.** `then` resolved
   onto a call, a `do` or a string now spoils it the way Python does, and a
   file that can't be read stops the run before any file has run, as
   `forth.py` reads them all first. 5,000 random programs found no
   further differences. The Go is 799 lines now, 54 more, mostly the
   stack words written out and the three spoiled ops.
+
+## Rust, second pass
+
+The Go port found a cheaper way to allow negative jumps, so the Rust took
+it back. Then the Rust had its first profile.
+
+| program | Rust Forth before | Rust Forth | no negative jumps | unchecked block |
+|---|---:|---:|---:|---:|
+| `27 fib` (635,621 calls) | 23.8 ms | 22.0 ms | 21.9 ms | 20.4 ms |
+| 2,000,000-iteration `do` loop | 23.2 ms | 22.1 ms | 21.4 ms | 20.3 ms |
+| sieve to 200,000 | 20.4 ms | 18.8 ms | 18.8 ms | 17.2 ms |
+
+Best of fifteen runs of each binary, interleaved, on one machine the same
+day. The last two columns are experiments that weren't kept.
+
+- **One bounds check for both ends.** The loop now fetches each
+  instruction with `block.get(ip as usize)`. A negative `ip` becomes a huge
+  `usize`, so the one check that slice indexing does anyway also catches
+  jumps below zero, and only a miss asks which end it was. That's the Go's
+  `uint(ip) < uint(len(code))`, and in Rust it's shorter than the code it
+  replaced, which compared twice. It saved 5 to 8%. To see what was left, I
+  built a version that drops negative jumps altogether: it's within 3% of
+  the kept one, so being exact about Python's indexing now costs about
+  nothing.
+- **The 15% wasn't 15% here.** On this machine the signed pointer cost
+  5 to 8%, not the 15% I measured when I added it. It was a different
+  machine and a noisier method, so the first number was probably too high.
+- **The first profile.** There's no `perf` in the container, so I counted
+  instructions with valgrind's callgrind on smaller runs. Everything is
+  inlined into `run`, about 53 machine instructions per Forth instruction
+  on the `do` loop. The largest single cost after the dispatch itself is
+  slice indexing, 15%, and most of that is fetching the current block,
+  `&self.codes[c]`, again on every instruction.
+- **Why that check stays.** The block can't be held across the loop,
+  because a primitive gets `&mut self` and may compile into `codes`.
+  `create` run from a word adds a block, and that can move the whole
+  `Vec`. To measure what this costs, I built a version that read the block
+  through an unchecked pointer. It was 7 to 8% faster and wrong, since the
+  pointer dangles once `codes` grows. Go doesn't pay this: each word
+  owns its own slice, the loop keeps the running one in a local, and the
+  garbage collector keeps it valid whatever else gets compiled. In Rust
+  the check is the price of reading safely from a list that can move,
+  and I kept it.
+- **A message fixed.** `+loop` closing onto a literal execution token, as
+  in `: x ['] dup [ 0 ] +loop ;`, now says `'Word' object is not
+  subscriptable` in both ports, as Python does, since Python's token is
+  the `Word` itself. The ports' tokens are numbers from 2⁴⁰ up, so a
+  literal in that range reads as a token. That's the same approximation
+  `execute` already makes. It covers `[ ' dup ] literal` too.
 
 ## Not here
 

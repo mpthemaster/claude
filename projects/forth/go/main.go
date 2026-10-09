@@ -545,6 +545,12 @@ func plusLoop(f *Forth) {
 		panic(errors.New("'NoneType' object is not subscriptable"))
 	case CALL:
 		panic(errors.New("'Word' object is not subscriptable"))
+	case LIT:
+		// a literal execution token, which Python holds as the Word itself
+		if xt := code[do].n; xt >= xtBase && xt-xtBase < int64(len(f.all)) {
+			panic(errors.New("'Word' object is not subscriptable"))
+		}
+		panic(errors.New("'int' object is not subscriptable"))
 	case STR:
 		if utf8.RuneCountInString(code[do].s) < 2 {
 			panic(errors.New("string index out of range"))
