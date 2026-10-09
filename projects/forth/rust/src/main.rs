@@ -357,21 +357,22 @@ impl Forth {
                 None => &entry,
                 Some(c) => &self.codes[c],
             };
-            // A negative ip turns into a huge usize, so one bounds check
-            // covers both ends; only a miss asks which end it was.
-            let ins = match block.get(ip as usize) {
-                Some(&ins) => ins,
-                None if ip >= 0 => {
-                    match frames.pop() {
-                        None => return Ok(()),
-                        Some((c, i)) => (code, ip) = (Some(c), i),
-                    }
-                    continue;
+            // A negative ip turns into a huge u64, so one comparison covers
+            // both ends; only a miss asks which end it was. (u64, not usize,
+            // which would truncate on a 32-bit target.)
+            let ins = if (ip as u64) < block.len() as u64 {
+                block[ip as usize]
+            } else if ip >= 0 {
+                match frames.pop() {
+                    None => return Ok(()),
+                    Some((c, i)) => (code, ip) = (Some(c), i),
                 }
-                None => match py_index(block.len(), ip) {
+                continue;
+            } else {
+                match py_index(block.len(), ip) {
                     Some(i) => block[i],
                     None => return python("list index out of range"),
-                },
+                }
             };
             ip += 1;
             match ins.op {

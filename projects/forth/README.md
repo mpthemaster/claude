@@ -384,11 +384,14 @@ Best of fifteen runs of each binary, interleaved, on one machine the same
 day. The last two columns are experiments that weren't kept.
 
 - **One bounds check for both ends.** The loop now fetches each
-  instruction with `block.get(ip as usize)`. A negative `ip` becomes a huge
-  `usize`, so the one check that slice indexing does anyway also catches
-  jumps below zero, and only a miss asks which end it was. That's the Go's
-  `uint(ip) < uint(len(code))`, and in Rust it's shorter than the code it
-  replaced, which compared twice. It saved 5 to 8%. To see what was left, I
+  instruction after one comparison, `(ip as u64) < block.len() as u64`.
+  A negative `ip` becomes a huge `u64`, so the comparison also catches
+  jumps below zero, and only a miss asks which end it was. The slice's
+  own bounds check after it is redundant, and the timings show it costs
+  nothing, so the compiler most likely drops it. This is the Go's `uint(ip) < uint(len(code))`. It saved 5 to
+  8%. (A first version used `block.get(ip as usize)`, which is just as
+  fast, but a review bot pointed out that `as usize` would truncate a
+  64-bit `ip` on a 32-bit target.) To see what was left, I
   built a version that drops negative jumps altogether: it's within about 3% of
   the kept one, so being exact about Python's indexing now costs about
   nothing.
