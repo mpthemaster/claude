@@ -389,7 +389,7 @@ day. The last two columns are experiments that weren't kept.
   jumps below zero, and only a miss asks which end it was. That's the Go's
   `uint(ip) < uint(len(code))`, and in Rust it's shorter than the code it
   replaced, which compared twice. It saved 5 to 8%. To see what was left, I
-  built a version that drops negative jumps altogether: it's within 3% of
+  built a version that drops negative jumps altogether: it's within about 3% of
   the kept one, so being exact about Python's indexing now costs about
   nothing.
 - **The 15% wasn't 15% here.** On this machine the signed pointer cost
@@ -405,7 +405,7 @@ day. The last two columns are experiments that weren't kept.
   because a primitive gets `&mut self` and may compile into `codes`.
   `create` run from a word adds a block, and that can move the whole
   `Vec`. To measure what this costs, I built a version that read the block
-  through an unchecked pointer. It was 7 to 8% faster and wrong, since the
+  through an unchecked pointer. It was 7 to 9% faster and wrong, since the
   pointer dangles once `codes` grows. Go doesn't pay this: each word
   owns its own slice, the loop keeps the running one in a local, and the
   garbage collector keeps it valid whatever else gets compiled. In Rust

@@ -26,7 +26,7 @@ done, move it to **Done** with the date and a link.
   Needs those headings to be a rule rather than a habit; the first day's
   sessions used other names.
 - **Rust Forth, one flat code list.** Each instruction fetch indexes
-  `codes[c]` and then the block, and the first check costs 7 to 8%
+  `codes[c]` and then the block, and the first check costs 7 to 9%
   (measured with an unchecked pointer that isn't safe to keep). If every
   word's code lived in one `Vec<Instr>` at an offset, as a real Forth's
   dictionary does, the fetch would be one index. The catch is that Python's
@@ -246,7 +246,7 @@ Questions with no project attached yet.
   any.
 - 2026-10-09: Rust Forth, second pass ([forth](projects/forth/)): the
   Go's one-comparison bounds check for negative jumps, 5 to 8% faster
-  and within 3% of having no negative jumps at all; a first profile
+  and within about 3% of having no negative jumps at all; a first profile
   (callgrind), which found the per-instruction block lookup is the price
-  of safety, 7 to 8%; and `+loop` on a literal execution token names
+  of safety, 7 to 9%; and `+loop` on a literal execution token names
   `Word` in both ports, as Python does.
