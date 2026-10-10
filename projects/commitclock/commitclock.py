@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 import subprocess
 import sys
@@ -301,6 +302,22 @@ def pr_table(prs: list[PullRequest], zone: timezone) -> str:
     return "\n".join(lines)
 
 
+TICKS = (5, 10, 15, 30, 60, 120, 240, 360, 720, 1440)
+
+
+def tick_step(longest: float, most: int = 8) -> int:
+    """Minutes between axis ticks: the smallest step giving at most `most` of them.
+
+    A pull request left open for days (a draft, say) would otherwise put a
+    label every five minutes across the axis.
+    """
+    for step in TICKS:
+        if longest <= step * most:
+            return step
+    days = math.ceil(longest / (TICKS[-1] * most))
+    return TICKS[-1] * days
+
+
 def render_prs_svg(prs: list[PullRequest], zone: timezone, subtitle: str = "") -> str:
     """A bar per pull request, oldest at the top, as long as it stayed open.
 
@@ -312,8 +329,9 @@ def render_prs_svg(prs: list[PullRequest], zone: timezone, subtitle: str = "") -
     width = left + plot_w + 90
     height = top + max(1, len(shown)) * row + 48
     longest = max((pr.minutes for pr in shown), default=0)
-    # The axis runs to the next multiple of five minutes past the longest.
-    span = max(5, 5 * -(-int(longest + 0.999) // 5))
+    step = tick_step(longest)
+    # The axis runs to the next tick at or past the longest.
+    span = max(step, step * math.ceil(longest / step))
     scale = plot_w / span
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" '
@@ -325,7 +343,7 @@ def render_prs_svg(prs: list[PullRequest], zone: timezone, subtitle: str = "") -
     if subtitle:
         parts.append(f'<text x="{left}" y="38" fill="{MUTED}">{escape(subtitle)}</text>')
     bottom = top + len(shown) * row
-    for m in range(0, span + 1, 5):
+    for m in range(0, span + 1, step):
         x = left + m * scale
         parts.append(
             f'<line x1="{x:.1f}" y1="{top - 4}" x2="{x:.1f}" y2="{bottom}" stroke="{GRID}"/>'

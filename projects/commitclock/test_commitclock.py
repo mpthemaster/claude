@@ -305,3 +305,24 @@ def test_committed_snapshot_reads():
     prs = commitclock.read_prs(snapshot.read_text())
     assert len(prs) >= 38
     assert all(pr.merged >= pr.opened for pr in prs)
+
+
+def test_tick_step_keeps_the_axis_readable():
+    assert commitclock.tick_step(0) == 5
+    assert commitclock.tick_step(16.25) == 5
+    assert commitclock.tick_step(41) == 10
+    assert commitclock.tick_step(24 * 60) == 240
+    assert commitclock.tick_step(30 * 24 * 60) == 1440 * 4
+    for longest in (0, 3, 40, 41, 500, 24 * 60, 9 * 24 * 60, 100 * 24 * 60):
+        step = commitclock.tick_step(longest)
+        assert step * 8 >= longest
+
+
+def test_prs_svg_of_a_day_long_pull_request_has_few_ticks():
+    day = (
+        '{"number": 9, "user": "me", "created_at": "2026-10-01T03:00:00Z", '
+        '"merged_at": "2026-10-02T03:00:00Z"}'
+    )
+    root = ET.fromstring(commitclock.render_prs_svg(commitclock.read_prs(day), UTC))
+    ticks = [t.text for t in root.iter(f"{SVG}text") if (t.text or "").isdigit()]
+    assert ticks == ["0", "240", "480", "720", "960", "1200", "1440"]
