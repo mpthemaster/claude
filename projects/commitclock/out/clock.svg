@@ -1,25 +1,26 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 744 320" font-family="system-ui, sans-serif" font-size="12">
 <rect width="744" height="320" fill="#fff"/>
-<text x="48" y="20" font-size="14" font-weight="600">When commits land, by weekday and hour (27 commits)</text>
-<text x="48" y="38" fill="#555">Commits from 2026-09-24 to 2026-09-30, in UTC. Darker is more.</text>
-<rect x="49.0" y="81.3" width="22" height="6.7" rx="2" fill="#3987e5"><title>00:00 to 00:59: 1 commit</title></rect>
-<rect x="121.0" y="48.0" width="22" height="40.0" rx="2" fill="#3987e5"><title>03:00 to 03:59: 6 commits</title></rect>
-<rect x="361.0" y="74.7" width="22" height="13.3" rx="2" fill="#3987e5"><title>13:00 to 13:59: 2 commits</title></rect>
-<rect x="433.0" y="74.7" width="22" height="13.3" rx="2" fill="#3987e5"><title>16:00 to 16:59: 2 commits</title></rect>
-<rect x="457.0" y="68.0" width="22" height="20.0" rx="2" fill="#3987e5"><title>17:00 to 17:59: 3 commits</title></rect>
-<rect x="481.0" y="48.0" width="22" height="40.0" rx="2" fill="#3987e5"><title>18:00 to 18:59: 6 commits</title></rect>
-<rect x="505.0" y="81.3" width="22" height="6.7" rx="2" fill="#3987e5"><title>19:00 to 19:59: 1 commit</title></rect>
-<rect x="529.0" y="74.7" width="22" height="13.3" rx="2" fill="#3987e5"><title>20:00 to 20:59: 2 commits</title></rect>
-<rect x="553.0" y="81.3" width="22" height="6.7" rx="2" fill="#3987e5"><title>21:00 to 21:59: 1 commit</title></rect>
-<rect x="577.0" y="74.7" width="22" height="13.3" rx="2" fill="#3987e5"><title>22:00 to 22:59: 2 commits</title></rect>
-<rect x="601.0" y="81.3" width="22" height="6.7" rx="2" fill="#3987e5"><title>23:00 to 23:59: 1 commit</title></rect>
+<text x="48" y="20" font-size="14" font-weight="600">When commits land, by weekday and hour (39 commits)</text>
+<text x="48" y="38" fill="#555">Commits from 2026-09-24 to 2026-10-09, in UTC. Darker is more.</text>
+<rect x="49.0" y="85.6" width="22" height="2.4" rx="2" fill="#3987e5"><title>00:00 to 00:59: 1 commit</title></rect>
+<rect x="121.0" y="48.0" width="22" height="40.0" rx="2" fill="#3987e5"><title>03:00 to 03:59: 17 commits</title></rect>
+<rect x="145.0" y="85.6" width="22" height="2.4" rx="2" fill="#3987e5"><title>04:00 to 04:59: 1 commit</title></rect>
+<rect x="361.0" y="83.3" width="22" height="4.7" rx="2" fill="#3987e5"><title>13:00 to 13:59: 2 commits</title></rect>
+<rect x="433.0" y="83.3" width="22" height="4.7" rx="2" fill="#3987e5"><title>16:00 to 16:59: 2 commits</title></rect>
+<rect x="457.0" y="80.9" width="22" height="7.1" rx="2" fill="#3987e5"><title>17:00 to 17:59: 3 commits</title></rect>
+<rect x="481.0" y="73.9" width="22" height="14.1" rx="2" fill="#3987e5"><title>18:00 to 18:59: 6 commits</title></rect>
+<rect x="505.0" y="85.6" width="22" height="2.4" rx="2" fill="#3987e5"><title>19:00 to 19:59: 1 commit</title></rect>
+<rect x="529.0" y="83.3" width="22" height="4.7" rx="2" fill="#3987e5"><title>20:00 to 20:59: 2 commits</title></rect>
+<rect x="553.0" y="85.6" width="22" height="2.4" rx="2" fill="#3987e5"><title>21:00 to 21:59: 1 commit</title></rect>
+<rect x="577.0" y="83.3" width="22" height="4.7" rx="2" fill="#3987e5"><title>22:00 to 22:59: 2 commits</title></rect>
+<rect x="601.0" y="85.6" width="22" height="2.4" rx="2" fill="#3987e5"><title>23:00 to 23:59: 1 commit</title></rect>
 <line x1="48" y1="88" x2="624" y2="88" stroke="#e5e5e5"/>
 <text x="40" y="112.0" text-anchor="end" fill="#555">Mon</text>
 <rect x="49.0" y="97.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Monday 00:00 to 00:59: 0 commits</title></rect>
 <rect x="73.0" y="97.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Monday 01:00 to 01:59: 0 commits</title></rect>
 <rect x="97.0" y="97.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Monday 02:00 to 02:59: 0 commits</title></rect>
-<rect x="121.0" y="97.0" width="22" height="22" rx="3" fill="#cde2fb"><title>Monday 03:00 to 03:59: 1 commit</title></rect>
-<text x="132.0" y="112.0" text-anchor="middle" font-size="11" fill="#111" pointer-events="none">1</text>
+<rect x="121.0" y="97.0" width="22" height="22" rx="3" fill="#9ec5f4"><title>Monday 03:00 to 03:59: 2 commits</title></rect>
+<text x="132.0" y="112.0" text-anchor="middle" font-size="11" fill="#111" pointer-events="none">2</text>
 <rect x="145.0" y="97.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Monday 04:00 to 04:59: 0 commits</title></rect>
 <rect x="169.0" y="97.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Monday 05:00 to 05:59: 0 commits</title></rect>
 <rect x="193.0" y="97.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Monday 06:00 to 06:59: 0 commits</title></rect>
@@ -44,8 +45,8 @@
 <rect x="49.0" y="121.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Tuesday 00:00 to 00:59: 0 commits</title></rect>
 <rect x="73.0" y="121.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Tuesday 01:00 to 01:59: 0 commits</title></rect>
 <rect x="97.0" y="121.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Tuesday 02:00 to 02:59: 0 commits</title></rect>
-<rect x="121.0" y="121.0" width="22" height="22" rx="3" fill="#cde2fb"><title>Tuesday 03:00 to 03:59: 1 commit</title></rect>
-<text x="132.0" y="136.0" text-anchor="middle" font-size="11" fill="#111" pointer-events="none">1</text>
+<rect x="121.0" y="121.0" width="22" height="22" rx="3" fill="#9ec5f4"><title>Tuesday 03:00 to 03:59: 2 commits</title></rect>
+<text x="132.0" y="136.0" text-anchor="middle" font-size="11" fill="#111" pointer-events="none">2</text>
 <rect x="145.0" y="121.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Tuesday 04:00 to 04:59: 0 commits</title></rect>
 <rect x="169.0" y="121.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Tuesday 05:00 to 05:59: 0 commits</title></rect>
 <rect x="193.0" y="121.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Tuesday 06:00 to 06:59: 0 commits</title></rect>
@@ -72,7 +73,8 @@
 <rect x="97.0" y="145.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Wednesday 02:00 to 02:59: 0 commits</title></rect>
 <rect x="121.0" y="145.0" width="22" height="22" rx="3" fill="#cde2fb"><title>Wednesday 03:00 to 03:59: 1 commit</title></rect>
 <text x="132.0" y="160.0" text-anchor="middle" font-size="11" fill="#111" pointer-events="none">1</text>
-<rect x="145.0" y="145.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Wednesday 04:00 to 04:59: 0 commits</title></rect>
+<rect x="145.0" y="145.0" width="22" height="22" rx="3" fill="#cde2fb"><title>Wednesday 04:00 to 04:59: 1 commit</title></rect>
+<text x="156.0" y="160.0" text-anchor="middle" font-size="11" fill="#111" pointer-events="none">1</text>
 <rect x="169.0" y="145.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Wednesday 05:00 to 05:59: 0 commits</title></rect>
 <rect x="193.0" y="145.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Wednesday 06:00 to 06:59: 0 commits</title></rect>
 <rect x="217.0" y="145.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Wednesday 07:00 to 07:59: 0 commits</title></rect>
@@ -96,7 +98,8 @@
 <rect x="49.0" y="169.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Thursday 00:00 to 00:59: 0 commits</title></rect>
 <rect x="73.0" y="169.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Thursday 01:00 to 01:59: 0 commits</title></rect>
 <rect x="97.0" y="169.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Thursday 02:00 to 02:59: 0 commits</title></rect>
-<rect x="121.0" y="169.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Thursday 03:00 to 03:59: 0 commits</title></rect>
+<rect x="121.0" y="169.0" width="22" height="22" rx="3" fill="#9ec5f4"><title>Thursday 03:00 to 03:59: 2 commits</title></rect>
+<text x="132.0" y="184.0" text-anchor="middle" font-size="11" fill="#111" pointer-events="none">2</text>
 <rect x="145.0" y="169.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Thursday 04:00 to 04:59: 0 commits</title></rect>
 <rect x="169.0" y="169.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Thursday 05:00 to 05:59: 0 commits</title></rect>
 <rect x="193.0" y="169.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Thursday 06:00 to 06:59: 0 commits</title></rect>
@@ -129,8 +132,8 @@
 <rect x="49.0" y="193.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Friday 00:00 to 00:59: 0 commits</title></rect>
 <rect x="73.0" y="193.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Friday 01:00 to 01:59: 0 commits</title></rect>
 <rect x="97.0" y="193.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Friday 02:00 to 02:59: 0 commits</title></rect>
-<rect x="121.0" y="193.0" width="22" height="22" rx="3" fill="#cde2fb"><title>Friday 03:00 to 03:59: 1 commit</title></rect>
-<text x="132.0" y="208.0" text-anchor="middle" font-size="11" fill="#111" pointer-events="none">1</text>
+<rect x="121.0" y="193.0" width="22" height="22" rx="3" fill="#184f95"><title>Friday 03:00 to 03:59: 5 commits</title></rect>
+<text x="132.0" y="208.0" text-anchor="middle" font-size="11" fill="#fff" pointer-events="none">5</text>
 <rect x="145.0" y="193.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Friday 04:00 to 04:59: 0 commits</title></rect>
 <rect x="169.0" y="193.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Friday 05:00 to 05:59: 0 commits</title></rect>
 <rect x="193.0" y="193.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Friday 06:00 to 06:59: 0 commits</title></rect>
@@ -156,8 +159,8 @@
 <text x="60.0" y="232.0" text-anchor="middle" font-size="11" fill="#111" pointer-events="none">1</text>
 <rect x="73.0" y="217.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Saturday 01:00 to 01:59: 0 commits</title></rect>
 <rect x="97.0" y="217.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Saturday 02:00 to 02:59: 0 commits</title></rect>
-<rect x="121.0" y="217.0" width="22" height="22" rx="3" fill="#cde2fb"><title>Saturday 03:00 to 03:59: 1 commit</title></rect>
-<text x="132.0" y="232.0" text-anchor="middle" font-size="11" fill="#111" pointer-events="none">1</text>
+<rect x="121.0" y="217.0" width="22" height="22" rx="3" fill="#6da7ec"><title>Saturday 03:00 to 03:59: 3 commits</title></rect>
+<text x="132.0" y="232.0" text-anchor="middle" font-size="11" fill="#111" pointer-events="none">3</text>
 <rect x="145.0" y="217.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Saturday 04:00 to 04:59: 0 commits</title></rect>
 <rect x="169.0" y="217.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Saturday 05:00 to 05:59: 0 commits</title></rect>
 <rect x="193.0" y="217.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Saturday 06:00 to 06:59: 0 commits</title></rect>
@@ -182,8 +185,8 @@
 <rect x="49.0" y="241.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Sunday 00:00 to 00:59: 0 commits</title></rect>
 <rect x="73.0" y="241.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Sunday 01:00 to 01:59: 0 commits</title></rect>
 <rect x="97.0" y="241.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Sunday 02:00 to 02:59: 0 commits</title></rect>
-<rect x="121.0" y="241.0" width="22" height="22" rx="3" fill="#cde2fb"><title>Sunday 03:00 to 03:59: 1 commit</title></rect>
-<text x="132.0" y="256.0" text-anchor="middle" font-size="11" fill="#111" pointer-events="none">1</text>
+<rect x="121.0" y="241.0" width="22" height="22" rx="3" fill="#9ec5f4"><title>Sunday 03:00 to 03:59: 2 commits</title></rect>
+<text x="132.0" y="256.0" text-anchor="middle" font-size="11" fill="#111" pointer-events="none">2</text>
 <rect x="145.0" y="241.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Sunday 04:00 to 04:59: 0 commits</title></rect>
 <rect x="169.0" y="241.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Sunday 05:00 to 05:59: 0 commits</title></rect>
 <rect x="193.0" y="241.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Sunday 06:00 to 06:59: 0 commits</title></rect>
@@ -208,20 +211,20 @@
 <rect x="577.0" y="241.0" width="22" height="22" rx="3" fill="#cde2fb"><title>Sunday 22:00 to 22:59: 1 commit</title></rect>
 <text x="588.0" y="256.0" text-anchor="middle" font-size="11" fill="#111" pointer-events="none">1</text>
 <rect x="601.0" y="241.0" width="22" height="22" rx="3" fill="#f2f2f0"><title>Sunday 23:00 to 23:59: 0 commits</title></rect>
-<rect x="640" y="97.0" width="4.3" height="22" rx="2" fill="#3987e5"><title>Monday: 1 commit</title></rect>
-<text x="648.3" y="112.0" fill="#555">1</text>
-<rect x="640" y="121.0" width="4.3" height="22" rx="2" fill="#3987e5"><title>Tuesday: 1 commit</title></rect>
-<text x="648.3" y="136.0" fill="#555">1</text>
-<rect x="640" y="145.0" width="4.3" height="22" rx="2" fill="#3987e5"><title>Wednesday: 1 commit</title></rect>
-<text x="648.3" y="160.0" fill="#555">1</text>
-<rect x="640" y="169.0" width="64.0" height="22" rx="2" fill="#3987e5"><title>Thursday: 15 commits</title></rect>
-<text x="708.0" y="184.0" fill="#555">15</text>
-<rect x="640" y="193.0" width="4.3" height="22" rx="2" fill="#3987e5"><title>Friday: 1 commit</title></rect>
-<text x="648.3" y="208.0" fill="#555">1</text>
-<rect x="640" y="217.0" width="8.5" height="22" rx="2" fill="#3987e5"><title>Saturday: 2 commits</title></rect>
-<text x="652.5" y="232.0" fill="#555">2</text>
-<rect x="640" y="241.0" width="25.6" height="22" rx="2" fill="#3987e5"><title>Sunday: 6 commits</title></rect>
-<text x="669.6" y="256.0" fill="#555">6</text>
+<rect x="640" y="97.0" width="7.5" height="22" rx="2" fill="#3987e5"><title>Monday: 2 commits</title></rect>
+<text x="651.5" y="112.0" fill="#555">2</text>
+<rect x="640" y="121.0" width="7.5" height="22" rx="2" fill="#3987e5"><title>Tuesday: 2 commits</title></rect>
+<text x="651.5" y="136.0" fill="#555">2</text>
+<rect x="640" y="145.0" width="7.5" height="22" rx="2" fill="#3987e5"><title>Wednesday: 2 commits</title></rect>
+<text x="651.5" y="160.0" fill="#555">2</text>
+<rect x="640" y="169.0" width="64.0" height="22" rx="2" fill="#3987e5"><title>Thursday: 17 commits</title></rect>
+<text x="708.0" y="184.0" fill="#555">17</text>
+<rect x="640" y="193.0" width="18.8" height="22" rx="2" fill="#3987e5"><title>Friday: 5 commits</title></rect>
+<text x="662.8" y="208.0" fill="#555">5</text>
+<rect x="640" y="217.0" width="15.1" height="22" rx="2" fill="#3987e5"><title>Saturday: 4 commits</title></rect>
+<text x="659.1" y="232.0" fill="#555">4</text>
+<rect x="640" y="241.0" width="26.4" height="22" rx="2" fill="#3987e5"><title>Sunday: 7 commits</title></rect>
+<text x="670.4" y="256.0" fill="#555">7</text>
 <text x="60.0" y="280" text-anchor="middle" fill="#555">00:00</text>
 <text x="132.0" y="280" text-anchor="middle" fill="#555">03:00</text>
 <text x="204.0" y="280" text-anchor="middle" fill="#555">06:00</text>

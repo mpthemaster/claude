@@ -11,18 +11,27 @@ recorded in, which mixes clocks when committers sit in different zones.
 
     python projects/commitclock/commitclock.py
     python projects/commitclock/commitclock.py --out projects/commitclock/out/clock.svg
+
+With --prs, it also reads the pull requests (GitHub's JSON, as an array or
+one object per line) and says how long each stayed open before it merged;
+--prs-out draws that as a second SVG.
+
+    python projects/commitclock/commitclock.py --prs projects/commitclock/out/prs.jsonl
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import subprocess
 import sys
 from collections.abc import Iterable
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from html import escape
 from pathlib import Path
+from statistics import median
 
 DAYS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 DAY_NAMES = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
@@ -202,6 +211,166 @@ def render_svg(counts: list[list[int]], subtitle: str = "") -> str:
     return "\n".join(parts) + "\n"
 
 
+@dataclass(frozen=True)
+class PullRequest:
+    """A merged pull request: who opened it, and when it opened and merged."""
+
+    number: int
+    author: str
+    opened: datetime
+    merged: datetime
+
+    @property
+    def minutes(self) -> float:
+        return (self.merged - self.opened) / timedelta(minutes=1)
+
+    @property
+    def bot(self) -> bool:
+        return self.author.endswith("[bot]")
+
+
+def parse_time(text: str) -> datetime:
+    """GitHub's '2026-10-09T03:21:29Z', timezone-aware."""
+    return datetime.fromisoformat(text.replace("Z", "+00:00"))
+
+
+def read_prs(text: str) -> list[PullRequest]:
+    """The merged pull requests in GitHub's JSON, oldest merge first.
+
+    Takes the API's array of pull requests or one object per line (what
+    `gh api --paginate --jq '.[]'` writes). `user` may be the API's object or
+    a bare login. Closed-without-merging ones are skipped.
+    """
+    text = text.strip()
+    if not text:
+        return []
+    if text.startswith("["):
+        items = json.loads(text)
+    else:
+        items = [json.loads(line) for line in text.splitlines() if line.strip()]
+    prs = []
+    for item in items:
+        if not item.get("merged_at"):
+            continue
+        user = item.get("user") or ""
+        author = user.get("login", "") if isinstance(user, dict) else str(user)
+        prs.append(
+            PullRequest(
+                number=int(item["number"]),
+                author=author,
+                opened=parse_time(item["created_at"]),
+                merged=parse_time(item["merged_at"]),
+            )
+        )
+    return sorted(prs, key=lambda pr: pr.merged)
+
+
+def duration(minutes: float) -> str:
+    """'45 s', '8 min' or '1 h 05 min'; past a day, '1 d 15 h'."""
+    if minutes < 1:
+        return f"{round(minutes * 60)} s"
+    whole = round(minutes)
+    if whole < 60:
+        return f"{whole} min"
+    hours, mins = divmod(whole, 60)
+    if hours < 24:
+        return f"{hours} h {mins:02d} min"
+    days, hours = divmod(hours, 24)
+    return f"{days} d {hours} h"
+
+
+def pr_table(prs: list[PullRequest], zone: timezone) -> str:
+    """One line per pull request, opened to merged, and the medians at the end."""
+    lines = []
+    for pr in prs:
+        opened, merged = pr.opened.astimezone(zone), pr.merged.astimezone(zone)
+        end = f"{merged:%H:%M}" if merged.date() == opened.date() else f"{merged:%m-%d %H:%M}"
+        lines.append(
+            f"#{pr.number:<4} {opened:%a %Y-%m-%d %H:%M} -> {end:>11}  "
+            f"{duration(pr.minutes):>10}" + ("  (bot)" if pr.bot else "")
+        )
+    people = [pr.minutes for pr in prs if not pr.bot]
+    bots = [pr.minutes for pr in prs if pr.bot]
+    if people:
+        lines.append(
+            f"\nopened to merged, {len(people)} pull requests: median "
+            f"{duration(median(people))}, longest {duration(max(people))}"
+        )
+    if bots:
+        lines.append(f"bots' pull requests, {len(bots)}: median {duration(median(bots))}")
+    return "\n".join(lines)
+
+
+def render_prs_svg(prs: list[PullRequest], zone: timezone, subtitle: str = "") -> str:
+    """A bar per pull request, oldest at the top, as long as it stayed open.
+
+    Bots' pull requests are left out: they wait for the next session, hours
+    or days, and would set the scale for everyone else.
+    """
+    shown = [pr for pr in prs if not pr.bot]
+    row, left, top, plot_w = 18, 150, 64, 520
+    width = left + plot_w + 90
+    height = top + max(1, len(shown)) * row + 48
+    longest = max((pr.minutes for pr in shown), default=0)
+    # The axis runs to the next multiple of five minutes past the longest.
+    span = max(5, 5 * -(-int(longest + 0.999) // 5))
+    scale = plot_w / span
+    parts = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" '
+        f'font-family="system-ui, sans-serif" font-size="12">',
+        f'<rect width="{width}" height="{height}" fill="#fff"/>',
+        f'<text x="{left}" y="20" font-size="14" font-weight="600">'
+        f"How long each pull request stayed open ({len(shown)} pull requests)</text>",
+    ]
+    if subtitle:
+        parts.append(f'<text x="{left}" y="38" fill="{MUTED}">{escape(subtitle)}</text>')
+    bottom = top + len(shown) * row
+    for m in range(0, span + 1, 5):
+        x = left + m * scale
+        parts.append(
+            f'<line x1="{x:.1f}" y1="{top - 4}" x2="{x:.1f}" y2="{bottom}" stroke="{GRID}"/>'
+        )
+        parts.append(
+            f'<text x="{x:.1f}" y="{bottom + 16}" text-anchor="middle" fill="{MUTED}">{m}</text>'
+        )
+    parts.append(
+        f'<text x="{left + plot_w / 2:.1f}" y="{bottom + 36}" text-anchor="middle" '
+        f'fill="{MUTED}">minutes from opened to merged</text>'
+    )
+    if shown:
+        mid = median(pr.minutes for pr in shown)
+        x = left + mid * scale
+        parts.append(
+            f'<line x1="{x:.1f}" y1="{top - 8}" x2="{x:.1f}" y2="{bottom}" stroke="{INK}" '
+            f'stroke-dasharray="3 3"><title>median: {duration(mid)}</title></line>'
+        )
+        parts.append(
+            f'<text x="{x:.1f}" y="{top - 12}" text-anchor="middle" fill="{INK}">'
+            f"median {duration(mid)}</text>"
+        )
+    for i, pr in enumerate(shown):
+        y = top + i * row
+        opened, merged = pr.opened.astimezone(zone), pr.merged.astimezone(zone)
+        parts.append(
+            f'<text x="{left - 8}" y="{y + row / 2 + 4:.1f}" text-anchor="end" '
+            f'fill="{MUTED}">#{pr.number}  {merged:%a %m-%d %H:%M}</text>'
+        )
+        w = max(2.0, pr.minutes * scale)
+        parts.append(
+            f'<rect x="{left}" y="{y + 2}" width="{w:.1f}" height="{row - 4}" rx="2" '
+            f'fill="{RAMP[3]}"><title>#{pr.number}: opened {opened:%Y-%m-%d %H:%M}, '
+            f"merged {merged:%H:%M}, {duration(pr.minutes)}</title></rect>"
+        )
+        parts.append(
+            # A white halo keeps the number readable where it crosses the median.
+            f'<text x="{left + w + 4:.1f}" y="{y + row / 2 + 4:.1f}" fill="{MUTED}" '
+            f'stroke="#fff" stroke-width="3" paint-order="stroke">'
+            f"{duration(pr.minutes)}</text>"
+        )
+    parts.append("</svg>")
+    return "\n".join(parts) + "\n"
+
+
 OFFSET = re.compile(r"([+-]?)(\d{1,2})(?::(\d{2}))?")
 
 
@@ -244,12 +413,17 @@ def main(argv: list[str] | None = None) -> int:
         help="keep each commit's own recorded zone instead",
     )
     parser.add_argument("--out", type=Path, help="write the SVG heatmap here")
+    parser.add_argument("--prs", type=Path, help="pull requests as GitHub's JSON")
+    parser.add_argument("--prs-out", type=Path, help="write the pull requests' SVG here")
     args = parser.parse_args(argv)
+    if args.prs_out and not args.prs:
+        parser.error("--prs-out needs --prs")
 
     try:
         offset = None if args.recorded else parse_offset(args.utc_offset)
         times = commit_times(args.repo, args.ref)
-    except (RuntimeError, ValueError) as err:
+        prs = read_prs(args.prs.read_text()) if args.prs else []
+    except (OSError, RuntimeError, ValueError, KeyError, TypeError) as err:
         print(err, file=sys.stderr)
         return 1
 
@@ -277,6 +451,27 @@ def main(argv: list[str] | None = None) -> int:
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(render_svg(counts, subtitle))
         print(f"wrote {args.out}")
+
+    if args.prs:
+        # Durations don't depend on the clock; the times printed beside them
+        # do. --recorded has no zone to offer for these, so they use UTC.
+        zone = timezone(offset or timedelta(0))
+        print()
+        print(pr_table(prs, zone) if prs else "no merged pull requests")
+        if args.prs_out:
+            if prs:
+                first, last = prs[0].merged.astimezone(zone), prs[-1].merged.astimezone(zone)
+                bots = sum(pr.bot for pr in prs)
+                subtitle = (
+                    f"Merged from {first:%Y-%m-%d} to {last:%Y-%m-%d}, times in "
+                    f"{utc_name(zone.utcoffset(None))}"
+                    + (f"; {bots} from bots left out." if bots else ".")
+                )
+            else:
+                subtitle = "No merged pull requests."
+            args.prs_out.parent.mkdir(parents=True, exist_ok=True)
+            args.prs_out.write_text(render_prs_svg(prs, zone, subtitle))
+            print(f"wrote {args.prs_out}")
     return 0
 
 

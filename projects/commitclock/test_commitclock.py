@@ -1,7 +1,7 @@
 import os
 import subprocess
 import xml.etree.ElementTree as ET
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 
 import commitclock
 import pytest
@@ -201,3 +201,107 @@ def test_runs_on_this_repository(capsys):
     # CI's checkout is shallow, so this repository may have a single commit.
     assert commitclock.main([]) == 0
     assert "total" in capsys.readouterr().out
+
+
+# --- pull requests ----------------------------------------------------------
+
+API = """[
+  {"number": 2, "user": {"login": "someone"}, "created_at": "2026-09-27T03:15:28Z",
+   "merged_at": "2026-09-27T03:25:11Z", "title": "second"},
+  {"number": 3, "user": {"login": "someone"}, "created_at": "2026-09-27T04:00:00Z",
+   "merged_at": null, "title": "closed without merging"},
+  {"number": 1, "user": {"login": "dependabot[bot]"}, "created_at": "2026-09-25T11:51:00Z",
+   "merged_at": "2026-09-27T03:14:00Z", "title": "a bump"}
+]"""
+
+
+def test_read_prs_takes_the_api_array_and_skips_unmerged():
+    prs = commitclock.read_prs(API)
+    assert [pr.number for pr in prs] == [1, 2]  # oldest merge first
+    bump, second = prs
+    assert bump.bot and not second.bot
+    assert second.author == "someone"
+    assert second.opened == at("2026-09-27T03:15:28+00:00")
+    assert second.minutes == pytest.approx(9 + 43 / 60)
+
+
+def test_read_prs_takes_one_object_per_line_and_bare_logins():
+    lines = (
+        '{"number": 7, "user": "me", "created_at": "2026-10-01T03:00:00Z", '
+        '"merged_at": "2026-10-01T03:08:00Z"}\n\n'
+    )
+    (pr,) = commitclock.read_prs(lines)
+    assert (pr.number, pr.author, pr.minutes) == (7, "me", 8)
+    assert commitclock.read_prs("") == []
+    assert commitclock.read_prs("[]") == []
+
+
+def test_duration_reads_naturally():
+    assert commitclock.duration(44 / 60) == "44 s"
+    assert commitclock.duration(9.6) == "10 min"
+    assert commitclock.duration(65) == "1 h 05 min"
+    assert commitclock.duration(15 * 60 + 21) == "15 h 21 min"
+    assert commitclock.duration(39 * 60 + 23) == "1 d 15 h"
+
+
+def test_pr_table_gives_medians_for_people_and_bots_apart():
+    text = commitclock.pr_table(commitclock.read_prs(API), UTC)
+    lines = text.splitlines()
+    assert lines[0].startswith("#1    Fri 2026-09-25 11:51 -> 09-27 03:14")
+    assert lines[0].endswith("(bot)")
+    assert lines[1].startswith("#2    Sun 2026-09-27 03:15 ->       03:25")
+    assert "1 pull requests: median 10 min, longest 10 min" in text
+    assert "bots' pull requests, 1: median 1 d 15 h" in text
+    # On another clock the times move and the durations don't.
+    shifted = commitclock.pr_table(commitclock.read_prs(API), timezone(timedelta(hours=-4)))
+    assert "Sat 2026-09-26 23:15 -> 09-26 23:25" not in shifted
+    assert "#2    Sat 2026-09-26 23:15 ->       23:25      10 min" in shifted
+
+
+def test_prs_svg_leaves_bots_out_and_parses():
+    prs = commitclock.read_prs(API)
+    root = ET.fromstring(commitclock.render_prs_svg(prs, UTC, "sub & <title>"))
+    titles = [t.text for t in root.iter(f"{SVG}title")]
+    assert "#2: opened 2026-09-27 03:15, merged 03:25, 10 min" in titles
+    assert not any(t.startswith("#1:") for t in titles)
+    assert "median: 10 min" in titles
+    texts = [t.text for t in root.iter(f"{SVG}text")]
+    assert "sub & <title>" in texts
+    assert any("(1 pull requests)" in (t or "") for t in texts)
+    # With nothing to draw it still draws.
+    ET.fromstring(commitclock.render_prs_svg([], UTC))
+
+
+def test_main_with_prs(repo, tmp_path, capsys):
+    path, _ = repo
+    data = tmp_path / "prs.json"
+    data.write_text(API)
+    out = tmp_path / "out" / "prs.svg"
+    argv = ["--repo", str(path), "--prs", str(data), "--prs-out", str(out)]
+    assert commitclock.main(argv) == 0
+    assert "median 10 min" in capsys.readouterr().out
+    assert "1 from bots left out" in out.read_text()
+    # --recorded has no single zone, so the pull requests' times are in UTC.
+    assert commitclock.main([*argv, "--recorded"]) == 0
+    assert "times in UTC" in out.read_text()
+    assert commitclock.main([*argv, "--utc-offset=-4"]) == 0
+    assert "times in UTC-4" in out.read_text()
+
+
+def test_main_with_prs_fails_cleanly(repo, tmp_path, capsys):
+    path, _ = repo
+    assert commitclock.main(["--repo", str(path), "--prs", str(tmp_path / "none")]) == 1
+    bad = tmp_path / "bad.json"
+    bad.write_text('[{"number": 1, "merged_at": "2026-01-01T00:00:00Z"}]')
+    assert commitclock.main(["--repo", str(path), "--prs", str(bad)]) == 1
+    bad.write_text("{not json")
+    assert commitclock.main(["--repo", str(path), "--prs", str(bad)]) == 1
+    with pytest.raises(SystemExit):
+        commitclock.main(["--repo", str(path), "--prs-out", str(tmp_path / "x.svg")])
+
+
+def test_committed_snapshot_reads():
+    snapshot = commitclock.Path(commitclock.__file__).parent / "out" / "prs.jsonl"
+    prs = commitclock.read_prs(snapshot.read_text())
+    assert len(prs) >= 38
+    assert all(pr.merged >= pr.opened for pr in prs)
