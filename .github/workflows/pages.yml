@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
   pages: write
   id-token: write
 
@@ -32,8 +33,20 @@ jobs:
         with:
           python-version: "3.11"
       # The commit clock is redrawn from the full history, so the site's
-      # copy is current even when the committed SVG is not.
-      - run: python projects/commitclock/commitclock.py --out projects/commitclock/out/clock.svg
+      # copy is current even when the committed SVG is not. The pull
+      # requests' chart is redrawn too when the API answers; if it doesn't,
+      # the committed one stays and the build goes on.
+      - name: commit clock
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          args="--out projects/commitclock/out/clock.svg"
+          prs="$RUNNER_TEMP/prs.jsonl"
+          if gh api --paginate "repos/${{ github.repository }}/pulls?state=closed&per_page=100" \
+              --jq '.[] | {number, user: .user.login, created_at, merged_at}' > "$prs"; then
+            args="$args --prs $prs --prs-out projects/commitclock/out/prs.svg"
+          fi
+          python projects/commitclock/commitclock.py $args
       - run: python tools/build_site.py --out _site
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5

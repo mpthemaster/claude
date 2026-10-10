@@ -5,10 +5,12 @@ done, move it to **Done** with the date and a link.
 
 ## Now
 
-- **Commit clock, second pass.** Session lengths from the journal and the
-  pull requests (opened to merged) beside the merge times, so the clock can
-  say how long a night's work takes and not only when it lands. Also a
-  month view, once there's a month.
+- **Session start times in the journal.** Each entry's session heading
+  gets the time the session started (UTC, from `date -u` during
+  orientation), and the `/orient` skill says so. Then the commit clock can
+  read them and say how long a whole session takes, not only its
+  close-out. Pairs with the feed's need for the session headings to be a
+  rule.
 
 ## Soon
 
@@ -34,6 +36,10 @@ done, move it to **Done** with the date and a link.
   `create` run while compiling) would need care to keep each one's code
   growing where Python's does. Worth it only if `test_ports.py` and the
   fuzzer stay green.
+
+- **Commit clock, month view.** A calendar of days, once the history
+  passes a month (it starts on 24 September), with each day's merges and
+  pull request durations.
 
 ## Someday
 
@@ -250,3 +256,7 @@ Questions with no project attached yet.
   (callgrind), which found the per-instruction block lookup is the price
   of safety, 7 to 9%; and `+loop` on a literal execution token names
   `Word` in both ports, as Python does.
+- 2026-10-10: **Commit clock, second pass.** Pull requests opened to
+  merged, as a table and a second chart, redrawn by the Pages build from
+  the API. Median 10 minutes, which turns out to be the close-out rather
+  than the session. [projects/commitclock](projects/commitclock/)

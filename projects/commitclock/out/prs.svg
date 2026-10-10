@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 706" font-family="system-ui, sans-serif" font-size="12">
+<rect width="760" height="706" fill="#fff"/>
+<text x="150" y="20" font-size="14" font-weight="600">How long each pull request stayed open (33 pull requests)</text>
+<text x="150" y="38" fill="#555">Merged from 2026-09-24 to 2026-10-09, times in UTC; 5 from bots left out.</text>
+<line x1="150.0" y1="60" x2="150.0" y2="658" stroke="#e5e5e5"/>
+<text x="150.0" y="674" text-anchor="middle" fill="#555">0</text>
+<line x1="280.0" y1="60" x2="280.0" y2="658" stroke="#e5e5e5"/>
+<text x="280.0" y="674" text-anchor="middle" fill="#555">5</text>
+<line x1="410.0" y1="60" x2="410.0" y2="658" stroke="#e5e5e5"/>
+<text x="410.0" y="674" text-anchor="middle" fill="#555">10</text>
+<line x1="540.0" y1="60" x2="540.0" y2="658" stroke="#e5e5e5"/>
+<text x="540.0" y="674" text-anchor="middle" fill="#555">15</text>
+<line x1="670.0" y1="60" x2="670.0" y2="658" stroke="#e5e5e5"/>
+<text x="670.0" y="674" text-anchor="middle" fill="#555">20</text>
+<text x="410.0" y="694" text-anchor="middle" fill="#555">minutes from opened to merged</text>
+<line x1="397.0" y1="56" x2="397.0" y2="658" stroke="#111" stroke-dasharray="3 3"><title>median: 10 min</title></line>
+<text x="397.0" y="52" text-anchor="middle" fill="#111">median 10 min</text>
+<text x="142" y="77.0" text-anchor="end" fill="#555">#1  Thu 09-24 17:14</text>
+<rect x="150" y="66" width="19.1" height="14" rx="2" fill="#3987e5"><title>#1: opened 2026-09-24 17:13, merged 17:14, 44 s</title></rect>
+<text x="173.1" y="77.0" fill="#555" stroke="#fff" stroke-width="3" paint-order="stroke">44 s</text>
+<text x="142" y="95.0" text-anchor="end" fill="#555">#2  Thu 09-24 17:40</text>
+<rect x="150" y="84" width="17.8" height="14" rx="2" fill="#3987e5"><title>#2: opened 2026-09-24 17:40, merged 17:40, 41 s</title></rect>
+<text x="171.8" y="95.0" fill="#555" stroke="#fff" stroke-width="3" paint-order="stroke">41 s</text>
+<text x="142" y="113.0" text-anchor="end" fill="#555">#3  Thu 09-24 18:07</text>
+<rect x="150" y="102" width="51.1" height="14" rx="2" fill="#3987e5"><title>#3: opened 2026-09-24 18:05, merged 18:07, 2 min</title></rect>
+<text x="205.1" y="113.0" fill="#555" stroke="#fff" stroke-width="3" paint-order="stroke">2 min</text>
+<text x="142" y="131.0" text-anchor="end" fill="#555">#6  Thu 09-24 18:34</text>
+<rect x="150" y="120" width="77.6" height="14" rx="2" fill="#3987e5"><title>#6: opened 2026-09-24 18:31, merged 18:34, 3 min</title></rect>
+<text x="231.6" y="131.0" fill="#555" stroke="#fff" stroke-width="3" paint-order="stroke">3 min</text>
+<text x="142" y="149.0" text-anchor="end" fill="#555">#7  Thu 09-24 18:53</text>
+<rect x="150" y="138" width="47.2" height="14" rx="2" fill="#3987e5"><title>#7: opened 2026-09-24 18:51, merged 18:53, 2 min</title></rect>
+<text x="201.2" y="149.0" fill="#555" stroke="#fff" stroke-width="3" paint-order="stroke">2 min</text>
+<text x="142" y="167.0" text-anchor="end" fill="#555">#8  Thu 09-24 18:59</text>
+<rect x="150" y="156" width="31.6" height="14" rx="2" fill="#3987e5"><title>#8: opened 2026-09-24 18:57, merged 18:59, 1 min</title></rect>
+<text x="185.6" y="167.0" fill="#555" stroke="#fff" stroke-width="3" paint-order="stroke">1 min</text>
+<text x="142" y="185.0" text-anchor="end" fill="#555">#9  Thu 09-24 19:46</text>
+<rect x="150" y="174" width="382.6" height="14" rx="2" fill="#3987e5"><title>#9: opened 2026-09-24 19:31, merged 19:46, 15 min</title></rect>
+<text x="536.6" y="185.0" fill="#555" stroke="#fff" stroke-width="3" paint-order="stroke">15 min</text>
+<text x="142" y="203.0" text-anchor="end" fill="#555">#10  Thu 09-24 20:37</text>
+<rect x="150" y="192" width="200.6" height="14" rx="2" fill="#3987e5"><title>#10: opened 2026-09-24 20:29, merged 20:37, 8 min</title></rect>
+<text x="354.6" y="203.0" fill="#555" stroke="#fff" stroke-width="3" paint-order="stroke">8 min</text>
+<text x="142" y="221.0" text-anchor="end" fill="#555">#11  Thu 09-24 20:45</text>
+<rect x="150" y="210" width="100.5" height="14" rx="2" fill="#3987e5"><title>#11: opened 2026-09-24 20:41, merged 20:45, 4 min</title></rect>
+<text x="254.5" y="221.0" fill="#555" stroke="#fff" stroke-width="3" paint-order="stroke">4 min</text>
+<text x="142" y="239.0" text-anchor="end" fill="#555">#13  Thu 09-24 21:29</text>
+<rect x="150" y="228" width="291.6" height="14" rx="2" fill="#3987e5"><title>#13: opened 2026-09-24 21:17, merged 21:29, 11 min</title></rect>
+<text x="445.6" y="239.0" fill="#555" stroke="#fff" stroke-width="3" paint-order="stroke">11 min</text>
+<text x="142" y="257.0" text-anchor="end" fill="#555">#15  Thu 09-24 22:11</text>
+<rect x="150" y="246" width="342.3" height="14" rx="2" fill="#3987e5"><title>#15: opened 2026-09-24 21:57, merged 22:11, 13 min</title></rect>
+<text x="496.3" y="257.0" fill="#555" stroke="#fff" stroke-width="3" paint-order="stroke">13 min</text>
+<text x="142" y="275.0" text-anchor="end" fill="#555">#16  Thu 09-24 23:35</text>
+<rect x="150" y="264" width="306.4" height="14" rx="2" fill="#3987e5"><title>#16: opened 2026-09-24 23:23, merged 23:35, 12 min</title></rect>
+<text x="460.4" y="275.0" fill="#555" stroke="#fff" stroke-width="3" paint-order="stroke">12 min</text>
+<text x="142" y="293.0" text-anchor="end" fill="#555">#17  Fri 09-25 03:25</text>
+<rect x="150" y="282" width="363.6" height="14" rx="2" fill="#3987e5"><title>#17: opened 2026-09-25 03:11, merged 03:25, 14 min</title></rect>
+<text x="517.6" y="293.0" fill="#555" stroke="#fff" stroke-width="3" paint-order="stroke">14 min</text>
+<text x="142" y="311.0" text-anchor="end" fill="#555">#18  Sat 09-26 00:00</text>
+<rect x="150" y="300" width="320.7" height="14" rx="2" fill="#3987e5"><title>#18: opened 2026-09-25 23:48, merged 00:00, 12 min</title></rect>
+<text x="474.7" y="311.0" fill="#555" stroke="#fff" stroke-width="3" paint-order="stroke">12 min</text>
+<text x="142" y="329.0" text-anchor="end" fill="#555">#19  Sat 09-26 03:27</text>
+<rect x="150" y="318" width="240.5" height="14" rx="2" fill="#3987e5"><title>#19: opened 2026-09-26 03:18, merged 03:27, 9 min</title></rect>
+<text x="394.5" y="329.0" fill="#555" stroke="#fff" stroke-width="3" paint-order="stroke">9 min</text>
+<text x="142" y="347.0" text-anchor="end" fill="#555">#20  Sun 09-27 03:25</text>
+<rect x="150" y="336" width="252.6" height="14" rx="2" fill="#3987e5"><title>#20: opened 2026-09-27 03:15, merged 03:25, 10 min</title></rect>
+<text x="406.6" y="347.0" fill="#555" stroke="#fff" stroke-width="3" paint-order="stroke">10 min</text>
+<text x="142" y="365.0" text-anchor="end" fill="#555">#22  Sun 09-27 13:36</text>
+<rect x="150" y="354" width="34.7" height="14" rx="2" fill="#3987e5"><title>#22: opened 2026-09-27 13:35, merged 13:36, 1 min</title></rect>
+<text x="188.7" y="365.0" fill="#555" stroke="#fff" stroke-width="3" paint-order="stroke">1 min</text>
+<text x="142" y="383.0" text-anchor="end" fill="#555">#23  Sun 09-27 13:46</text>
+<rect x="150" y="372" width="41.6" height="14" rx="2" fill="#3987e5"><title>#23: opened 2026-09-27 13:45, merged 13:46, 2 min</title></rect>
+<text x="195.6" y="383.0" fill="#555" stroke="#fff" stroke-width="3" paint-order="stroke">2 min</text>
+<text x="142" y="401.0" text-anchor="end" fill="#555">#24  Sun 09-27 16:02</text>
+<rect x="150" y="390" width="308.5" height="14" rx="2" fill="#3987e5"><title>#24: opened 2026-09-27 15:50, merged 16:02, 12 min</title></rect>
+<text x="462.5" y="401.0" fill="#555" stroke="#fff" stroke-width="3" paint-order="stroke">12 min</text>
+<text x="142" y="419.0" text-anchor="end" fill="#555">#25  Sun 09-27 17:26</text>
+<rect x="150" y="408" width="247.0" height="14" rx="2" fill="#3987e5"><title>#25: opened 2026-09-27 17:16, merged 17:26, 10 min</title></rect>
+<text x="401.0" y="419.0" fill="#555" stroke="#fff" stroke-width="3" paint-order="stroke">10 min</text>
+<text x="142" y="437.0" text-anchor="end" fill="#555">#26  Sun 09-27 22:25</text>
+<rect x="150" y="426" width="327.6" height="14" rx="2" fill="#3987e5"><title>#26: opened 2026-09-27 22:12, merged 22:25, 13 min</title></rect>
+<text x="481.6" y="437.0" fill="#555" stroke="#fff" stroke-width="3" paint-order="stroke">13 min</text>
+<text x="142" y="455.0" text-anchor="end" fill="#555">#27  Mon 09-28 03:28</text>
+<rect x="150" y="444" width="202.8" height="14" rx="2" fill="#3987e5"><title>#27: opened 2026-09-28 03:20, merged 03:28, 8 min</title></rect>
+<text x="356.8" y="455.0" fill="#555" stroke="#fff" stroke-width="3" paint-order="stroke">8 min</text>
+<text x="142" y="473.0" text-anchor="end" fill="#555">#28  Tue 09-29 03:36</text>
+<rect x="150" y="462" width="267.8" height="14" rx="2" fill="#3987e5"><title>#28: opened 2026-09-29 03:26, merged 03:36, 10 min</title></rect>
+<text x="421.8" y="473.0" fill="#555" stroke="#fff" stroke-width="3" paint-order="stroke">10 min</text>
+<text x="142" y="491.0" text-anchor="end" fill="#555">#29  Wed 09-30 03:42</text>
+<rect x="150" y="480" width="422.5" height="14" rx="2" fill="#3987e5"><title>#29: opened 2026-09-30 03:26, merged 03:42, 16 min</title></rect>
+<text x="576.5" y="491.0" fill="#555" stroke="#fff" stroke-width="3" paint-order="stroke">16 min</text>
+<text x="142" y="509.0" text-anchor="end" fill="#555">#30  Thu 10-01 03:27</text>
+<rect x="150" y="498" width="243.1" height="14" rx="2" fill="#3987e5"><title>#30: opened 2026-10-01 03:18, merged 03:27, 9 min</title></rect>
+<text x="397.1" y="509.0" fill="#555" stroke="#fff" stroke-width="3" paint-order="stroke">9 min</text>
+<text x="142" y="527.0" text-anchor="end" fill="#555">#34  Fri 10-02 03:33</text>
+<rect x="150" y="516" width="291.2" height="14" rx="2" fill="#3987e5"><title>#34: opened 2026-10-02 03:22, merged 03:33, 11 min</title></rect>
+<text x="445.2" y="527.0" fill="#555" stroke="#fff" stroke-width="3" paint-order="stroke">11 min</text>
+<text x="142" y="545.0" text-anchor="end" fill="#555">#35  Sat 10-03 03:30</text>
+<rect x="150" y="534" width="134.8" height="14" rx="2" fill="#3987e5"><title>#35: opened 2026-10-03 03:25, merged 03:30, 5 min</title></rect>
+<text x="288.8" y="545.0" fill="#555" stroke="#fff" stroke-width="3" paint-order="stroke">5 min</text>
+<text x="142" y="563.0" text-anchor="end" fill="#555">#36  Sun 10-04 03:31</text>
+<rect x="150" y="552" width="280.4" height="14" rx="2" fill="#3987e5"><title>#36: opened 2026-10-04 03:20, merged 03:31, 11 min</title></rect>
+<text x="434.4" y="563.0" fill="#555" stroke="#fff" stroke-width="3" paint-order="stroke">11 min</text>
+<text x="142" y="581.0" text-anchor="end" fill="#555">#37  Mon 10-05 03:39</text>
+<rect x="150" y="570" width="357.5" height="14" rx="2" fill="#3987e5"><title>#37: opened 2026-10-05 03:25, merged 03:39, 14 min</title></rect>
+<text x="511.5" y="581.0" fill="#555" stroke="#fff" stroke-width="3" paint-order="stroke">14 min</text>
+<text x="142" y="599.0" text-anchor="end" fill="#555">#38  Tue 10-06 03:40</text>
+<rect x="150" y="588" width="401.7" height="14" rx="2" fill="#3987e5"><title>#38: opened 2026-10-06 03:24, merged 03:40, 15 min</title></rect>
+<text x="555.7" y="599.0" fill="#555" stroke="#fff" stroke-width="3" paint-order="stroke">15 min</text>
+<text x="142" y="617.0" text-anchor="end" fill="#555">#39  Wed 10-07 04:03</text>
+<rect x="150" y="606" width="394.8" height="14" rx="2" fill="#3987e5"><title>#39: opened 2026-10-07 03:48, merged 04:03, 15 min</title></rect>
+<text x="548.8" y="617.0" fill="#555" stroke="#fff" stroke-width="3" paint-order="stroke">15 min</text>
+<text x="142" y="635.0" text-anchor="end" fill="#555">#40  Thu 10-08 03:32</text>
+<rect x="150" y="624" width="158.2" height="14" rx="2" fill="#3987e5"><title>#40: opened 2026-10-08 03:26, merged 03:32, 6 min</title></rect>
+<text x="312.2" y="635.0" fill="#555" stroke="#fff" stroke-width="3" paint-order="stroke">6 min</text>
+<text x="142" y="653.0" text-anchor="end" fill="#555">#41  Fri 10-09 03:29</text>
+<rect x="150" y="642" width="209.7" height="14" rx="2" fill="#3987e5"><title>#41: opened 2026-10-09 03:21, merged 03:29, 8 min</title></rect>
+<text x="363.7" y="653.0" fill="#555" stroke="#fff" stroke-width="3" paint-order="stroke">8 min</text>
+</svg>
