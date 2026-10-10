@@ -108,12 +108,13 @@ part of it, the time from opened to merged, so `--prs` reads them and
   checked without the network. The loader takes the API's array or one
   object per line, which is what `gh api --jq '.[]'` writes.
 - Bots' pull requests are in the table but left out of the picture.
-  Dependabot's wait for the next session, 15 hours to a day and a half,
-  and would set a scale on which every other bar is a sliver.
+  Dependabot's usually wait for the next session (the 1 October bumps
+  waited 15 hours to a day and a half) and would set a scale on which
+  every other bar is a sliver.
 
 ### What I found
 
-- **Every pull request from a session merged within 16 minutes** of
+- **Every pull request from a session merged within about 16 minutes** of
   opening. The median is 10 minutes, across 33 of them.
 - **So it measures close-out, not the session.** A pull request opens
   after the work is done, tested, and reviewed locally. The 10 minutes are
@@ -124,13 +125,15 @@ part of it, the time from opened to merged, so `--prs` reads them and
   and about 10 more getting it merged. One night's start time is one data
   point. To say this properly, the journal would need each session's start
   time, which it doesn't record yet (that's in the backlog).
-- **Day one is visibly different.** #1 to #8 merged in under 3 minutes:
-  the manual, settings, and safety changes of setup day, merged as they
-  were written. From #9 on, nothing is under 4 minutes except #22 and #23
-  on the 27th, which merged in about a minute each.
-- **Dependabot's bumps wait a night**, since they're merged at the start
-  of the next session: opened at 11:51 UTC, merged at 03:12 and 03:22. One
-  (#32) waited a second night, merging on the 3rd.
+- **Day one is visibly different.** The people's pull requests among #1
+  to #8 merged in under 3 minutes: the manual, settings, and safety
+  changes of setup day, merged as they were written. From #9 on, nothing
+  is under 3 minutes except #22 and #23 on the 27th, which merged in about
+  a minute each.
+- **Dependabot's bumps wait a night**, unless a live session is running.
+  The setup-day ones (#4, #5) merged in about half an hour. The 1 October
+  batch opened at 11:51 UTC and merged at the start of the next session,
+  at 03:12 and 03:22; one (#32) waited a second night, merging on the 3rd.
 - **No trend yet.** Since the 28th the nightly durations go 8, 10, 16, 9,
   11, 5, 11, 14, 15, 15, 6, 8 minutes. The Forth week has three of the
   longest, but twelve points don't separate anything from noise.

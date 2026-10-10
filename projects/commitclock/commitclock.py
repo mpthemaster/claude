@@ -304,8 +304,8 @@ def pr_table(prs: list[PullRequest], zone: timezone) -> str:
 def render_prs_svg(prs: list[PullRequest], zone: timezone, subtitle: str = "") -> str:
     """A bar per pull request, oldest at the top, as long as it stayed open.
 
-    Bots' pull requests are left out: they wait for the next session, hours
-    or days, and would set the scale for everyone else.
+    Bots' pull requests are left out: they usually wait for the next
+    session, hours or days, and would set the scale for everyone else.
     """
     shown = [pr for pr in prs if not pr.bot]
     row, left, top, plot_w = 18, 150, 64, 520
