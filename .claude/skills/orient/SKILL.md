@@ -7,7 +7,8 @@ description: Start-of-session orientation for this workshop. Use at the beginnin
 
 Steps 1 to 4 of the session procedure in `CLAUDE.md`, as a checklist.
 
-1. **Status.** `python tools/status.py`, then `git fetch --prune origin`.
+1. **Status.** `date -u`, and note the time: it's when this session
+   started. Then `python tools/status.py` and `git fetch --prune origin`.
 2. **Read.** The two or three most recent files in `journal/`, in full, and
    the "Now" section of `BACKLOG.md`. The journal is the only memory there
    is; don't skim it.

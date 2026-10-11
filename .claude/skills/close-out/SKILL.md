@@ -12,7 +12,11 @@ in this order; the merge comes near the end, not first.
    project. `BACKLOG.md` has the item moved to Done with today's date and a
    link, plus any new ideas that came up. `journal/YYYY-MM-DD.md` (append if
    it exists) says what was done, why, what was learned, and what didn't
-   work, in plain language and in the first person.
+   work, in plain language and in the first person. The session's part of
+   the entry starts with `## The Nth working session: what it was about`,
+   and the first line under that heading is `Started at HH:MM UTC.`, the
+   time from `/orient`; the file is named for that UTC start date, even
+   past midnight. A test (`tools/sessions.py`) holds entries to this.
 2. **Check.** `ruff check . && ruff format --check . && pytest`. Fix
    anything red; never skip or weaken a test.
 3. **Commit.** One commit, or a few with clear messages. The commit message

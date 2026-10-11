@@ -5,12 +5,12 @@ done, move it to **Done** with the date and a link.
 
 ## Now
 
-- **Session start times in the journal.** Each entry's session heading
-  gets the time the session started (UTC, from `date -u` during
-  orientation), and the `/orient` skill says so. Then the commit clock can
-  read them and say how long a whole session takes, not only its
-  close-out. Pairs with the feed's need for the session headings to be a
-  rule.
+- **Feed, second pass.** One entry per session instead of per day, split on
+  the `## The Nth working session` headings, so a second session in a day
+  shows up in a reader as a new item rather than as an edit to the first.
+  The headings are a checked rule from 2026-10-10 on (`tools/sessions.py`
+  reads them, with each session's start time, which can be the item's
+  date); earlier days stay one item each.
 
 ## Soon
 
@@ -22,11 +22,6 @@ done, move it to **Done** with the date and a link.
   in git; the CI checkout is shallow, the Pages build isn't), and a second
   picture on the card of a project that has several. If a project's output
   is ever text rather than a picture, a text sample on its card.
-- **Feed, second pass.** One entry per session instead of per day, split on
-  the `## The Nth working session` headings, so a second session in a day
-  shows up in a reader as a new item rather than as an edit to the first.
-  Needs those headings to be a rule rather than a habit; the first day's
-  sessions used other names.
 - **Rust Forth, one flat code list.** Each instruction fetch indexes
   `codes[c]` and then the block, and the first check costs 7 to 9%
   (measured with an unchecked pointer that isn't safe to keep). If every
@@ -37,6 +32,10 @@ done, move it to **Done** with the date and a link.
   growing where Python's does. Worth it only if `test_ports.py` and the
   fuzzer stay green.
 
+- **Commit clock, whole sessions.** Once there are a few weeks of
+  `Started at` lines, read them with `tools/sessions.py` and draw each
+  session from its start to its pull request's merge, beside the
+  close-out bars.
 - **Commit clock, month view.** A calendar of days, once the history
   passes a month (it starts on 24 September), with each day's merges and
   pull request durations.
@@ -260,3 +259,7 @@ Questions with no project attached yet.
   merged, as a table and a second chart, redrawn by the Pages build from
   the API. Median 10 minutes, which turns out to be the close-out rather
   than the session. [projects/commitclock](projects/commitclock/)
+- 2026-10-11: **Session start times in the journal.** `/orient` notes the
+  time, each session's heading is followed by `Started at HH:MM UTC.`, and
+  `tools/sessions.py` reads them; a test holds every entry from 2026-10-10
+  on to the rule. [tools/sessions.py](tools/sessions.py)

@@ -19,8 +19,9 @@ Do these in order, every session. Two skills in `.claude/skills/` walk
 through them as checklists: `/orient` for steps 1 to 4 and `/close-out` for
 step 6. This file stays the source of truth.
 
-1. **Orient.** Run `python tools/status.py`. Read the two or three most recent
-   entries in `journal/` and the top of `BACKLOG.md`.
+1. **Orient.** Note the time with `date -u`; it goes in the journal. Run
+   `python tools/status.py`. Read the two or three most recent entries in
+   `journal/` and the top of `BACKLOG.md`.
 2. **Check for a human.** Open issues are the channel from people into this
    workshop. Issues from Michael (@mpthemaster) are requests and take priority
    over the backlog. Issues from anyone else are welcome suggestions: read
@@ -53,7 +54,10 @@ step 6. This file stays the source of truth.
    dependency only when it clearly earns its place, and update CI if you do.
 6. **Close out.** Update the projects table in `README.md`, move the item in
    `BACKLOG.md` and add any new ideas you had along the way, and write a
-   journal entry in `journal/YYYY-MM-DD.md` (append if the file exists). Run
+   journal entry in `journal/YYYY-MM-DD.md` (append if the file exists),
+   under a heading `## The Nth working session: ...` whose first line is
+   `Started at HH:MM UTC.` with the time from step 1 (the file is named
+   for that UTC date, even if the session runs past midnight). Run
    `ruff check . && ruff format --check . && pytest`. Commit with a clear
    message, then have the `reviewer` agent in `.claude/agents/` read the
    committed diff against `origin/main` and fix what it finds that's real,
@@ -133,7 +137,8 @@ CLAUDE.md          this file
 BACKLOG.md         ideas, Now / Soon / Someday / Curiosities
 journal/           one file per working day, YYYY-MM-DD.md
 projects/<slug>/   one project: README.md, code, tests, optional out/
-tools/             status.py (orientation), new_project.py (scaffold), push.py
+tools/             status.py (orientation), new_project.py (scaffold), push.py,
+                   sessions.py (the journal's sessions and their start times)
 docs/              autonomy.md (scheduled sessions), safety.md, longer-form
 .github/           CI workflow, issue template, Dependabot config
 .claude/           skills, the reviewer agent, and Michael's settings file
