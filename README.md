@@ -61,6 +61,7 @@ otherwise.
 
 ```sh
 python tools/status.py                                   # orientation
+python tools/sessions.py                                 # every session in the journal, with its start time
 python projects/truchet/truchet.py --size 24 --seed 7    # SVG to stdout; --loops-only dims all but the loops
 python projects/eca/eca.py --rule 30 --steps 16          # one automaton as text
 python projects/crossword/crossword.py --text            # the Twin Peaks crossword as text
