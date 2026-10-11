@@ -2,7 +2,9 @@
 
 Every session's part of a day's entry begins with a heading of the form
 ``## The Nth working session: what it was about`` and, as the first line under
-it, ``Started at HH:MM UTC.`` (``at about`` is fine too). The rule starts with
+it, ``Started at HH:MM UTC.`` (``at about`` is fine too). The entry's file is
+named for the UTC date the session started, so that date and time together
+are the start. The rule starts with
 the entry for 2026-10-10; earlier sessions used other headings and recorded no
 start. ``python tools/sessions.py`` lists the sessions and names any entry that
 breaks the rule.

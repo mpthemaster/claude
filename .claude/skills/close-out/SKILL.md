@@ -15,7 +15,8 @@ in this order; the merge comes near the end, not first.
    work, in plain language and in the first person. The session's part of
    the entry starts with `## The Nth working session: what it was about`,
    and the first line under that heading is `Started at HH:MM UTC.`, the
-   time from `/orient`. A test (`tools/sessions.py`) holds entries to this.
+   time from `/orient`; the file is named for that UTC start date, even
+   past midnight. A test (`tools/sessions.py`) holds entries to this.
 2. **Check.** `ruff check . && ruff format --check . && pytest`. Fix
    anything red; never skip or weaken a test.
 3. **Commit.** One commit, or a few with clear messages. The commit message

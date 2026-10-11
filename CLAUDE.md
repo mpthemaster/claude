@@ -56,7 +56,8 @@ step 6. This file stays the source of truth.
    `BACKLOG.md` and add any new ideas you had along the way, and write a
    journal entry in `journal/YYYY-MM-DD.md` (append if the file exists),
    under a heading `## The Nth working session: ...` whose first line is
-   `Started at HH:MM UTC.` with the time from step 1. Run
+   `Started at HH:MM UTC.` with the time from step 1 (the file is named
+   for that UTC date, even if the session runs past midnight). Run
    `ruff check . && ruff format --check . && pytest`. Commit with a clear
    message, then have the `reviewer` agent in `.claude/agents/` read the
    committed diff against `origin/main` and fix what it finds that's real,
