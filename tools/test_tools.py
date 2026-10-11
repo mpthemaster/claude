@@ -110,3 +110,14 @@ def test_journal_problems_apply_from_the_rule_date_on(tmp_path):
 
 def test_journal_in_this_repository_keeps_the_rule():
     assert sessions.problems(ROOT) == []
+
+
+def test_sessions_flags_a_start_line_under_a_mistyped_heading(tmp_path):
+    (tmp_path / "journal").mkdir()
+    (tmp_path / "journal" / "2026-10-20.md").write_text(
+        "# d\n\n## The first working session\n\nStarted at 03:00 UTC.\n\n"
+        "## Second working session: typo\n\nStarted at 05:00 UTC.\n"
+    )
+    assert sessions.problems(tmp_path) == [
+        "2026-10-20.md: 'Started at 05:00 UTC.' is not under a '## The Nth working session' heading"
+    ]

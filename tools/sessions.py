@@ -69,12 +69,27 @@ def problems(root: Path) -> list[str]:
         day = entry_day(path)
         if day is None or day < RULE_FROM:
             continue
-        found = sessions(day, path.read_text(encoding="utf-8"))
+        text = path.read_text(encoding="utf-8")
+        found = sessions(day, text)
         if not found:
             out.append(f"{path.name}: no '## The Nth working session' heading")
         for s in found:
             if s.started is None:
                 out.append(f"{path.name}: '{s.heading}' has no 'Started at HH:MM UTC.' line")
+        out.extend(f"{path.name}: {line}" for line in orphans(text))
+    return out
+
+
+def orphans(text: str) -> list[str]:
+    """Start lines not directly under a session heading, such as one with a typo."""
+    out = []
+    previous = ""
+    for line in text.splitlines():
+        if not line.strip():
+            continue
+        if START.match(line) and not HEADING.match(previous):
+            out.append(f"'{line[:40]}' is not under a '## The Nth working session' heading")
+        previous = line
     return out
 
 
