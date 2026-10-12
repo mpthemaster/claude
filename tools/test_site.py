@@ -594,33 +594,54 @@ def test_feed_has_one_entry_per_session_from_the_rule_on(tmp_path):
     assert "Other things" not in morning and "<h1" not in morning
     assert "working session" not in morning + evening, "the heading is the <title>"
     assert f'<a href="{site}projects/demo/index.html">the demo</a>' in morning
-    # Published when each session started. Outside git the last session is
-    # updated when it started, and an earlier one when the next one started.
-    assert [field(e, "published") for e in entries[:2]] == [
-        "2026-10-20T19:45:00Z",
-        "2026-10-20T03:10:00Z",
-    ]
-    assert [field(e, "updated") for e in entries[:2]] == [
-        "2026-10-20T19:45:00Z",
-        "2026-10-20T19:45:00Z",
-    ]
+    # Published when each session started, and outside git updated then too.
+    starts = ["2026-10-20T19:45:00Z", "2026-10-20T03:10:00Z"]
+    assert [field(e, "published") for e in entries[:2]] == starts
+    assert [field(e, "updated") for e in entries[:2]] == starts
 
 
-def test_a_later_commit_updates_only_the_last_session_of_its_day(tmp_path):
+def test_adding_a_session_does_not_update_the_one_before_it(tmp_path):
     root = make_repo(tmp_path / "repo")
-    (root / "journal" / "2026-10-20.md").write_text(TWO_SESSIONS)
+    day = root / "journal" / "2026-10-20.md"
+    morning = TWO_SESSIONS[: TWO_SESSIONS.index("## The forty-first")]
+    day.write_text(morning)
     git("init", "-q", cwd=root)
     git("config", "user.email", "t@example.com", cwd=root)
     git("config", "user.name", "t", cwd=root)
     git("add", ".", cwd=root)
-    git("commit", "-q", "-m", "two sessions", cwd=root, date="2026-10-20T21:00:00+00:00")
-    build(root, tmp_path / "site")
-    feed, entries = parse_feed(tmp_path / "site")
+    git("commit", "-q", "-m", "morning", cwd=root, date="2026-10-20T05:00:00+00:00")
+    build(root, tmp_path / "first")
+    _, entries = parse_feed(tmp_path / "first")
+    assert field(entries[0], "title") == "The fortieth working session: morning"
+    assert field(entries[0], "updated") == "2026-10-20T05:00:00Z"
+    first = ET.tostring(entries[0])
+
+    day.write_text(TWO_SESSIONS)
+    git("commit", "-q", "-a", "-m", "evening", cwd=root, date="2026-10-20T21:00:00+00:00")
+    build(root, tmp_path / "second")
+    feed, entries = parse_feed(tmp_path / "second")
     assert [field(e, "updated") for e in entries[:2]] == [
         "2026-10-20T21:00:00Z",
-        "2026-10-20T19:45:00Z",
+        "2026-10-20T05:00:00Z",
     ]
+    assert ET.tostring(entries[1]) == first, "the morning's entry is exactly as it was"
     assert field(feed, "updated") == "2026-10-20T21:00:00Z"
+
+    # Two sessions first committed together: the earlier one has no commit of
+    # its own before the next began, so it is updated when it was published.
+    other = make_repo(tmp_path / "other")
+    (other / "journal" / "2026-10-20.md").write_text(TWO_SESSIONS)
+    git("init", "-q", cwd=other)
+    git("config", "user.email", "t@example.com", cwd=other)
+    git("config", "user.name", "t", cwd=other)
+    git("add", ".", cwd=other)
+    git("commit", "-q", "-m", "both", cwd=other, date="2026-10-20T21:00:00+00:00")
+    build(other, tmp_path / "third")
+    _, entries = parse_feed(tmp_path / "third")
+    assert [field(e, "updated") for e in entries[:2]] == [
+        "2026-10-20T21:00:00Z",
+        "2026-10-20T03:10:00Z",
+    ]
 
 
 def test_a_day_whose_sessions_cannot_be_split_stays_one_entry(tmp_path):

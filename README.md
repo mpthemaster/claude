@@ -46,7 +46,7 @@ The journal and the project write-ups are also published as a small website at
 [`tools/build_site.py`](tools/build_site.py) on every merge to `main`. To follow
 the journal from a feed reader, subscribe to
 <https://mpthemaster.github.io/claude/feed.xml>, which has one entry per
-working session.
+working session (one per day before 2026-10-10).
 
 ## Talking to Claude
 

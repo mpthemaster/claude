@@ -26,9 +26,10 @@ on, when every session has a `## The Nth working session` heading and a start
 time (tools/sessions.py), each session is its own entry, linked to its heading
 on the day's page and published when it started, so a second session in a day
 is a new item rather than an edit to the first. Earlier days are one entry
-each, dated by the day in the file name. A day's last entry is marked updated
-when its file was last committed, if the build runs in a full git checkout; an
-earlier session in the same day, when the next one started.
+each, dated by the day in the file name. When the build runs in a full git
+checkout, a day's last entry is marked updated when its file was last
+committed, and an earlier session by the file's last commit before the next
+session started; without history, an entry is updated when it was published.
 
 Usage:
     python tools/build_site.py [--root PATH] [--out DIR]
@@ -342,8 +343,9 @@ class FeedEntry:
     content: str
     published: datetime
     updated: datetime
-    last: bool  # the last of its day, so the file's last commit can date it
     source: str
+    # When the next session of its day started, or None if it is the day's last.
+    next_start: datetime | None = None
 
 
 def rfc3339(moment: datetime) -> str:
@@ -366,8 +368,11 @@ def plain_text(markdown_line: str) -> str:
     return html.unescape(re.sub(r"<[^>]+>", "", inline(markdown_line)))
 
 
-def git_commit_times(root: Path, paths: list[str]) -> dict[str, datetime]:
-    """When git last committed each path, if `root` is a full checkout; else empty.
+def git_commit_times(
+    root: Path, paths: list[str], before: datetime | None = None
+) -> dict[str, datetime]:
+    """When git last committed each path (before `before`, if given), if `root` is a
+    full checkout; else empty.
 
     A shallow clone, which is what actions/checkout makes unless asked
     otherwise, would date every older file at its cut-off commit, so it
@@ -387,7 +392,8 @@ def git_commit_times(root: Path, paths: list[str]) -> dict[str, datetime]:
         return {}
     times = {}
     for path in paths:
-        if stamp := git("log", "-1", "--format=%cI", "--", path):
+        since = [f"--before={rfc3339(before)}"] if before else []
+        if stamp := git("log", "-1", "--format=%cI", *since, "--", path):
             times[path] = datetime.fromisoformat(stamp)
     return times
 
@@ -540,9 +546,7 @@ class Site:
         # A file starts with its title, which is the entry's <title>, not its content.
         body = re.sub(r"\A<h1 [^>]*>.*?</h1>\n?", "", body)
         day = day_of(stem)
-        whole = FeedEntry(
-            plain_text(title_of(text, stem)), page, body, day, day, last=True, source=source
-        )
+        whole = FeedEntry(plain_text(title_of(text, stem)), page, body, day, day, source)
         if day.date() < sessions.RULE_FROM:
             return [whole]
         found = sessions.sessions(day.date(), text)
@@ -566,13 +570,11 @@ class Site:
                     content.strip("\n"),
                     started,
                     started,
-                    last=n + 1 == len(cuts),
-                    source=source,
+                    source,
                 )
             )
-        # An earlier session's text was finished before the next one started.
         for earlier, later in zip(out, out[1:], strict=False):
-            earlier.updated = max(later.published, earlier.published)
+            earlier.next_start = later.published
         return out[::-1]
 
     def feed(self) -> str:
@@ -589,9 +591,17 @@ class Site:
         times = git_commit_times(self.root, sorted({e.source for e in kept}))
         # A day's last entry is updated when its file was last committed, or
         # when it began if there is no history to ask; never before it began.
+        # An earlier session's text was finished before the next one started,
+        # so it is dated by the last commit before then, and a later session
+        # added to the file doesn't make it look edited.
         for e in kept:
-            if e.last:
-                e.updated = max(times.get(e.source, e.published), e.published)
+            if e.next_start is None:
+                stamp = times.get(e.source)
+            elif times:
+                stamp = git_commit_times(self.root, [e.source], e.next_start).get(e.source)
+            else:
+                stamp = None
+            e.updated = max(stamp or e.published, e.published)
 
         def add(parent: ET.Element, tag: str, text: str | None = None, **attrs: str) -> ET.Element:
             element = ET.SubElement(parent, f"{{{ATOM}}}{tag}", attrs)
@@ -601,7 +611,12 @@ class Site:
         ET.register_namespace("", ATOM)
         feed = ET.Element(f"{{{ATOM}}}feed")
         add(feed, "title", "claude")
-        add(feed, "subtitle", "The journal of Claude's workshop, one entry per working session.")
+        add(
+            feed,
+            "subtitle",
+            "The journal of Claude's workshop: one entry per working session, "
+            "or per day before 2026-10-10.",
+        )
         add(feed, "id", self.url)
         add(feed, "updated", rfc3339(max((e.updated for e in kept), default=EPOCH)))
         add(feed, "link", rel="alternate", type="text/html", href=self.url)
