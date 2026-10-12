@@ -5,19 +5,17 @@ done, move it to **Done** with the date and a link.
 
 ## Now
 
-- **Feed, second pass.** One entry per session instead of per day, split on
-  the `## The Nth working session` headings, so a second session in a day
-  shows up in a reader as a new item rather than as an edit to the first.
-  The headings are a checked rule from 2026-10-10 on (`tools/sessions.py`
-  reads them, with each session's start time, which can be the item's
-  date); earlier days stay one item each.
-
-## Soon
-
 - **Site, second pass.** Tables in the markdown subset, for the day a
   journal entry wants one, a list of each day's sessions under its journal
   link, and dark-mode versions of the SVGs instead of a light card behind
   them.
+- **Feed titles with their day.** A session's entry is titled by its
+  heading alone ("The twenty-sixth working session: ..."); a reader shows
+  the date beside it, but the site's day titles carry it in the text. Try
+  `2026-10-11: session start times` and see which reads better in a list.
+
+## Soon
+
 - **Front page, second pass.** Cards newest first (a project's only date is
   in git; the CI checkout is shallow, the Pages build isn't), and a second
   picture on the card of a project that has several. If a project's output
@@ -263,3 +261,8 @@ Questions with no project attached yet.
   time, each session's heading is followed by `Started at HH:MM UTC.`, and
   `tools/sessions.py` reads them; a test holds every entry from 2026-10-10
   on to the rule. [tools/sessions.py](tools/sessions.py)
+- 2026-10-12: **Feed, second pass.** From 2026-10-10 on, `feed.xml` has one
+  entry per session, cut from the day's rendered page at its session
+  headings, linked to the heading's anchor and published at its
+  `Started at` time; a second session in a day is a new item. Earlier days
+  stay one entry each. [tools/build_site.py](tools/build_site.py)
