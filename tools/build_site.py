@@ -27,9 +27,9 @@ time (tools/sessions.py), each session is its own entry, linked to its heading
 on the day's page and published when it started, so a second session in a day
 is a new item rather than an edit to the first. Earlier days are one entry
 each, dated by the day in the file name. When the build runs in a full git
-checkout, a day's last entry is marked updated when its file was last
-committed, and an earlier session by the file's last commit before the next
-session started; without history, an entry is updated when it was published.
+checkout, a whole day is marked updated when its file was last committed,
+and a session when a commit last changed its own text; without history, an
+entry is updated when it was published.
 
 Usage:
     python tools/build_site.py [--root PATH] [--out DIR]
@@ -344,8 +344,7 @@ class FeedEntry:
     published: datetime
     updated: datetime
     source: str
-    # When the next session of its day started, or None if it is the day's last.
-    next_start: datetime | None = None
+    session: int | None = None  # its place among its day's sessions, if it is one
 
 
 def rfc3339(moment: datetime) -> str:
@@ -368,33 +367,76 @@ def plain_text(markdown_line: str) -> str:
     return html.unescape(re.sub(r"<[^>]+>", "", inline(markdown_line)))
 
 
-def git_commit_times(
-    root: Path, paths: list[str], before: datetime | None = None
-) -> dict[str, datetime]:
-    """When git last committed each path (before `before`, if given), if `root` is a
-    full checkout; else empty.
+def run_git(root: Path, *args: str) -> str | None:
+    """git's output for `args` in `root`, stripped, or None if it fails."""
+    try:
+        result = subprocess.run(
+            ["git", *args], cwd=root, capture_output=True, text=True, check=False
+        )
+    except OSError:
+        return None
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+def full_history(root: Path) -> bool:
+    """Whether `root` is a git checkout with all of its history.
 
     A shallow clone, which is what actions/checkout makes unless asked
     otherwise, would date every older file at its cut-off commit, so it
     counts as no history at all and the feed falls back to the file names.
     """
+    return run_git(root, "rev-parse", "--is-shallow-repository") == "false"
 
-    def git(*args: str) -> str | None:
-        try:
-            result = subprocess.run(
-                ["git", *args], cwd=root, capture_output=True, text=True, check=False
-            )
-        except OSError:
-            return None
-        return result.stdout.strip() if result.returncode == 0 else None
 
-    if git("rev-parse", "--is-shallow-repository") != "false":
+def git_commit_times(root: Path, paths: list[str]) -> dict[str, datetime]:
+    """When git last committed each path, if `root` has full history; else empty."""
+    if not full_history(root):
         return {}
     times = {}
     for path in paths:
-        since = [f"--before={rfc3339(before)}"] if before else []
-        if stamp := git("log", "-1", "--format=%cI", *since, "--", path):
+        if stamp := run_git(root, "log", "-1", "--format=%cI", "--", path):
             times[path] = datetime.fromisoformat(stamp)
+    return times
+
+
+def session_texts(text: str) -> list[str]:
+    """The markdown of each session in a day's entry, cut at its session headings.
+
+    The first session keeps whatever comes before it, as its feed entry does.
+    """
+    lines = text.splitlines()
+    starts = [i for i, line in enumerate(lines) if sessions.HEADING.match(line)]
+    ends = [*starts[1:], len(lines)] if starts else []
+    return [
+        "\n".join(lines[0 if n == 0 else start : end]).strip()
+        for n, (start, end) in enumerate(zip(starts, ends, strict=True))
+    ]
+
+
+def git_session_times(root: Path, path: str, text: str) -> list[datetime | None]:
+    """When each session in `text`, the file at `path`, was last changed by a commit.
+
+    A session's time is that of the oldest commit in the unbroken run, back
+    from the newest, whose copy of that session reads as it does now; so a
+    later session appended to the file leaves an earlier one's time alone,
+    and a correction to an earlier one moves it. None where there is no
+    history to ask, or the session's text isn't committed as it is.
+    """
+    current = session_texts(text)
+    times: list[datetime | None] = [None] * len(current)
+    log = run_git(root, "log", "--format=%H %cI", "--", path) if full_history(root) else None
+    unchanged = set(range(len(current)))
+    for line in (log or "").splitlines():
+        if not unchanged:
+            break
+        sha, stamp = line.split()
+        shown = run_git(root, "show", f"{sha}:{path}")
+        then = session_texts(CONTROL.sub("", shown)) if shown is not None else []
+        for n in sorted(unchanged):
+            if n < len(then) and then[n] == current[n]:
+                times[n] = datetime.fromisoformat(stamp)
+            else:
+                unchanged.discard(n)
     return times
 
 
@@ -571,10 +613,9 @@ class Site:
                     started,
                     started,
                     source,
+                    session=n,
                 )
             )
-        for earlier, later in zip(out, out[1:], strict=False):
-            earlier.next_start = later.published
         return out[::-1]
 
     def feed(self) -> str:
@@ -589,18 +630,15 @@ class Site:
                 break
         kept = kept[:FEED_ENTRIES]
         times = git_commit_times(self.root, sorted({e.source for e in kept}))
-        # A day's last entry is updated when its file was last committed, or
-        # when it began if there is no history to ask; never before it began.
-        # An earlier session's text was finished before the next one started,
-        # so it is dated by the last commit before then, and a later session
-        # added to the file doesn't make it look edited.
+        split = sorted({e.source for e in kept if e.session is not None})
+        session_times = {f: git_session_times(self.root, f, self.read(f)) for f in split}
+        # A whole day is updated when its file was last committed, and a
+        # session when its own text last changed, so appending a session
+        # doesn't mark the one before it as edited. Without history to ask,
+        # an entry is updated when it was published, and never before.
         for e in kept:
-            if e.next_start is None:
-                stamp = times.get(e.source)
-            elif times:
-                stamp = git_commit_times(self.root, [e.source], e.next_start).get(e.source)
-            else:
-                stamp = None
+            whole = e.session is None
+            stamp = times.get(e.source) if whole else session_times[e.source][e.session]
             e.updated = max(stamp or e.published, e.published)
 
         def add(parent: ET.Element, tag: str, text: str | None = None, **attrs: str) -> ET.Element:

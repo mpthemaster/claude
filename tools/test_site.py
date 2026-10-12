@@ -627,21 +627,32 @@ def test_adding_a_session_does_not_update_the_one_before_it(tmp_path):
     assert ET.tostring(entries[1]) == first, "the morning's entry is exactly as it was"
     assert field(feed, "updated") == "2026-10-20T21:00:00Z"
 
-    # Two sessions first committed together: the earlier one has no commit of
-    # its own before the next began, so it is updated when it was published.
-    other = make_repo(tmp_path / "other")
-    (other / "journal" / "2026-10-20.md").write_text(TWO_SESSIONS)
-    git("init", "-q", cwd=other)
-    git("config", "user.email", "t@example.com", cwd=other)
-    git("config", "user.name", "t", cwd=other)
-    git("add", ".", cwd=other)
-    git("commit", "-q", "-m", "both", cwd=other, date="2026-10-20T21:00:00+00:00")
-    build(other, tmp_path / "third")
-    _, entries = parse_feed(tmp_path / "third")
+    # A correction to the morning, committed later, updates the morning and
+    # leaves the evening as it was.
+    day.write_text(TWO_SESSIONS.replace("Things.", "Some things."))
+    git("commit", "-q", "-a", "-m", "fix", cwd=root, date="2026-10-21T08:00:00+00:00")
+    build(root, tmp_path / "third")
+    feed, entries = parse_feed(tmp_path / "third")
     assert [field(e, "updated") for e in entries[:2]] == [
         "2026-10-20T21:00:00Z",
-        "2026-10-20T03:10:00Z",
+        "2026-10-21T08:00:00Z",
     ]
+    assert "Some things." in field(entries[1], "content")
+    assert field(feed, "updated") == "2026-10-21T08:00:00Z"
+
+    # An edit not yet committed has no commit to date it: published, then.
+    day.write_text(TWO_SESSIONS.replace("Other things.", "Other things, still open."))
+    build(root, tmp_path / "fourth")
+    _, entries = parse_feed(tmp_path / "fourth")
+    assert field(entries[0], "updated") == "2026-10-20T19:45:00Z"
+
+
+def test_session_texts_cut_at_the_headings_and_keep_the_preamble_first():
+    texts = build_site.session_texts(TWO_SESSIONS)
+    assert len(texts) == 2
+    assert texts[0].startswith("# 2026-10-20") and texts[0].endswith("Things.")
+    assert texts[1].startswith("## The forty-first") and texts[1].endswith("Other things.")
+    assert build_site.session_texts("# A day\n\nNo sessions.\n") == []
 
 
 def test_a_day_whose_sessions_cannot_be_split_stays_one_entry(tmp_path):
