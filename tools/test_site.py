@@ -4,11 +4,13 @@ import re
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
+from datetime import date
 from html import unescape
 from pathlib import Path
 
 import build_site
 import pytest
+import sessions
 from build_site import Site, build, inline, markdown
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -541,6 +543,123 @@ def test_feed_dates_an_entry_by_its_last_commit_only_in_a_full_checkout(tmp_path
     ]
 
 
+TWO_SESSIONS = """# 2026-10-20: two in one day
+
+## The fortieth working session: morning
+
+Started at 03:10 UTC. See [the demo](../projects/demo/).
+
+## What I did
+
+Things.
+
+## The forty-first working session: evening
+
+Started at about 19:45 UTC.
+
+## What I did
+
+Other things.
+"""
+
+
+def test_feed_has_one_entry_per_session_from_the_rule_on(tmp_path):
+    root = make_repo(tmp_path / "repo")
+    (root / "journal" / "2026-10-20.md").write_text(TWO_SESSIONS)
+    out = tmp_path / "site"
+    build(root, out)
+    _, entries = parse_feed(out)
+    site = build_site.SITE_URL
+    page = f"{site}journal/2026-10-20.html"
+    assert [field(e, "title") for e in entries] == [
+        "The forty-first working session: evening",
+        "The fortieth working session: morning",
+        "Day two",
+        "Day one",
+    ]
+    ids = [
+        f"{page}#the-forty-first-working-session-evening",
+        f"{page}#the-fortieth-working-session-morning",
+    ]
+    assert [field(e, "id") for e in entries[:2]] == ids
+    assert [link_of(e) for e in entries[:2]] == ids
+    # Each anchor is the one on the day's page, which has two "What I did" sections.
+    built = (out / "journal" / "2026-10-20.html").read_text()
+    for i in ids:
+        assert f'id="{i.partition("#")[2]}"' in built
+    evening, morning = (field(e, "content") for e in entries[:2])
+    assert evening.startswith("<p>Started at about 19:45 UTC.</p>")
+    assert '<h2 id="what-i-did-2">What I did</h2>' in evening and "Things." not in evening
+    assert morning.startswith("<p>Started at 03:10 UTC.")
+    assert "Other things" not in morning and "<h1" not in morning
+    assert "working session" not in morning + evening, "the heading is the <title>"
+    assert f'<a href="{site}projects/demo/index.html">the demo</a>' in morning
+    # Published when each session started. Outside git the last session is
+    # updated when it started, and an earlier one when the next one started.
+    assert [field(e, "published") for e in entries[:2]] == [
+        "2026-10-20T19:45:00Z",
+        "2026-10-20T03:10:00Z",
+    ]
+    assert [field(e, "updated") for e in entries[:2]] == [
+        "2026-10-20T19:45:00Z",
+        "2026-10-20T19:45:00Z",
+    ]
+
+
+def test_a_later_commit_updates_only_the_last_session_of_its_day(tmp_path):
+    root = make_repo(tmp_path / "repo")
+    (root / "journal" / "2026-10-20.md").write_text(TWO_SESSIONS)
+    git("init", "-q", cwd=root)
+    git("config", "user.email", "t@example.com", cwd=root)
+    git("config", "user.name", "t", cwd=root)
+    git("add", ".", cwd=root)
+    git("commit", "-q", "-m", "two sessions", cwd=root, date="2026-10-20T21:00:00+00:00")
+    build(root, tmp_path / "site")
+    feed, entries = parse_feed(tmp_path / "site")
+    assert [field(e, "updated") for e in entries[:2]] == [
+        "2026-10-20T21:00:00Z",
+        "2026-10-20T19:45:00Z",
+    ]
+    assert field(feed, "updated") == "2026-10-20T21:00:00Z"
+
+
+def test_a_day_whose_sessions_cannot_be_split_stays_one_entry(tmp_path):
+    root = make_repo(tmp_path / "repo")
+    journal = root / "journal"
+    # Before the rule, session headings or not, a day is one entry.
+    (journal / "2026-10-01.md").write_text(TWO_SESSIONS.replace("2026-10-20", "2026-10-01"))
+    # A heading inside a code block is counted by sessions.py but isn't a heading
+    # on the page, so the two can't be paired; the day is left whole.
+    fenced = TWO_SESSIONS.replace("## What I did\n\nThings.", "```\n## The x working session\n```")
+    (journal / "2026-10-21.md").write_text(fenced)
+    out = tmp_path / "site"
+    build(root, out)
+    _, entries = parse_feed(out)
+    site = build_site.SITE_URL
+    assert [field(e, "id") for e in entries[:2]] == [
+        f"{site}journal/2026-10-21.html",
+        f"{site}journal/2026-10-01.html",
+    ]
+    assert [field(e, "published") for e in entries[:2]] == [
+        "2026-10-21T00:00:00Z",
+        "2026-10-01T00:00:00Z",
+    ]
+    assert "Other things." in field(entries[0], "content")
+
+
+def test_feed_keeps_the_newest_sessions_not_days(tmp_path):
+    root = make_repo(tmp_path / "repo")
+    for n in range(10, 21):
+        (root / "journal" / f"2026-10-{n}.md").write_text(
+            TWO_SESSIONS.replace("2026-10-20", f"2026-10-{n}")
+        )
+    out = tmp_path / "site"
+    build(root, out)
+    _, entries = parse_feed(out)
+    assert len(entries) == build_site.FEED_ENTRIES == 20
+    assert link_of(entries[-1]).startswith(f"{build_site.SITE_URL}journal/2026-10-11.html#")
+
+
 def test_feed_keeps_only_the_newest_days(tmp_path):
     root = make_repo(tmp_path / "repo")
     for n in range(3, 26):
@@ -595,15 +714,29 @@ def test_the_real_feed_parses_and_points_at_built_pages(tmp_path):
     feed, entries = parse_feed(out)
     site = build_site.SITE_URL
     days = sorted(p.stem for p in (ROOT / "journal").glob("*.md"))
-    expected = [f"{site}journal/{day}.html" for day in reversed(days)]
-    assert [field(e, "id") for e in entries] == expected[: build_site.FEED_ENTRIES]
+    ids = [field(e, "id") for e in entries]
+    total = sum(len(Site(ROOT).entries(day)) for day in days)
+    assert len(entries) == min(build_site.FEED_ENTRIES, total) and len(set(ids)) == len(ids)
+    # Newest first, and every day the feed reaches is in it, from the newest day down.
+    pages = [i.removeprefix(f"{site}journal/").partition("#")[0][:-5] for i in ids]
+    assert pages == sorted(pages, reverse=True)
+    assert list(dict.fromkeys(pages)) == days[::-1][: len(set(pages))]
+    for i in ids:
+        # A session's entry is its heading on the day's page; a day before the rule, the page.
+        path, _, anchor = i.removeprefix(site).partition("#")
+        page = (out / path).read_text()
+        assert (f'<h2 id="{anchor}">The ' in page) if anchor else True, i
+        assert bool(anchor) == (date.fromisoformat(Path(path).stem) >= sessions.RULE_FROM), i
+    published = [field(e, "published") for e in entries]
+    assert published == sorted(published, reverse=True)
     stamp = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
     for entry in entries:
         assert stamp.fullmatch(field(entry, "published")) and stamp.fullmatch(
             field(entry, "updated")
         )
         assert field(entry, "updated") >= field(entry, "published")
-        assert (out / link_of(entry).removeprefix(site)).is_file()
+        assert link_of(entry) == field(entry, "id")
+        assert (out / link_of(entry).removeprefix(site).partition("#")[0]).is_file()
         content = field(entry, "content")
         assert "<h1" not in content, "a journal file starts with its # title, the entry's <title>"
         for url in re.findall(r"""(?:href|src)=["']([^"']+)""", content):

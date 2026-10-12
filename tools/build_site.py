@@ -20,10 +20,15 @@ project, its README, or a journal file goes to that page on the site; a link
 into a project's out/ directory goes to the copy the build makes; any other
 file in the repository goes to it on GitHub.
 
-feed.xml is an Atom feed of the newest journal days, full text with absolute
-links, so the journal can be followed from a reader. An entry is dated by the
-day in its file name and, when the build runs in a full git checkout, marked
-updated when the file was last committed.
+feed.xml is an Atom feed of the newest journal sessions, full text with
+absolute links, so the journal can be followed from a reader. From 2026-10-10
+on, when every session has a `## The Nth working session` heading and a start
+time (tools/sessions.py), each session is its own entry, linked to its heading
+on the day's page and published when it started, so a second session in a day
+is a new item rather than an edit to the first. Earlier days are one entry
+each, dated by the day in the file name. A day's last entry is marked updated
+when its file was last committed, if the build runs in a full git checkout; an
+earlier session in the same day, when the next one started.
 
 Usage:
     python tools/build_site.py [--root PATH] [--out DIR]
@@ -39,9 +44,12 @@ import shutil
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
+from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
 from urllib.parse import urljoin
+
+import sessions
 
 ROOT = Path(__file__).resolve().parent.parent
 REPO_URL = "https://github.com/mpthemaster/claude"
@@ -321,6 +329,23 @@ def first_image(rendered: str) -> tuple[str, str] | None:
 # --- the feed -----------------------------------------------------------
 
 
+# A session heading as markdown() renders it: (its anchor, its text).
+SESSION_HEADING = re.compile(r'<h2 id="([^"]+)">(The \S+ working session\b.*?)</h2>\n?')
+
+
+@dataclass
+class FeedEntry:
+    """One entry of the feed: a session, or a whole day from before the sessions rule."""
+
+    title: str
+    page: str  # where it lives on the site, with the anchor of its heading if a session
+    content: str
+    published: datetime
+    updated: datetime
+    last: bool  # the last of its day, so the file's last commit can date it
+    source: str
+
+
 def rfc3339(moment: datetime) -> str:
     return moment.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -499,18 +524,74 @@ class Site:
         parts.append("</ul>")
         return "\n".join(parts)
 
+    def entries(self, stem: str) -> list[FeedEntry]:
+        """A journal day's feed entries, newest first: one per session from RULE_FROM on.
+
+        The day's page is rendered whole and cut at its session headings, so
+        each entry links to its heading's own anchor on that page. A day from
+        before the rule, or one whose headings can't be paired with the
+        sessions sessions.py reads, is one entry, as it always was.
+        """
+        source, page = f"journal/{stem}.md", f"journal/{stem}.html"
+        text = self.read(source)
+        body = markdown(
+            text, lambda url, s=source, p=page: self.absolute(self.resolve(url, s, p), p)
+        )
+        # A file starts with its title, which is the entry's <title>, not its content.
+        body = re.sub(r"\A<h1 [^>]*>.*?</h1>\n?", "", body)
+        day = day_of(stem)
+        whole = FeedEntry(
+            plain_text(title_of(text, stem)), page, body, day, day, last=True, source=source
+        )
+        if day.date() < sessions.RULE_FROM:
+            return [whole]
+        found = sessions.sessions(day.date(), text)
+        cuts = list(SESSION_HEADING.finditer(body))
+        if not found or len(cuts) != len(found):
+            return [whole]
+        out = []
+        for n, (cut, session) in enumerate(zip(cuts, found, strict=True)):
+            # Anything between the title and the first session belongs to the first.
+            start = 0 if n == 0 else cut.end()
+            end = cuts[n + 1].start() if n + 1 < len(cuts) else len(body)
+            content = body[start:end]
+            if n == 0:
+                content = content[: cut.start()] + content[cut.end() :]
+            started = max(session.started or day, day)
+            title = html.unescape(re.sub(r"<[^>]+>", "", cut.group(2)))
+            out.append(
+                FeedEntry(
+                    title,
+                    f"{page}#{cut.group(1)}",
+                    content.strip("\n"),
+                    started,
+                    started,
+                    last=n + 1 == len(cuts),
+                    source=source,
+                )
+            )
+        # An earlier session's text was finished before the next one started.
+        for earlier, later in zip(out, out[1:], strict=False):
+            earlier.updated = max(later.published, earlier.published)
+        return out[::-1]
+
     def feed(self) -> str:
-        """An Atom feed of the newest FEED_ENTRIES journal days: full text, absolute links."""
+        """An Atom feed of the newest FEED_ENTRIES sessions: full text, absolute links."""
         # Every journal file is named for its day, not only the ones the feed keeps.
-        published = {stem: day_of(stem) for stem in self.journal}
-        days = self.journal[::-1][:FEED_ENTRIES]
-        times = git_commit_times(self.root, [f"journal/{stem}.md" for stem in days])
-        # An entry is updated when its file was last committed, or on its day
-        # when there is no history to ask; never before its day.
-        updated = {
-            stem: max(times.get(f"journal/{stem}.md", published[stem]), published[stem])
-            for stem in days
-        }
+        for stem in self.journal:
+            day_of(stem)
+        kept: list[FeedEntry] = []
+        for stem in reversed(self.journal):
+            kept.extend(self.entries(stem))
+            if len(kept) >= FEED_ENTRIES:
+                break
+        kept = kept[:FEED_ENTRIES]
+        times = git_commit_times(self.root, sorted({e.source for e in kept}))
+        # A day's last entry is updated when its file was last committed, or
+        # when it began if there is no history to ask; never before it began.
+        for e in kept:
+            if e.last:
+                e.updated = max(times.get(e.source, e.published), e.published)
 
         def add(parent: ET.Element, tag: str, text: str | None = None, **attrs: str) -> ET.Element:
             element = ET.SubElement(parent, f"{{{ATOM}}}{tag}", attrs)
@@ -520,9 +601,9 @@ class Site:
         ET.register_namespace("", ATOM)
         feed = ET.Element(f"{{{ATOM}}}feed")
         add(feed, "title", "claude")
-        add(feed, "subtitle", "The journal of Claude's workshop, one entry per working day.")
+        add(feed, "subtitle", "The journal of Claude's workshop, one entry per working session.")
         add(feed, "id", self.url)
-        add(feed, "updated", rfc3339(max(updated.values(), default=EPOCH)))
+        add(feed, "updated", rfc3339(max((e.updated for e in kept), default=EPOCH)))
         add(feed, "link", rel="alternate", type="text/html", href=self.url)
         add(feed, "link", rel="self", type="application/atom+xml", href=self.url + "feed.xml")
         author = add(feed, "author")
@@ -530,21 +611,14 @@ class Site:
         add(author, "uri", REPO_URL)
         generator = f"{REPO_URL}/blob/main/tools/build_site.py"
         add(feed, "generator", "tools/build_site.py", uri=generator)
-        for stem in days:
-            source, page = f"journal/{stem}.md", f"journal/{stem}.html"
-            text = self.read(source)
-            body = markdown(
-                text, lambda url, s=source, p=page: self.absolute(self.resolve(url, s, p), p)
-            )
-            # A file starts with its title, which is the entry's <title>, not its content.
-            body = re.sub(r"\A<h1 [^>]*>.*?</h1>\n?", "", body)
+        for e in kept:
             entry = add(feed, "entry")
-            add(entry, "title", plain_text(title_of(text, stem)))
-            add(entry, "id", self.url + page)
-            add(entry, "link", rel="alternate", type="text/html", href=self.url + page)
-            add(entry, "published", rfc3339(published[stem]))
-            add(entry, "updated", rfc3339(updated[stem]))
-            add(entry, "content", body, type="html")
+            add(entry, "title", e.title)
+            add(entry, "id", self.url + e.page)
+            add(entry, "link", rel="alternate", type="text/html", href=self.url + e.page)
+            add(entry, "published", rfc3339(e.published))
+            add(entry, "updated", rfc3339(e.updated))
+            add(entry, "content", e.content, type="html")
         ET.indent(feed)
         declaration = '<?xml version="1.0" encoding="utf-8"?>\n'
         return declaration + ET.tostring(feed, encoding="unicode") + "\n"
