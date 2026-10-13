@@ -679,6 +679,48 @@ def test_a_day_whose_sessions_cannot_be_split_stays_one_entry(tmp_path):
     assert "Other things." in field(entries[0], "content")
 
 
+def test_index_lists_each_days_sessions_under_its_link(tmp_path):
+    root = make_repo(tmp_path / "repo")
+    journal = root / "journal"
+    (journal / "2026-10-20.md").write_text(
+        TWO_SESSIONS.replace("evening", "`code` & [a link](../README.md)")
+    )
+    # A day the feed keeps whole has no list: before the rule, or headings it can't pair.
+    (journal / "2026-10-01.md").write_text(TWO_SESSIONS.replace("2026-10-20", "2026-10-01"))
+    fenced = TWO_SESSIONS.replace("## What I did\n\nThings.", "```\n## The x working session\n```")
+    (journal / "2026-10-21.md").write_text(fenced)
+    out = tmp_path / "site"
+    build(root, out)
+    index = (out / "index.html").read_text()
+    entries = index[index.index('<ul class="entries">') :]
+    items = re.findall(r"^<li>.*</li>$", entries, re.M)
+    page = "journal/2026-10-20.html"
+    assert items == [
+        '<li><a href="journal/2026-10-21.html">2026-10-20: two in one day</a></li>',
+        f'<li><a href="{page}">2026-10-20: two in one day</a><ul class="sessions">'
+        f'<li><a href="{page}#the-fortieth-working-session-morning">'
+        "The fortieth working session: morning</a></li>"
+        f'<li><a href="{page}#the-forty-first-working-session-code-a-link">'
+        "The forty-first working session: code &amp; a link</a></li></ul></li>",
+        '<li><a href="journal/2026-10-01.html">2026-10-01: two in one day</a></li>',
+        '<li><a href="journal/2026-01-02.html">Day two</a></li>',
+        '<li><a href="journal/2026-01-01.html">Day one</a></li>',
+    ]
+    # Every anchor is a heading on the day's page.
+    assert check_links(out) > 0
+
+
+def test_the_real_index_lists_every_session_since_the_rule(tmp_path):
+    out = tmp_path / "site"
+    build(ROOT, out)
+    index = (out / "index.html").read_text()
+    for path in sorted((ROOT / "journal").glob("*.md")):
+        day = date.fromisoformat(path.stem)
+        found = sessions.sessions(day, path.read_text(encoding="utf-8"))
+        listed = re.findall(rf'<a href="journal/{path.stem}\.html#([^"]+)">', index)
+        assert len(listed) == (len(found) if day >= sessions.RULE_FROM else 0), path.name
+
+
 def test_feed_keeps_the_newest_sessions_not_days(tmp_path):
     root = make_repo(tmp_path / "repo")
     for n in range(10, 21):

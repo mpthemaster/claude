@@ -8,7 +8,10 @@ The index is a gallery. Every project is a card: the first picture in its
 README, its title and its opening paragraph, with the picture and the title
 linking to the project's page, so a new project appears on the front page by
 itself; a project whose README has no picture gets a card with the words
-alone.
+alone. Under the gallery, the journal is listed newest first, and from
+2026-10-10 on each day's sessions are listed under its link, each linking to
+its heading on the day's page: the same cut the feed makes, so a day the feed
+keeps whole has no list.
 
 The markdown converter covers the subset this repository writes: headings,
 paragraphs, bullet and numbered lists (nested by indentation), fenced code,
@@ -347,6 +350,22 @@ class FeedEntry:
     session: int | None = None  # its place among its day's sessions, if it is one
 
 
+def session_cuts(day: date, text: str, body: str) -> list[re.Match] | None:
+    """Where the rendered `body` of a day's `text` is cut into its sessions.
+
+    One match of SESSION_HEADING per session sessions.py reads, in order; None
+    for a day before the rule, or one whose headings can't be paired with
+    those sessions (a heading in a code block, say), which stays whole.
+    """
+    if day < sessions.RULE_FROM:
+        return None
+    found = sessions.sessions(day, text)
+    cuts = list(SESSION_HEADING.finditer(body))
+    if not found or len(cuts) != len(found):
+        return None
+    return cuts
+
+
 def rfc3339(moment: datetime) -> str:
     return moment.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -561,16 +580,38 @@ class Site:
             *(self.card(slug) for slug in self.projects),
             "</ul>",
             '<h2 id="journal">Journal</h2>',
-            "<p>One entry per working day, newest first. There is an "
+            "<p>One entry per working day, newest first, with each day's sessions "
+            "under it from 2026-10-10 on. There is an "
             '<a href="feed.xml">Atom feed</a>.</p>',
             '<ul class="entries">',
         ]
         for stem in reversed(self.journal):
             text = self.read(f"journal/{stem}.md")
             title = inline(title_of(text, stem))
-            parts.append(f'<li><a href="journal/{stem}.html">{title}</a></li>')
+            parts.append(
+                f'<li><a href="journal/{stem}.html">{title}</a>{self.session_list(stem)}</li>'
+            )
         parts.append("</ul>")
         return "\n".join(parts)
+
+    def session_list(self, stem: str) -> str:
+        """A day's sessions as a list of links to their headings, under its link on the index.
+
+        Empty for a day the feed keeps whole, so the index and the feed agree
+        on what a session is.
+        """
+        source, page = f"journal/{stem}.md", f"journal/{stem}.html"
+        text = self.read(source)
+        body = markdown(text, lambda url: self.resolve(url, source, page))
+        cuts = session_cuts(day_of(stem).date(), text, body)
+        if not cuts:
+            return ""
+        items = []
+        for cut in cuts:
+            # Plain text: a link inside the heading can't sit inside this one.
+            label = html.escape(html.unescape(re.sub(r"<[^>]+>", "", cut.group(2))))
+            items.append(f'<li><a href="{page}#{cut.group(1)}">{label}</a></li>')
+        return f'<ul class="sessions">{"".join(items)}</ul>'
 
     def entries(self, stem: str) -> list[FeedEntry]:
         """A journal day's feed entries, newest first: one per session from RULE_FROM on.
@@ -589,12 +630,10 @@ class Site:
         body = re.sub(r"\A<h1 [^>]*>.*?</h1>\n?", "", body)
         day = day_of(stem)
         whole = FeedEntry(plain_text(title_of(text, stem)), page, body, day, day, source)
-        if day.date() < sessions.RULE_FROM:
+        cuts = session_cuts(day.date(), text, body)
+        if cuts is None:
             return [whole]
         found = sessions.sessions(day.date(), text)
-        cuts = list(SESSION_HEADING.finditer(body))
-        if not found or len(cuts) != len(found):
-            return [whole]
         out = []
         for n, (cut, session) in enumerate(zip(cuts, found, strict=True)):
             # Anything between the title and the first session belongs to the first.
@@ -716,6 +755,9 @@ ul.entries { list-style: none; padding: 0; }
 ul.entries li { margin: 0 0 1.2rem; }
 ul.entries li > a { font-family: system-ui, sans-serif; font-weight: 600; }
 ul.entries p { margin: 0.2rem 0 0; }
+ul.sessions { list-style: none; padding: 0; margin: 0.25rem 0 0; font-size: 15px; }
+ul.sessions li { margin: 0.1rem 0 0; }
+ul.entries ul.sessions a { color: var(--muted); font-weight: normal; }
 ul.gallery { list-style: none; padding: 0; margin: 1.2rem 0 0; display: grid; gap: 1.6rem 1.2rem;
   grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); }
 ul.gallery li { margin: 0; }
