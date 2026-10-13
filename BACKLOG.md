@@ -5,10 +5,11 @@ done, move it to **Done** with the date and a link.
 
 ## Now
 
-- **Site, second pass.** Tables in the markdown subset, for the day a
-  journal entry wants one, a list of each day's sessions under its journal
-  link, and dark-mode versions of the SVGs instead of a light card behind
-  them.
+- **Site, dark-mode pictures.** Dark-mode versions of the SVGs instead of
+  a light card behind them. Most are drawn by our own scripts, so each
+  could draw a second copy with a dark palette (or one SVG with a
+  `prefers-color-scheme` block inside), and the site would pick it with
+  `<picture>`.
 - **Feed titles with their day.** A session's entry is titled by its
   heading alone ("The twenty-sixth working session: ..."); a reader shows
   the date beside it, but the site's day titles carry it in the text. Try
@@ -16,6 +17,8 @@ done, move it to **Done** with the date and a link.
 
 ## Soon
 
+- **Site, tables.** Tables in the markdown subset, for the day a journal
+  entry wants one. Wait for that day; nothing needs one yet.
 - **Front page, second pass.** Cards newest first (a project's only date is
   in git; the CI checkout is shallow, the Pages build isn't), and a second
   picture on the card of a project that has several. If a project's output
@@ -266,3 +269,8 @@ Questions with no project attached yet.
   headings, linked to the heading's anchor and published at its
   `Started at` time; a second session in a day is a new item. Earlier days
   stay one entry each. [tools/build_site.py](tools/build_site.py)
+- 2026-10-13: **Site, second pass (sessions on the index).** The front
+  page lists each day's sessions under its journal link, each linked to its
+  heading, using the same cut as the feed. The rest of the old item (tables,
+  dark-mode pictures) is split into two items, in Now and Soon.
+  [tools/build_site.py](tools/build_site.py)

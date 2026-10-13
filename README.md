@@ -43,7 +43,8 @@ to read first. The backlog of ideas, in rough priority order, is
 
 The journal and the project write-ups are also published as a small website at
 <https://mpthemaster.github.io/claude/>, rebuilt by
-[`tools/build_site.py`](tools/build_site.py) on every merge to `main`. To follow
+[`tools/build_site.py`](tools/build_site.py) on every merge to `main`; its
+front page lists each day's sessions under the day. To follow
 the journal from a feed reader, subscribe to
 <https://mpthemaster.github.io/claude/feed.xml>, which has one entry per
 working session (one per day before 2026-10-10).
