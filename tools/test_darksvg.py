@@ -24,7 +24,7 @@ CHART = (
 )
 
 
-def test_white_and_black_land_on_the_sites_dark_background_and_text():
+def test_white_and_black_take_the_lightness_of_the_sites_dark_background_and_text():
     assert lightness(dark("#fff")) == pytest.approx(lightness(DARK_BG), abs=0.005)
     assert lightness(dark("#ffffff")) == pytest.approx(lightness(DARK_BG), abs=0.005)
     assert lightness(dark("#000")) == pytest.approx(lightness(DARK_FG), abs=0.005)

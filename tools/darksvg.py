@@ -7,8 +7,9 @@ each, and writes them into the file as a `prefers-color-scheme: dark` block,
 so the browser swaps the palette itself when the reader's system is dark.
 
 A colour's counterpart keeps its hue and chroma and flips its lightness in
-OKLab: white lands on the site's dark background, black on its dark-mode
-text, and in between the flip goes by the square of the lightness, so the
+OKLab: white takes the lightness of the site's dark background, black that
+of its dark-mode text (as greys: the page's slight warmth isn't copied, a
+difference of 3 in one channel), and in between the flip goes by the square of the lightness, so the
 ends swap while the midtones barely move. Text stays bright, gridlines stay
 faint, an accent colour stays about as light as it was (a straight flip
 turned orange into brown), and a light-to-dark ramp becomes a dark-to-light
