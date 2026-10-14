@@ -127,11 +127,13 @@ def palette(svg: str) -> dict[str, str] | None:
     rect = {m.group(1): m.group(3) for m in ATTR.finditer(first.group(1))}
     svg_attrs = {m.group(1): m.group(3) for m in ATTR.finditer(opening.group(0))}
     view = svg_attrs.get("viewBox", "").replace(",", " ").split()
-    full = {"100%", svg_attrs.get("width"), view[2] if len(view) == 4 else None} - {None}
+    wide = {"100%", svg_attrs.get("width"), view[2] if len(view) == 4 else None} - {None}
+    tall = {"100%", svg_attrs.get("height"), view[3] if len(view) == 4 else None} - {None}
     if (
         rect.get("x", "0") != "0"
         or rect.get("y", "0") != "0"
-        or rect.get("width") not in full
+        or rect.get("width") not in wide
+        or rect.get("height") not in tall
         or not HEX.fullmatch(rect.get("fill", ""))
         or lightness(rect["fill"]) < 0.6
     ):

@@ -84,6 +84,8 @@ def test_a_chart_gets_a_rule_for_each_colour_it_uses():
         lambda s: s.replace('fill="#fff"', 'fill="#14151a"'),  # already dark
         lambda s: s.replace('<rect width="100"', '<rect x="5" width="100"'),
         lambda s: s.replace('<rect width="100"', '<rect width="40"'),
+        lambda s: s.replace('height="50" fill="#fff"', 'height="20" fill="#fff"'),
+        lambda s: s.replace(' height="50" fill="#fff"', ' fill="#fff"'),
         lambda s: s.replace('<rect width="100" height="50" fill="#fff"/>\n', ""),
         lambda s: s.replace("<svg", "<g"),
     ],
@@ -96,6 +98,8 @@ def test_a_chart_gets_a_rule_for_each_colour_it_uses():
         "dark",
         "offset",
         "narrow",
+        "short",
+        "no-height",
         "no-bg",
         "not-svg",
     ],
@@ -107,8 +111,10 @@ def test_a_picture_it_cannot_recolour_completely_is_left_alone(change):
     assert darken(svg) is None
 
 
-def test_a_full_size_background_may_be_written_as_a_percentage_or_by_width():
+def test_a_full_size_background_may_be_written_as_a_percentage_or_by_size():
     assert palette(CHART.replace('<rect width="100"', '<rect width="100%"'))
+    percent = '<rect width="100%" height="100%"'
+    assert palette(CHART.replace('<rect width="100" height="50"', percent))
     by_width = CHART.replace('viewBox="0 0 100 50"', 'width="100" height="50"')
     assert palette(by_width)
     assert palette(CHART.replace('stroke="none"', 'stroke="transparent"'))
