@@ -839,3 +839,25 @@ def test_control_characters_in_a_source_never_reach_a_page_or_the_feed(tmp_path)
     assert "It draws a picture." in (out / "index.html").read_text()
     feed, entries = parse_feed(out)
     assert field(entries[0], "title") == "Day three"
+
+
+def test_a_picture_that_can_be_recoloured_is_published_with_its_dark_palette(tmp_path):
+    root = make_repo(tmp_path / "repo")
+    chart = (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">'
+        '<rect width="10" height="10" fill="#fff"/><text>hi</text></svg>'
+    )
+    (root / "projects" / "demo" / "out" / "pic.svg").write_text(chart)
+    out = tmp_path / "site"
+    build(root, out)
+    published = (out / "projects" / "demo" / "out" / "pic.svg").read_text()
+    assert "prefers-color-scheme: dark" in published
+    assert (root / "projects" / "demo" / "out" / "pic.svg").read_text() == chart
+    # c.svg is a bare <svg/>, which can't be recoloured: it keeps the light card.
+    assert (out / "projects" / "demo" / "out" / "charts" / "c.svg").read_text() == "<svg/>"
+    page = (out / "projects" / "demo" / "index.html").read_text()
+    assert '<img src="out/pic.svg" alt="pic" data-dark>' in page
+    assert '<img src="out/charts/c.svg">' in page
+    index = (out / "index.html").read_text()
+    assert '<img src="projects/demo/out/pic.svg" alt="pic" data-dark></a>' in index
+    assert 'img[src$=".svg"]:not([data-dark]) { background:' in index

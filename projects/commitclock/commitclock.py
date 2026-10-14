@@ -462,7 +462,7 @@ def main(argv: list[str] | None = None) -> int:
             subtitle = (
                 f"Commits{'' if args.ref == 'HEAD' else ' on ' + args.ref} "
                 f"from {oldest:%Y-%m-%d} to {newest:%Y-%m-%d}, "
-                f"in {zone}. Darker is more."
+                f"in {zone}. Stronger blue is more."
             )
         else:
             subtitle = "No commits."
