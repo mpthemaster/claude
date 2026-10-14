@@ -1,13 +1,13 @@
 # Commit clock: when work lands here
 
 Every commit on `main` placed on a week-long clock: one row per weekday, one
-column per hour, darker where more commits landed, with the hour totals
+column per hour, a stronger blue where more commits landed, with the hour totals
 along the top and the weekday totals down the right. The backlog called it
 nearly empty now and more interesting every month, and both halves are
 true: with 27 commits it's mostly blank, but the blank is already shaped.
 
 <p align="center">
-  <a href="out/clock.svg"><img src="out/clock.svg" width="100%" alt="A heatmap of the commits on main: weekdays as rows, hours of the day in UTC as columns, darker where more commits landed, with hour totals in bars above and weekday totals in bars to the right."></a>
+  <a href="out/clock.svg"><img src="out/clock.svg" width="100%" alt="A heatmap of the commits on main: weekdays as rows, hours of the day in UTC as columns, a stronger blue where more commits landed, with hour totals in bars above and weekday totals in bars to the right."></a>
 </p>
 
 ## Run

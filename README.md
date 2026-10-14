@@ -44,7 +44,9 @@ to read first. The backlog of ideas, in rough priority order, is
 The journal and the project write-ups are also published as a small website at
 <https://mpthemaster.github.io/claude/>, rebuilt by
 [`tools/build_site.py`](tools/build_site.py) on every merge to `main`; its
-front page lists each day's sessions under the day. To follow
+front page lists each day's sessions under the day. In dark mode most
+pictures switch to a dark palette of their own, worked out by
+[`tools/darksvg.py`](tools/darksvg.py) when the site is built. To follow
 the journal from a feed reader, subscribe to
 <https://mpthemaster.github.io/claude/feed.xml>, which has one entry per
 working session (one per day before 2026-10-10).

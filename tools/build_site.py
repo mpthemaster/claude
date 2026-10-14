@@ -23,6 +23,11 @@ project, its README, or a journal file goes to that page on the site; a link
 into a project's out/ directory goes to the copy the build makes; any other
 file in the repository goes to it on GitHub.
 
+An SVG in a project's out/ directory that tools/darksvg.py can recolour is
+published with its own dark palette inside it, and the pages mark each
+picture of one with `data-dark`; the rest keep a light card behind them in
+dark mode.
+
 feed.xml is an Atom feed of the newest journal sessions, full text with
 absolute links, so the journal can be followed from a reader. From 2026-10-10
 on, when every session has a `## The Nth working session` heading and a start
@@ -50,9 +55,11 @@ import sys
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
+from functools import cached_property
 from pathlib import Path
 from urllib.parse import urljoin
 
+import darksvg
 import sessions
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -541,7 +548,7 @@ class Site:
             pager = f'<nav class="pager">{" ".join(nav)}</nav>' if nav else ""
             pages[page] = layout(title, body + pager, page)
         pages["index.html"] = layout("claude", self.index(), "index.html")
-        return pages
+        return {page: self.mark_dark_pictures(text, page) for page, text in pages.items()}
 
     def card(self, slug: str) -> str:
         """A project's card on the index: its first picture, title and opening paragraph."""
@@ -715,6 +722,36 @@ class Site:
         declaration = '<?xml version="1.0" encoding="utf-8"?>\n'
         return declaration + ET.tostring(feed, encoding="unicode") + "\n"
 
+    @cached_property
+    def dark_pictures(self) -> dict[str, str]:
+        """{site path: the SVG with its own dark palette} for each picture that can have one."""
+        found = {}
+        for path in self.assets():
+            if path.endswith(".svg"):
+                darkened = darksvg.darken(self.read(path))
+                if darkened is not None:
+                    found[path] = darkened
+        return found
+
+    def mark_dark_pictures(self, page_html: str, page: str) -> str:
+        """`page_html` with `data-dark` on each <img> of a picture with its own dark palette."""
+
+        def mark(m: re.Match) -> str:
+            tag = m.group(0)
+            src = attributes(tag).get("src", "")
+            if re.match(r"^([a-z][a-z0-9+.-]*:|/)", src, re.I):
+                return tag
+            src = re.split(r"[?#]", src)[0]
+            path = posixpath.normpath(posixpath.join(posixpath.dirname(page), src))
+            if path not in self.dark_pictures:
+                return tag
+            # Added last, so the tag reads as written up to it; `/>` closes only after
+            # a space or a quote (in `src=a/>` the slash is part of the value).
+            closing = "/>" if re.search(r"""[\s"']/>$""", tag) else ">"
+            return f"{tag[: -len(closing)].rstrip()} data-dark{closing}"
+
+        return IMG.sub(mark, page_html)
+
     def assets(self) -> list[str]:
         """Repository paths copied to the site as they are: each project's out/ files."""
         return sorted(
@@ -731,7 +768,7 @@ STYLE = """
 @media (prefers-color-scheme: dark) {
   :root { --fg: #e8e6e1; --muted: #9a978f; --bg: #17171a; --rule: #2e2e33; --link: #8ab4f8;
     --code: #232327; }
-  img[src$=".svg"] { background: #fdfcf9; border-radius: 4px; }
+  img[src$=".svg"]:not([data-dark]) { background: #fdfcf9; border-radius: 4px; }
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--fg);
@@ -821,7 +858,10 @@ def build(root: Path, out: Path) -> list[str]:
         written.append(path)
     for path in site.assets():
         (out / path).parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(root / path, out / path)
+        if path in site.dark_pictures:
+            (out / path).write_text(site.dark_pictures[path], encoding="utf-8")
+        else:
+            shutil.copyfile(root / path, out / path)
         written.append(path)
     (out / "feed.xml").write_text(site.feed(), encoding="utf-8")
     written.append("feed.xml")

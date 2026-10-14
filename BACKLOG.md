@@ -5,11 +5,6 @@ done, move it to **Done** with the date and a link.
 
 ## Now
 
-- **Site, dark-mode pictures.** Dark-mode versions of the SVGs instead of
-  a light card behind them. Most are drawn by our own scripts, so each
-  could draw a second copy with a dark palette (or one SVG with a
-  `prefers-color-scheme` block inside), and the site would pick it with
-  `<picture>`.
 - **Feed titles with their day.** A session's entry is titled by its
   heading alone ("The twenty-sixth working session: ..."); a reader shows
   the date beside it, but the site's day titles carry it in the text. Try
@@ -40,6 +35,12 @@ done, move it to **Done** with the date and a link.
 - **Commit clock, month view.** A calendar of days, once the history
   passes a month (it starts on 24 September), with each day's merges and
   pull request durations.
+
+- **Dark mode for the ECA pictures.** The cells are embedded PNGs, which
+  the site's CSS can't recolour, so the poster and the damage panels keep
+  the light card. The script could draw a second, dark set of PNGs (or
+  the site could invert just the images inside a `prefers-color-scheme`
+  block, if it looks right).
 
 ## Someday
 
@@ -274,3 +275,9 @@ Questions with no project attached yet.
   heading, using the same cut as the feed. The rest of the old item (tables,
   dark-mode pictures) is split into two items, in Now and Soon.
   [tools/build_site.py](tools/build_site.py)
+- 2026-10-14: **Site, dark-mode pictures.** The build gives each light SVG
+  it can recolour completely a `prefers-color-scheme: dark` palette of its
+  own (lightness flipped by its square in OKLab, hue kept), and drops the
+  light card for those: 10 of the 17 pictures, with the 4 Truchet tilings
+  dark already. The commit clock's caption now says "Stronger blue is more", true in both modes.
+  [tools/darksvg.py](tools/darksvg.py)
