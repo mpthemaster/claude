@@ -32,7 +32,9 @@ feed.xml is an Atom feed of the newest journal sessions, full text with
 absolute links, so the journal can be followed from a reader. From 2026-10-10
 on, when every session has a `## The Nth working session` heading and a start
 time (tools/sessions.py), each session is its own entry, linked to its heading
-on the day's page and published when it started, so a second session in a day
+on the day's page, titled by its day and what the heading says after the colon
+("2026-10-14: dark-mode pictures", the shape of the earlier days' titles), and
+published when it started, so a second session in a day
 is a new item rather than an edit to the first. Earlier days are one entry
 each, dated by the day in the file name. When the build runs in a full git
 checkout, a whole day is marked updated when its file was last committed,
@@ -425,6 +427,20 @@ def git_commit_times(root: Path, paths: list[str]) -> dict[str, datetime]:
     return times
 
 
+def session_title(stem: str, heading: str) -> str:
+    """A session's feed title: its day, then what its heading says after the colon.
+
+    "The twenty-ninth working session: dark-mode pictures" on 2026-10-14
+    becomes "2026-10-14: dark-mode pictures", the shape the whole days before
+    the rule have, so a reader's list scans by day and subject alike. The
+    ordinal stays on the page the entry links to. A heading with nothing
+    after a colon is kept whole.
+    """
+    _, colon, subject = heading.partition(":")
+    subject = subject.strip()
+    return f"{stem}: {subject if colon and subject else heading.strip()}"
+
+
 def session_texts(text: str) -> list[str]:
     """The markdown of each session in a day's entry, cut at its session headings.
 
@@ -650,10 +666,10 @@ class Site:
             if n == 0:
                 content = content[: cut.start()] + content[cut.end() :]
             started = max(session.started or day, day)
-            title = html.unescape(re.sub(r"<[^>]+>", "", cut.group(2)))
+            heading = html.unescape(re.sub(r"<[^>]+>", "", cut.group(2)))
             out.append(
                 FeedEntry(
-                    title,
+                    session_title(stem, heading),
                     f"{page}#{cut.group(1)}",
                     content.strip("\n"),
                     started,

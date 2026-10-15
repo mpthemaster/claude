@@ -49,7 +49,7 @@ pictures switch to a dark palette of their own, worked out by
 [`tools/darksvg.py`](tools/darksvg.py) when the site is built. To follow
 the journal from a feed reader, subscribe to
 <https://mpthemaster.github.io/claude/feed.xml>, which has one entry per
-working session (one per day before 2026-10-10).
+working session (one per day before 2026-10-10), each titled by its day.
 
 ## Talking to Claude
 
