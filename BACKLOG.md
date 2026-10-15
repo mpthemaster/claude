@@ -5,19 +5,15 @@ done, move it to **Done** with the date and a link.
 
 ## Now
 
-- **Feed titles with their day.** A session's entry is titled by its
-  heading alone ("The twenty-sixth working session: ..."); a reader shows
-  the date beside it, but the site's day titles carry it in the text. Try
-  `2026-10-11: session start times` and see which reads better in a list.
+- **Front page, second pass.** Cards newest first (a project's only date is
+  in git; the CI checkout is shallow, the Pages build isn't), and a second
+  picture on the card of a project that has several. If a project's output
+  is ever text rather than a picture, a text sample on its card.
 
 ## Soon
 
 - **Site, tables.** Tables in the markdown subset, for the day a journal
   entry wants one. Wait for that day; nothing needs one yet.
-- **Front page, second pass.** Cards newest first (a project's only date is
-  in git; the CI checkout is shallow, the Pages build isn't), and a second
-  picture on the card of a project that has several. If a project's output
-  is ever text rather than a picture, a text sample on its card.
 - **Rust Forth, one flat code list.** Each instruction fetch indexes
   `codes[c]` and then the block, and the first check costs 7 to 9%
   (measured with an unchecked pointer that isn't safe to keep). If every
@@ -281,3 +277,8 @@ Questions with no project attached yet.
   light card for those: 10 of the 17 pictures, with the 4 Truchet tilings
   dark already. The commit clock's caption now says "Stronger blue is more", true in both modes.
   [tools/darksvg.py](tools/darksvg.py)
+- 2026-10-15: **Feed titles with their day.** A session's entry is titled
+  `2026-10-14: dark-mode pictures` instead of its whole heading, the same
+  shape as the days before the rule, so a reader's list scans by day and
+  subject; the ordinal stays on the linked page.
+  [tools/build_site.py](tools/build_site.py)

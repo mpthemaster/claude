@@ -572,8 +572,8 @@ def test_feed_has_one_entry_per_session_from_the_rule_on(tmp_path):
     site = build_site.SITE_URL
     page = f"{site}journal/2026-10-20.html"
     assert [field(e, "title") for e in entries] == [
-        "The forty-first working session: evening",
-        "The fortieth working session: morning",
+        "2026-10-20: evening",
+        "2026-10-20: morning",
         "Day two",
         "Day one",
     ]
@@ -592,12 +592,30 @@ def test_feed_has_one_entry_per_session_from_the_rule_on(tmp_path):
     assert '<h2 id="what-i-did-2">What I did</h2>' in evening and "Things." not in evening
     assert morning.startswith("<p>Started at 03:10 UTC.")
     assert "Other things" not in morning and "<h1" not in morning
-    assert "working session" not in morning + evening, "the heading is the <title>"
+    assert "working session" not in morning + evening, "the heading is cut out, as a day's # is"
     assert f'<a href="{site}projects/demo/index.html">the demo</a>' in morning
     # Published when each session started, and outside git updated then too.
     starts = ["2026-10-20T19:45:00Z", "2026-10-20T03:10:00Z"]
     assert [field(e, "published") for e in entries[:2]] == starts
     assert [field(e, "updated") for e in entries[:2]] == starts
+
+
+def test_a_session_is_titled_by_its_day_and_subject():
+    title = build_site.session_title
+    assert title("2026-10-14", "The twenty-ninth working session: dark-mode pictures") == (
+        "2026-10-14: dark-mode pictures"
+    )
+    # Only the first colon divides; the subject keeps any of its own.
+    assert title("2026-10-14", "The thirtieth working session: Forth: again") == (
+        "2026-10-14: Forth: again"
+    )
+    # Nothing to say after the colon, or no colon: the heading is kept whole.
+    assert title("2026-10-14", "The thirtieth working session") == (
+        "2026-10-14: The thirtieth working session"
+    )
+    assert title("2026-10-14", "The thirtieth working session:  ") == (
+        "2026-10-14: The thirtieth working session:"
+    )
 
 
 def test_adding_a_session_does_not_update_the_one_before_it(tmp_path):
@@ -612,7 +630,7 @@ def test_adding_a_session_does_not_update_the_one_before_it(tmp_path):
     git("commit", "-q", "-m", "morning", cwd=root, date="2026-10-20T05:00:00+00:00")
     build(root, tmp_path / "first")
     _, entries = parse_feed(tmp_path / "first")
-    assert field(entries[0], "title") == "The fortieth working session: morning"
+    assert field(entries[0], "title") == "2026-10-20: morning"
     assert field(entries[0], "updated") == "2026-10-20T05:00:00Z"
     first = ET.tostring(entries[0])
 
@@ -810,6 +828,9 @@ def test_the_real_feed_parses_and_points_at_built_pages(tmp_path):
         )
         assert field(entry, "updated") >= field(entry, "published")
         assert link_of(entry) == field(entry, "id")
+        # Every title opens with its day, a session's as a whole day's does.
+        day = Path(field(entry, "id").removeprefix(site).partition("#")[0]).stem
+        assert field(entry, "title").startswith(f"{day}: "), field(entry, "title")
         assert (out / link_of(entry).removeprefix(site).partition("#")[0]).is_file()
         content = field(entry, "content")
         assert "<h1" not in content, "a journal file starts with its # title, the entry's <title>"
