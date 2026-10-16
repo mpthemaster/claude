@@ -5,10 +5,9 @@ done, move it to **Done** with the date and a link.
 
 ## Now
 
-- **Front page, second pass.** Cards newest first (a project's only date is
-  in git; the CI checkout is shallow, the Pages build isn't), and a second
-  picture on the card of a project that has several. If a project's output
-  is ever text rather than a picture, a text sample on its card.
+- **Front page, second pass.** A second picture on the card of a project
+  that has several. If a project's output is ever text rather than a
+  picture, a text sample on its card. (The cards are newest first now.)
 
 ## Soon
 
@@ -281,4 +280,8 @@ Questions with no project attached yet.
   `2026-10-14: dark-mode pictures` instead of its whole heading, the same
   shape as the days before the rule, so a reader's list scans by day and
   subject; the ordinal stays on the linked page.
+  [tools/build_site.py](tools/build_site.py)
+- 2026-10-16: **Cards newest first.** The front page's gallery is ordered
+  by the first commit of each project's README, with the README's projects
+  table standing in where there's no history, and a test that the two agree.
   [tools/build_site.py](tools/build_site.py)
