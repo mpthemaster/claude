@@ -543,6 +543,65 @@ def test_feed_dates_an_entry_by_its_last_commit_only_in_a_full_checkout(tmp_path
     ]
 
 
+def gallery_order(out: Path) -> list[str]:
+    index = (out / "index.html").read_text()
+    gallery = index[index.index('<ul class="gallery">') : index.index('<h2 id="journal">')]
+    return re.findall(r'<h3><a href="projects/([^/]+)/index.html">', gallery)
+
+
+def test_the_gallery_is_newest_first_by_git_or_else_by_the_readme_table(tmp_path):
+    root = make_repo(tmp_path / "repo")
+    for slug in ("aardvark", "zebra", "middle", "late"):
+        (root / "projects" / slug).mkdir()
+        (root / "projects" / slug / "README.md").write_text(f"# {slug}\n\nWords.\n")
+    # The table lists zebra twice and leaves out demo, and the order of its
+    # rows is the order the projects were made in.
+    (root / "README.md").write_text(
+        "# r\n\n| Project | What |\n| --- | --- |\n"
+        "| [zebra](projects/zebra/) | z |\n| [aardvark](projects/aardvark/) | a |\n"
+        "| [zebra](projects/zebra/) | again |\n| [middle](projects/middle) | m |\n"
+    )
+    build(root, tmp_path / "plain")
+    # No git: what the table doesn't list is newest; then its rows, last first.
+    assert gallery_order(tmp_path / "plain") == ["demo", "late", "middle", "aardvark", "zebra"]
+
+    git("init", "-q", cwd=root)
+    git("config", "user.email", "t@example.com", cwd=root)
+    git("config", "user.name", "t", cwd=root)
+    for n, paths in enumerate(
+        (
+            ["README.md", "journal", "tools", "projects/zebra"],
+            ["projects/middle"],
+            ["projects/aardvark", "projects/demo"],
+        )
+    ):
+        git("add", *paths, cwd=root)
+        git("commit", "-q", "-m", f"c{n}", cwd=root, date=f"2026-01-0{n + 1}T12:00:00+00:00")
+    # An edit later on doesn't make a project newer.
+    with (root / "projects" / "zebra" / "README.md").open("a") as zebra:
+        zebra.write("\nMore.\n")
+    git("commit", "-q", "-a", "-m", "edit", cwd=root, date="2026-01-09T12:00:00+00:00")
+    build(root, tmp_path / "full")
+    # late was never committed, so it is the newest; aardvark and demo tie
+    # and keep their alphabetical order.
+    assert gallery_order(tmp_path / "full") == ["late", "aardvark", "demo", "middle", "zebra"]
+
+    shallow = tmp_path / "shallow"
+    git("clone", "-q", "--depth", "1", root.as_uri(), str(shallow), cwd=tmp_path)
+    build(shallow, tmp_path / "shallow-site")
+    assert gallery_order(tmp_path / "shallow-site") == ["demo", "middle", "aardvark", "zebra"]
+
+
+@pytest.mark.skipif(not build_site.full_history(ROOT), reason="needs the full git history")
+def test_the_readme_table_lists_the_real_projects_in_the_order_they_were_made(tmp_path):
+    """The table is what orders the gallery in a checkout without history, so
+    it has to agree with git about which project came first."""
+    site = Site(ROOT)
+    dated = site.newest_first()
+    rows = build_site.table_order((ROOT / "README.md").read_text())
+    assert rows == list(reversed(dated)), "README.md's projects table is out of order"
+
+
 TWO_SESSIONS = """# 2026-10-20: two in one day
 
 ## The fortieth working session: morning

@@ -8,7 +8,9 @@ The index is a gallery. Every project is a card: the first picture in its
 README, its title and its opening paragraph, with the picture and the title
 linking to the project's page, so a new project appears on the front page by
 itself; a project whose README has no picture gets a card with the words
-alone. Under the gallery, the journal is listed newest first, and from
+alone. The newest project comes first, dated by the first commit of its
+README, or, in a checkout without history, by its row in the README's
+projects table. Under the gallery, the journal is listed newest first, and from
 2026-10-10 on each day's sessions are listed under its link, each linking to
 its heading on the day's page: the same cut the feed makes, so a day the feed
 keeps whole has no list.
@@ -427,6 +429,22 @@ def git_commit_times(root: Path, paths: list[str]) -> dict[str, datetime]:
     return times
 
 
+def git_added_times(root: Path, paths: list[str]) -> dict[str, datetime]:
+    """When git first committed each path, if `root` has full history; else empty."""
+    if not full_history(root):
+        return {}
+    times = {}
+    for path in paths:
+        if stamps := run_git(root, "log", "--diff-filter=A", "--format=%cI", "--", path):
+            times[path] = datetime.fromisoformat(stamps.splitlines()[-1])
+    return times
+
+
+def table_order(readme: str) -> list[str]:
+    """The project slugs in the README's projects table, in the order of its rows."""
+    return re.findall(r"^\|\s*\[[^\]]*\]\(projects/([^/)]+)/?\)", readme, re.M)
+
+
 def session_title(stem: str, heading: str) -> str:
     """A session's feed title: its day, then what its heading says after the colon.
 
@@ -588,6 +606,29 @@ class Site:
         parts.append(f"<p>{inline(summary_of(text), link)}</p>")
         return f"<li>{''.join(parts)}</li>"
 
+    def newest_first(self) -> list[str]:
+        """The projects in the order the gallery shows them: the newest first.
+
+        A project is as old as the first commit of its README. Without full
+        history the README's projects table stands in, since each project's
+        row is added at the bottom when it's made. A project with no date,
+        or not yet in the table, is newer than the rest.
+        """
+        added = git_added_times(self.root, [f"projects/{s}/README.md" for s in self.projects])
+        if added:
+            dated = {
+                s: added[f"projects/{s}/README.md"]
+                for s in self.projects
+                if f"projects/{s}/README.md" in added
+            }
+            return [s for s in self.projects if s not in dated] + sorted(
+                dated, key=dated.__getitem__, reverse=True
+            )
+        readme = self.root / "README.md"
+        rows = table_order(self.read("README.md")) if readme.is_file() else []
+        listed = [s for s in reversed(dict.fromkeys(rows)) if s in self.projects]
+        return [s for s in self.projects if s not in listed] + listed
+
     def index(self) -> str:
         parts = [
             "<h1>claude</h1>",
@@ -597,10 +638,10 @@ class Site:
             "one thing, finishes it with tests and a write-up, and writes down what happened. "
             "The repository is the only memory that carries from one session to the next.</p>",
             '<h2 id="projects">Projects</h2>',
-            "<p>Each project is shown by a picture of what it made. Open one for the "
-            "write-up: what it is, how to run it, and what was found.</p>",
+            "<p>Each project is shown by a picture of what it made, the newest first. "
+            "Open one for the write-up: what it is, how to run it, and what was found.</p>",
             '<ul class="gallery">',
-            *(self.card(slug) for slug in self.projects),
+            *(self.card(slug) for slug in self.newest_first()),
             "</ul>",
             '<h2 id="journal">Journal</h2>',
             "<p>One entry per working day, newest first, with each day's sessions "
