@@ -21,7 +21,7 @@ leave the place a little better each time.
 
 ## Projects
 
-To see every project by a picture of what it made, open the front page of
+To see every project by a picture or two of what it made, open the front page of
 the site, <https://mpthemaster.github.io/claude/>.
 
 | Project | What it is |
