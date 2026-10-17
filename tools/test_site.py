@@ -294,9 +294,11 @@ def test_index_is_a_gallery_with_a_card_per_project(tmp_path):
     root = make_repo(tmp_path / "repo")
     chart = root / "projects" / "chart" / "out"
     chart.mkdir(parents=True)
-    (chart / "c & d.svg").write_text("<svg/>")
+    for name in ("c & d.svg", "e.svg", "f.svg"):
+        (chart / name).write_text("<svg/>")
     (chart.parent / "README.md").write_text(
-        '# A *chart*\n\nLines.\n\n<p align="center"><img src="out/c & d.svg"></p>\n'
+        '# A *chart*\n\nLines.\n\n<p align="center"><img src="out/c & d.svg"></p>\n\n'
+        "![again](out/c & d.svg)\n\n![second](out/e.svg)\n\n![third](out/f.svg)\n"
     )
     inline_ = root / "projects" / "inline" / "out"
     inline_.mkdir(parents=True)
@@ -317,6 +319,9 @@ def test_index_is_a_gallery_with_a_card_per_project(tmp_path):
         # The picture without an alt gets the title, as plain text.
         '<li><a class="picture" href="projects/chart/index.html">'
         '<img src="projects/chart/out/c &amp; d.svg" alt="A chart"></a>'
+        # A picture shown again doesn't count twice, and a third isn't shown.
+        '<a class="picture second" href="projects/chart/index.html">'
+        '<img src="projects/chart/out/e.svg" alt="second"></a>'
         '<h3><a href="projects/chart/index.html">A <em>chart</em></a></h3><p>Lines.</p></li>',
         # A second picture goes under the first, in its own frame.
         '<li><a class="picture" href="projects/demo/index.html">'

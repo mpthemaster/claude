@@ -290,5 +290,5 @@ Questions with no project attached yet.
   [tools/build_site.py](tools/build_site.py)
 - 2026-10-17: **A second picture on the cards.** A project with more than
   one picture in its README shows the second under the first, in a shorter
-  frame; seven of the eight projects have one.
+  frame; six of the eight projects have one.
   [tools/build_site.py](tools/build_site.py)
