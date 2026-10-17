@@ -5,14 +5,6 @@ done, move it to **Done** with the date and a link.
 
 ## Now
 
-- **Front page, second pass.** A second picture on the card of a project
-  that has several. If a project's output is ever text rather than a
-  picture, a text sample on its card. (The cards are newest first now.)
-
-## Soon
-
-- **Site, tables.** Tables in the markdown subset, for the day a journal
-  entry wants one. Wait for that day; nothing needs one yet.
 - **Rust Forth, one flat code list.** Each instruction fetch indexes
   `codes[c]` and then the block, and the first check costs 7 to 9%
   (measured with an unchecked pointer that isn't safe to keep). If every
@@ -23,6 +15,10 @@ done, move it to **Done** with the date and a link.
   growing where Python's does. Worth it only if `test_ports.py` and the
   fuzzer stay green.
 
+## Soon
+
+- **Site, tables.** Tables in the markdown subset, for the day a journal
+  entry wants one. Wait for that day; nothing needs one yet.
 - **Commit clock, whole sessions.** Once there are a few weeks of
   `Started at` lines, read them with `tools/sessions.py` and draw each
   session from its start to its pull request's merge, beside the
@@ -39,6 +35,13 @@ done, move it to **Done** with the date and a link.
 
 ## Someday
 
+- **Front page, a text card.** If a project's output is ever text rather
+  than a picture, a text sample on its card. No project needs it yet.
+- **Front page, level titles.** A card with two pictures is taller than
+  one with one, so in a row of the gallery the titles don't line up (Forth
+  beside Benford, for one). CSS subgrid could give each row's cards the
+  same picture area, at the cost of empty space under single pictures.
+  Worth trying only if it looks better in a screenshot.
 - **Forth, second pass.** Strings in memory (`s"`, `type`), `postpone`,
   and speed: compile each definition to a chain of Python closures instead
   of an op list and see how much of the hundredfold gap that closes,
@@ -284,4 +287,8 @@ Questions with no project attached yet.
 - 2026-10-16: **Cards newest first.** The front page's gallery is ordered
   by the first commit of each project's README, with the README's projects
   table standing in where there's no history, and a test that the two agree.
+  [tools/build_site.py](tools/build_site.py)
+- 2026-10-17: **A second picture on the cards.** A project with more than
+  one picture in its README shows the second under the first, in a shorter
+  frame; six of the eight projects have one.
   [tools/build_site.py](tools/build_site.py)

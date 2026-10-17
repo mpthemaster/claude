@@ -178,24 +178,22 @@ def test_summary_skips_title_and_pictures():
     assert build_site.summary_of(text) == "See for the result."
 
 
-def test_first_image_is_the_first_picture_shown_not_one_in_code_or_a_comment():
+def test_images_are_the_pictures_shown_not_ones_in_code_or_a_comment():
     text = (
         '# T\n\n```html\n<img src="in-code.svg">\n```\n\n<!-- <img src="hidden.svg"> -->\n\n'
         '<p align="center">\n  <img alt=\'x "&amp;" y\' src="out/a.svg">\n</p>\n\n'
-        "![second](out/b.svg)\n"
+        "![second](out/b.svg)\n\n![again](out/a.svg)\n"
     )
     html = markdown(text, lambda url: "../" + url)
-    assert build_site.first_image(html) == ("../out/a.svg", 'x "&" y')
-    assert build_site.first_image(markdown("![pic](out/p.svg)")) == ("out/p.svg", "pic")
-    assert build_site.first_image(markdown("# T\n\nwords only\n")) is None
-    assert build_site.first_image("<img alt='no source'> <IMG SRC='b.svg'>") == ("b.svg", "")
-    assert build_site.first_image('<img alt="n > 3" src="out/g.svg">') == ("out/g.svg", "n > 3")
-    assert build_site.first_image("<img src=out/a.svg alt=x data-src=lazy.svg>") == (
-        "out/a.svg",
-        "x",
-    )
-    assert build_site.first_image('<img src="" alt="soon"> <img src="b.svg">') == ("b.svg", "")
-    assert build_site.first_image('<img src = "out/p.svg" alt = x>') == ("out/p.svg", "x")
+    # In order, and a picture shown twice is listed where it first appears.
+    assert build_site.images(html) == [("../out/a.svg", 'x "&" y'), ("../out/b.svg", "second")]
+    assert build_site.images(markdown("![pic](out/p.svg)")) == [("out/p.svg", "pic")]
+    assert build_site.images(markdown("# T\n\nwords only\n")) == []
+    assert build_site.images("<img alt='no source'> <IMG SRC='b.svg'>") == [("b.svg", "")]
+    assert build_site.images('<img alt="n > 3" src="out/g.svg">') == [("out/g.svg", "n > 3")]
+    assert build_site.images("<img src=out/a.svg alt=x data-src=lazy.svg>") == [("out/a.svg", "x")]
+    assert build_site.images('<img src="" alt="soon"> <img src="b.svg">') == [("b.svg", "")]
+    assert build_site.images('<img src = "out/p.svg" alt = x>') == [("out/p.svg", "x")]
 
 
 # --- links and the site -------------------------------------------------
@@ -296,9 +294,11 @@ def test_index_is_a_gallery_with_a_card_per_project(tmp_path):
     root = make_repo(tmp_path / "repo")
     chart = root / "projects" / "chart" / "out"
     chart.mkdir(parents=True)
-    (chart / "c & d.svg").write_text("<svg/>")
+    for name in ("c & d.svg", "e.svg", "f.svg"):
+        (chart / name).write_text("<svg/>")
     (chart.parent / "README.md").write_text(
-        '# A *chart*\n\nLines.\n\n<p align="center"><img src="out/c & d.svg"></p>\n'
+        '# A *chart*\n\nLines.\n\n<p align="center"><img src="out/c & d.svg"></p>\n\n'
+        "![again](out/c & d.svg)\n\n![second](out/e.svg)\n\n![third](out/f.svg)\n"
     )
     inline_ = root / "projects" / "inline" / "out"
     inline_.mkdir(parents=True)
@@ -319,9 +319,15 @@ def test_index_is_a_gallery_with_a_card_per_project(tmp_path):
         # The picture without an alt gets the title, as plain text.
         '<li><a class="picture" href="projects/chart/index.html">'
         '<img src="projects/chart/out/c &amp; d.svg" alt="A chart"></a>'
+        # A picture shown again doesn't count twice, and a third isn't shown.
+        '<a class="picture second" href="projects/chart/index.html">'
+        '<img src="projects/chart/out/e.svg" alt="second"></a>'
         '<h3><a href="projects/chart/index.html">A <em>chart</em></a></h3><p>Lines.</p></li>',
+        # A second picture goes under the first, in its own frame.
         '<li><a class="picture" href="projects/demo/index.html">'
         '<img src="projects/demo/out/pic.svg" alt="pic"></a>'
+        '<a class="picture second" href="projects/demo/index.html">'
+        '<img src="projects/demo/out/charts/c.svg" alt="The demo"></a>'
         '<h3><a href="projects/demo/index.html">The demo</a></h3><p>It draws a picture.</p></li>',
         # A picture inside the opening paragraph is the card's picture, not part of its words.
         '<li><a class="picture" href="projects/inline/index.html">'
@@ -392,20 +398,21 @@ def test_the_real_repository_builds_with_no_broken_links(tmp_path):
 
 
 def check_card_picture(out: Path, index: str, slug: str) -> None:
-    """The project's card on the built index shows a picture copied from its out/."""
-    card = re.search(
-        rf'<a class="picture" href="projects/{slug}/index.html">'
-        r'<img src="([^"]+)" alt="([^"]+)"',
+    """The project's card on the built index shows pictures copied from its out/."""
+    pictures = re.findall(
+        rf'<a class="picture(?: second)?" href="projects/{slug}/index.html">'
+        r'<img src="([^"]+)" alt="[^"]+"',
         index,
     )
-    assert card, f"projects/{slug}/README.md has no picture for its card on the front page"
-    # The attribute is HTML; the file is what it names once unescaped, less any fragment.
-    src = unescape(card.group(1)).partition("#")[0]
-    assert src.startswith(f"projects/{slug}/out/"), (
-        f"the first picture in projects/{slug}/README.md must be a file in its out/ "
-        f"directory, so the site can copy it; it is {card.group(1)}"
-    )
-    assert (out / src).is_file(), f"{src} was not copied into the site"
+    assert pictures, f"projects/{slug}/README.md has no picture for its card on the front page"
+    for n, shown in zip(("first", "second"), pictures, strict=False):
+        # The attribute is HTML; the file is what it names once unescaped, less any fragment.
+        src = unescape(shown).partition("#")[0]
+        assert src.startswith(f"projects/{slug}/out/"), (
+            f"the {n} picture in projects/{slug}/README.md must be a file in its out/ "
+            f"directory, so the site can copy it; it is {shown}"
+        )
+        assert (out / src).is_file(), f"{src} was not copied into the site"
 
 
 def test_every_real_project_has_a_picture_on_the_front_page(tmp_path):

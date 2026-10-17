@@ -5,13 +5,14 @@ page per journal day, and one page per project with its pictures. The Pages
 workflow in .github/workflows/pages.yml runs this on every push to main.
 
 The index is a gallery. Every project is a card: the first picture in its
-README, its title and its opening paragraph, with the picture and the title
-linking to the project's page, so a new project appears on the front page by
-itself; a project whose README has no picture gets a card with the words
-alone. The newest project comes first, dated by the first commit of its
-README, or, in a checkout without history, by its row in the README's
-projects table. Under the gallery, the journal is listed newest first, and from
-2026-10-10 on each day's sessions are listed under its link, each linking to
+README, under it in a shorter frame the second if there is one, its title
+and its opening paragraph, with the pictures and the title linking to the
+project's page, so a new project appears on the front page by itself; a
+project whose README has no picture gets a card with the words alone. The
+newest project comes first, dated by the first commit of its README, or, in a
+checkout without history, by its row in the README's projects table. Under
+the gallery, the journal is listed newest first, and from 2026-10-10 on each
+day's sessions are listed under its link, each linking to
 its heading on the day's page: the same cut the feed makes, so a day the feed
 keeps whole has no list.
 
@@ -328,17 +329,19 @@ def attributes(tag: str) -> dict[str, str]:
     return found
 
 
-def first_image(rendered: str) -> tuple[str, str] | None:
-    """(src, alt) of the first picture in rendered HTML, as plain text, or None.
+def images(rendered: str) -> list[tuple[str, str]]:
+    """(src, alt) of each picture in rendered HTML, in order, as plain text.
 
     A picture inside a code block is escaped text there, and one inside an
     HTML comment isn't shown, so neither counts; nor does one with no source.
+    A picture shown twice is listed once, where it first appears.
     """
+    found: dict[str, str] = {}
     for tag in IMG.finditer(COMMENT.sub("", rendered)):
         attrs = attributes(tag.group(0))
         if attrs.get("src"):
-            return attrs["src"], attrs.get("alt", "")
-    return None
+            found.setdefault(attrs["src"], attrs.get("alt", ""))
+    return list(found.items())
 
 
 # --- the feed -----------------------------------------------------------
@@ -585,7 +588,7 @@ class Site:
         return {page: self.mark_dark_pictures(text, page) for page, text in pages.items()}
 
     def card(self, slug: str) -> str:
-        """A project's card on the index: its first picture, title and opening paragraph."""
+        """A project's card on the index: its first two pictures, title and opening paragraph."""
         source, page = f"projects/{slug}/README.md", "index.html"
         text = self.read(source)
 
@@ -595,11 +598,10 @@ class Site:
         href = f"projects/{slug}/index.html"
         title = title_of(text, slug)
         parts = []
-        if image := first_image(markdown(text, link)):
-            src, alt = image
+        for n, (src, alt) in enumerate(images(markdown(text, link))[:2]):
             alt = html.escape(alt or plain_text(title), quote=True)
             parts.append(
-                f'<a class="picture" href="{href}">'
+                f'<a class="picture{" second" if n else ""}" href="{href}">'
                 f'<img src="{html.escape(src, quote=True)}" alt="{alt}"></a>'
             )
         parts.append(f'<h3><a href="{href}">{inline(title)}</a></h3>')
@@ -859,6 +861,7 @@ ul.gallery .picture { display: block; aspect-ratio: 4 / 3; overflow: hidden; bor
   border: 1px solid var(--rule); background: var(--code); }
 ul.gallery .picture img { display: block; width: 100%; height: 100%; object-fit: contain;
   border-radius: 0; }
+ul.gallery .picture.second { aspect-ratio: 2 / 1; margin-top: 0.5rem; }
 ul.gallery h3 { font-size: 1.05rem; margin: 0.7rem 0 0.15rem; }
 ul.gallery p { margin: 0; font-size: 15px; display: -webkit-box; -webkit-box-orient: vertical;
   -webkit-line-clamp: 5; overflow: hidden; }
