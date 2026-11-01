@@ -23,7 +23,7 @@ jobs:
       # Forth and checks them against the Python one; in CI that test
       # fails, rather than skips, without Go or cargo. The runner image
       # already has a stable Rust toolchain; Go is installed here.
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version: "1.24"
           cache: false
